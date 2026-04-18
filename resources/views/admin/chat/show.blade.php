@@ -217,6 +217,10 @@
                     $voucherCode = $message->metadata['voucher_code'] ?? '---';
                     $voucherHours = $message->metadata['voucher_hours'] ?? 12;
                     $activateUrl = $message->metadata['activate_url'] ?? url('/voucher/ativar');
+                    // Corrigir URLs localhost que foram salvas em dev
+                    if (str_contains($activateUrl, 'localhost')) {
+                        $activateUrl = rtrim(config('app.url', 'https://www.tocantinstransportewifi.com.br'), '/') . '/voucher/ativar';
+                    }
                     $voucherExpires = isset($message->metadata['expires_at']) ? \Carbon\Carbon::parse($message->metadata['expires_at']) : null;
                 @endphp
                 <div class="flex justify-center chat-message-enter">

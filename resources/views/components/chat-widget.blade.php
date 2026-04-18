@@ -466,7 +466,11 @@
         div.className = 'flex justify-start chat-message-enter';
         const code = meta.voucher_code || '---';
         const hours = meta.voucher_hours || 12;
-        const url = meta.activate_url || '/voucher/ativar';
+        let url = meta.activate_url || '/voucher/ativar';
+        // Corrigir URLs localhost salvas em dev
+        if (url.includes('localhost')) {
+            url = window.location.origin + '/voucher/ativar';
+        }
         div.innerHTML = `
             <div class="max-w-[92%] w-full bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-300 rounded-xl p-3 shadow-sm">
                 <div class="flex items-center gap-2 mb-2">
