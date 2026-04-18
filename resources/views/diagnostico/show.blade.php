@@ -155,18 +155,25 @@
         }
     }
 
-    // Teste 2: DNS resolvendo (fetch direto a IP público conhecido sem CORS)
+    // Teste 2: DNS resolvendo (resolve domínio real via fetch)
     async function testDns() {
         setStep('dns', 'running');
-        // Tenta carregar uma imagem 1x1 do Cloudflare — se resolve DNS e conecta, sucesso.
-        // Usamos Image pois não sofre CORS (só precisamos saber se carregou)
-        const ok = await new Promise(resolve => {
-            const img = new Image();
-            const timer = setTimeout(() => { img.src = ''; resolve(false); }, 5000);
-            img.onload = () => { clearTimeout(timer); resolve(true); };
-            img.onerror = () => { clearTimeout(timer); resolve(false); };
-            img.src = 'https://1.1.1.1/cdn-cgi/trace?_=' + Date.now();
-        });
+        let ok = false;
+        try {
+            // Fetch real a um domínio que precisa de resolução DNS.
+            // Se o DNS do MikroTik/Starlink funciona, resolve "one.one.one.one" → 1.1.1.1
+            // e retorna resposta. Se DNS falha, o fetch dá timeout/erro de rede.
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 5000);
+            const res = await fetch('https://one.one.one.one/cdn-cgi/trace', {
+                cache: 'no-store',
+                signal: controller.signal
+            });
+            clearTimeout(timer);
+            ok = res.ok;
+        } catch (e) {
+            ok = false;
+        }
         setStep('dns', ok ? 'done' : 'failed', ok ? 'OK' : 'falhou');
         return ok;
     }
