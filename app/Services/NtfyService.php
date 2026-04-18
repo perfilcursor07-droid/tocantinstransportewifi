@@ -38,8 +38,12 @@ class NtfyService
                 $headers['Tags'] = implode(',', $tags);
             }
 
+            // IMPORTANTE: usar withBody() com text/plain para preservar quebras de linha reais.
+            // Se passarmos a string direto em ->post(), o Laravel serializa como JSON e o "\n"
+            // chega literal no app — quebrando o layout no celular.
             $response = Http::withHeaders($headers)
-                ->post("{$this->serverUrl}/{$this->topic}", $message);
+                ->withBody($message, 'text/plain; charset=utf-8')
+                ->post("{$this->serverUrl}/{$this->topic}");
 
             if ($response->successful()) {
                 Log::info("Ntfy: notificação enviada - {$title}");
@@ -61,13 +65,27 @@ class NtfyService
     }
 
     /**
-     * Notificação específica de pagamento confirmado
+     * Notificação específica de pagamento confirmado.
+     * Layout otimizado para o app ntfy no celular:
+     *  - Título curto e com valor em destaque (aparece na tela de bloqueio).
+     *  - Corpo com uma informação por linha, sem caracteres supérfluos.
      */
     public function notifyPaymentCompleted(string $userName, string $amount, string $method, ?string $busName = null): bool
     {
-        $busInfo = $busName ? " | Bus: {$busName}" : '';
-        $title = "Pagamento Confirmado!";
-        $message = "{$userName}\nR\$ {$amount} - {$method}{$busInfo}\n" . now()->format('d-m-Y H:i:s');
+        $title = "✅ Pagamento R$ {$amount}";
+
+        $lines = [
+            "👤 {$userName}",
+            "💳 {$method}",
+        ];
+
+        if ($busName) {
+            $lines[] = "🚌 Ônibus: {$busName}";
+        }
+
+        $lines[] = "🕐 " . now()->format('d/m/Y H:i');
+
+        $message = implode("\n", $lines);
 
         return $this->send($title, $message, 'high', ['white_check_mark', 'moneybag']);
     }
