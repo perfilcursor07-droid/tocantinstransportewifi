@@ -634,6 +634,8 @@ class PortalController extends Controller
                             'mac_address' => $currentMac,
                             'ip_address' => $ip,
                         ]);
+                        // Forçar próximo sync (≤15s) a já enviar o MAC novo no broadcast
+                        \Illuminate\Support\Facades\Cache::forget('mikrotik_sync_lists_all');
                         Log::info('🍪 Cookie reaproveitado com MAC novo', [
                             'user_id' => $cookieUser->id,
                             'new_mac' => $currentMac,

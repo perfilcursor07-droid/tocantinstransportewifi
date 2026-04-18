@@ -995,20 +995,32 @@ class MikrotikApiController extends Controller
     private function crossReferenceMacs(): void
     {
         try {
-            // Buscar usuários conectados com IP registrado
-            // Inclui last_mikrotik_id para filtrar por ônibus (mesma faixa IP 10.5.50.x)
+            // 🛡️ SAFE CROSS-REF
+            // Só rodamos cross-ref para usuários que foram tocados HÁ POUCO (≤ 10 min).
+            // Motivo: usuário que pagou ontem e ainda tem `expires_at` válido pode estar
+            // em OUTRO ônibus hoje. Se o IP dele ficou cacheado e foi reciclado para outro
+            // dispositivo no ônibus original, o report do MikroTik traria o MAC desse outro
+            // dispositivo — e antes da correção isso SOBRESCREVIA o MAC real do pagante,
+            // tirando o acesso dele em todos os ônibus. Essa é a causa principal de
+            // "tinha cadastro ativo, paguei e perdi acesso".
+            //
+            // Critério seguro: só re-associar MAC quando há sinal forte de que o usuário
+            // está ATIVAMENTE no MikroTik atual (updated_at recente — significa que foi
+            // tocado pelo portal/payment/registration há pouco).
             $connectedUsers = User::whereIn('status', ['connected', 'active', 'temp_bypass'])
                 ->where('expires_at', '>', now())
                 ->whereNotNull('mac_address')
                 ->whereNotNull('ip_address')
+                ->where('updated_at', '>', now()->subMinutes(10))
                 ->limit(100)
-                ->get(['id', 'mac_address', 'ip_address', 'last_mikrotik_id']);
+                ->get(['id', 'mac_address', 'ip_address', 'last_mikrotik_id', 'updated_at']);
 
             if ($connectedUsers->isEmpty()) return;
 
             // Agrupar usuários por mikrotik_id para fazer queries filtradas
             $usersByMikrotik = $connectedUsers->groupBy(fn($u) => $u->last_mikrotik_id ?: '__unknown__');
             $updated = 0;
+            $orphanedFromCrossRef = [];
 
             foreach ($usersByMikrotik as $mikrotikId => $users) {
                 $ips = $users->pluck('ip_address')->unique()->toArray();
@@ -1031,28 +1043,60 @@ class MikrotikApiController extends Controller
 
                     $latestReport = $reports->first();
                     $reportMac = strtoupper(trim($latestReport->mac_address));
+                    $currentMac = strtoupper(trim($user->mac_address));
 
-                    // Se o MAC no report é diferente do que está no banco, atualizar
-                    if ($reportMac !== strtoupper($user->mac_address) && strlen($reportMac) === 17) {
-                        // Verificar se não é mock MAC
-                        if (!in_array($reportMac, ['00:00:00:00:00:00', 'FF:FF:FF:FF:FF:FF'])) {
-                            User::where('id', $user->id)->update(['mac_address' => $reportMac]);
-                            $updated++;
-
-                            Log::info('🔧 MAC CROSS-REF: Atualizado', [
-                                'user_id' => $user->id,
-                                'old_mac' => $user->mac_address,
-                                'new_mac' => $reportMac,
-                                'ip' => $user->ip_address,
-                                'mikrotik_id' => $mikrotikId,
-                            ]);
-                        }
+                    if ($reportMac === $currentMac || strlen($reportMac) !== 17) {
+                        continue;
                     }
+
+                    if (in_array($reportMac, ['00:00:00:00:00:00', 'FF:FF:FF:FF:FF:FF'])) {
+                        continue;
+                    }
+
+                    // 🛡️ Proteção 1: NÃO sobrescrever se o MAC atual do usuário foi visto
+                    // recentemente em QUALQUER ônibus. Isso significa que o usuário ainda
+                    // está usando aquele MAC em outro lugar (ou voltou ao mesmo ônibus
+                    // depois) — e o "report novo" é só outra pessoa pegando o IP reciclado.
+                    $currentMacStillSeen = MikrotikMacReport::where('mac_address', $currentMac)
+                        ->where('reported_at', '>', now()->subMinutes(10))
+                        ->exists();
+                    if ($currentMacStillSeen) {
+                        continue;
+                    }
+
+                    // 🛡️ Proteção 2: NÃO sobrescrever se o "novo MAC" pertence a outro
+                    // usuário com pagamento ativo (ele provavelmente é o dono real desse MAC).
+                    $reportMacBelongsToOther = User::where('mac_address', $reportMac)
+                        ->where('id', '!=', $user->id)
+                        ->whereIn('status', ['connected', 'active', 'temp_bypass'])
+                        ->where('expires_at', '>', now())
+                        ->exists();
+                    if ($reportMacBelongsToOther) {
+                        continue;
+                    }
+
+                    // ✅ Seguro para atualizar. Marca MAC antigo como órfão para o
+                    // MikroTik remover do ip-binding no próximo sync (caso ainda exista).
+                    $oldMac = $user->mac_address;
+                    User::where('id', $user->id)->update(['mac_address' => $reportMac]);
+                    \App\Support\HotspotIdentity::markOrphanedMac($oldMac);
+                    $orphanedFromCrossRef[] = $oldMac;
+                    $updated++;
+
+                    Log::info('🔧 MAC CROSS-REF: Atualizado', [
+                        'user_id' => $user->id,
+                        'old_mac' => $oldMac,
+                        'new_mac' => $reportMac,
+                        'ip' => $user->ip_address,
+                        'mikrotik_id' => $mikrotikId,
+                    ]);
                 }
             }
 
             if ($updated > 0) {
-                Log::info("🔧 MAC CROSS-REF: $updated MACs atualizados");
+                // Invalidar a lista global para o próximo sync já enviar o MAC novo
+                cache()->forget('mikrotik_sync_lists_all');
+                Log::info("🔧 MAC CROSS-REF: $updated MACs atualizados, " . count($orphanedFromCrossRef) . ' marcados como órfãos');
             }
         } catch (\Exception $e) {
             Log::error('❌ MAC CROSS-REF erro: ' . $e->getMessage());
