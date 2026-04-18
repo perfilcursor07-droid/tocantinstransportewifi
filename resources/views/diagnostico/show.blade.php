@@ -46,6 +46,18 @@
         {{-- Tela de progresso --}}
         <div id="screen-running" class="hidden">
             <div class="space-y-3" id="steps-list">
+                <div class="step-pending flex items-center gap-3 p-3 rounded-xl bg-gray-50" data-step="payment">
+                    <div class="step-icon w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/></svg>
+                    </div>
+                    <span class="text-sm font-medium text-gray-700">Pagamento ativo</span>
+                </div>
+                <div class="step-pending flex items-center gap-3 p-3 rounded-xl bg-gray-50" data-step="connection">
+                    <div class="step-icon w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/></svg>
+                    </div>
+                    <span class="text-sm font-medium text-gray-700">Tipo de conexão</span>
+                </div>
                 <div class="step-pending flex items-center gap-3 p-3 rounded-xl bg-gray-50" data-step="laravel">
                     <div class="step-icon w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
                         <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/></svg>
@@ -107,6 +119,8 @@
     const REPORT_URL = @json(route('diagnostico.report', ['token' => $probe->token]));
     const PING_URL = @json(route('diagnostico.ping'));
     const DOWNLOAD_URL = @json(route('diagnostico.download'));
+    const PROBE_MAC = @json($probe->target_mac);
+    const PROBE_PHONE = @json($probe->target_phone);
 
     const elStart = document.getElementById('screen-start');
     const elRun = document.getElementById('screen-running');
@@ -139,6 +153,61 @@
             }
             sub.textContent = subtext;
         }
+    }
+
+    // Teste 0: Verificar pagamento ativo no sistema
+    async function testPayment() {
+        setStep('payment', 'running');
+        try {
+            const params = new URLSearchParams();
+            if (PROBE_MAC) params.set('mac', PROBE_MAC);
+            if (PROBE_PHONE) params.set('phone', PROBE_PHONE);
+            params.set('token', TOKEN);
+            
+            const res = await fetch(PING_URL + '?check_payment=1&' + params.toString(), { cache: 'no-store' });
+            const data = await res.json();
+            
+            if (data.payment_active) {
+                setStep('payment', 'done', 'Ativo até ' + (data.expires_at_short || ''));
+                return { active: true, expires: data.expires_at_short, mac: data.mac_address, phone: data.phone };
+            } else {
+                setStep('payment', 'failed', 'Sem pagamento');
+                return { active: false, mac: PROBE_MAC, phone: PROBE_PHONE };
+            }
+        } catch (e) {
+            setStep('payment', 'failed', 'Erro');
+            return { active: false, error: true };
+        }
+    }
+
+    // Teste 0b: Detectar tipo de conexão (WiFi vs Dados Móveis)
+    function testConnectionType() {
+        setStep('connection', 'running');
+        const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        let connType = 'desconhecido';
+        let isWifi = null;
+        let isCellular = false;
+        
+        if (conn) {
+            connType = conn.type || conn.effectiveType || 'desconhecido';
+            isWifi = conn.type === 'wifi';
+            isCellular = conn.type === 'cellular' || ['2g', '3g', '4g', '5g'].includes(conn.effectiveType);
+            
+            // Se type não está disponível mas effectiveType sim
+            if (!conn.type && conn.effectiveType) {
+                connType = conn.effectiveType;
+            }
+        }
+        
+        if (isCellular) {
+            setStep('connection', 'failed', '⚠️ Dados móveis (' + connType + ')');
+        } else if (isWifi) {
+            setStep('connection', 'done', 'WiFi');
+        } else {
+            setStep('connection', 'done', connType);
+        }
+        
+        return { type: connType, is_wifi: isWifi, is_cellular: isCellular };
     }
 
     // Teste 1: Laravel alcançável (prova que é cliente do nosso sistema)
@@ -237,6 +306,10 @@
         elStart.classList.add('hidden');
         elRun.classList.remove('hidden');
 
+        // Testes iniciais (não dependem de internet)
+        const payment = await testPayment();
+        const connection = testConnectionType();
+
         const laravel_ok = await testLaravel();
 
         // Se nem o Laravel responde, o próprio teste não consegue ser submetido — aborta
@@ -244,8 +317,7 @@
             elRun.classList.add('hidden');
             elError.classList.remove('hidden');
             document.getElementById('error-detail').textContent = 'Sem acesso ao servidor. Seu atendente já vai saber.';
-            // Tenta submeter o que dá (pode falhar silenciosamente)
-            try { await submitResults({ laravel_ok: false, dns_ok: false, google_ok: false }); } catch (e) {}
+            try { await submitResults({ laravel_ok: false, dns_ok: false, google_ok: false, payment_active: payment.active, connection_type: connection.type, is_cellular: connection.is_cellular }); } catch (e) {}
             return;
         }
 
@@ -262,9 +334,15 @@
             download_ms: download ? download.ms : null,
             latency_ms: latency.avg,
             latency_samples: latency.samples,
+            payment_active: payment.active,
+            payment_expires: payment.expires || null,
+            payment_mac: payment.mac || null,
+            payment_phone: payment.phone || null,
+            connection_type: connection.type,
+            is_wifi: connection.is_wifi,
+            is_cellular: connection.is_cellular,
             client_ts: Date.now(),
             screen: `${screen.width}x${screen.height}`,
-            connection_type: (navigator.connection?.effectiveType) || null,
         };
 
         await submitResults(payload);
@@ -321,11 +399,21 @@
 
         const details = document.getElementById('verdict-details');
         details.innerHTML = `
+            <div class="flex justify-between"><span class="text-gray-500">Pagamento:</span><span class="font-mono ${p.payment_active ? 'text-emerald-600' : 'text-red-600'}">${p.payment_active ? '✅ Ativo' + (p.payment_expires ? ' até ' + p.payment_expires : '') : '❌ Sem pagamento ativo'}</span></div>
+            <div class="flex justify-between"><span class="text-gray-500">Conexão:</span><span class="font-mono ${p.is_cellular ? 'text-amber-600' : 'text-emerald-600'}">${p.is_cellular ? '⚠️ Dados móveis (' + p.connection_type + ')' : (p.is_wifi ? '✅ WiFi' : p.connection_type || 'desconhecido')}</span></div>
             <div class="flex justify-between"><span class="text-gray-500">DNS:</span><span class="font-mono ${p.dns_ok ? 'text-emerald-600' : 'text-red-600'}">${p.dns_ok ? '✅ OK' : '❌ falhou'}</span></div>
             <div class="flex justify-between"><span class="text-gray-500">Google:</span><span class="font-mono ${p.google_ok ? 'text-emerald-600' : 'text-red-600'}">${p.google_ok ? '✅ OK' : '❌ falhou'}</span></div>
             <div class="flex justify-between"><span class="text-gray-500">Download:</span><span class="font-mono ${downloadOk ? 'text-emerald-600' : 'text-red-600'}">${downloadOk ? p.download_mbps.toFixed(1) + ' Mbps' : '❌ falhou'}</span></div>
             <div class="flex justify-between"><span class="text-gray-500">Latência:</span><span class="font-mono ${p.latency_ms !== null ? 'text-emerald-600' : 'text-red-600'}">${p.latency_ms !== null ? Math.round(p.latency_ms) + ' ms' : '❌ falhou'}</span></div>
         `;
+        
+        if (p.is_cellular) {
+            details.innerHTML += '<div class="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800"><strong>⚠️ Dados móveis detectados!</strong> Desative os dados móveis e use apenas o WiFi do ônibus.</div>';
+        }
+        
+        if (!p.payment_active) {
+            details.innerHTML += '<div class="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800"><strong>❌ Sem pagamento ativo</strong> para o telefone ' + (p.payment_phone || 'não informado') + ' e MAC ' + (p.payment_mac || 'não detectado') + '. Realize o pagamento no portal do WiFi.</div>';
+        }
 
         // Auto-fechar aba após 5 segundos (volta pro chat)
         let countdown = 5;

@@ -114,7 +114,55 @@ class ConnectivityProbeController extends Controller
      */
     public function ping(Request $request)
     {
+        // Se é uma verificação de pagamento, consultar o banco
+        if ($request->has('check_payment')) {
+            return $this->checkPaymentStatus($request);
+        }
+
         return response()->json(['pong' => true, 't' => microtime(true)]);
+    }
+
+    /**
+     * Verifica se existe pagamento ativo para o MAC/telefone do probe.
+     */
+    private function checkPaymentStatus(Request $request)
+    {
+        $mac = $request->get('mac');
+        $phone = $request->get('phone');
+        $user = null;
+
+        if ($mac) {
+            $user = \App\Models\User::where('mac_address', strtoupper(trim($mac)))
+                ->whereIn('status', ['connected', 'active', 'temp_bypass'])
+                ->where('expires_at', '>', now())
+                ->first();
+        }
+
+        if (!$user && $phone) {
+            $cleanPhone = preg_replace('/[^\d]/', '', $phone);
+            $user = \App\Models\User::where('phone', 'LIKE', '%' . $cleanPhone . '%')
+                ->whereIn('status', ['connected', 'active', 'temp_bypass'])
+                ->where('expires_at', '>', now())
+                ->first();
+        }
+
+        if ($user) {
+            return response()->json([
+                'pong' => true,
+                'payment_active' => true,
+                'expires_at_short' => $user->expires_at->format('d/m H:i'),
+                'mac_address' => $user->mac_address,
+                'phone' => $user->phone,
+                'status' => $user->status,
+            ]);
+        }
+
+        return response()->json([
+            'pong' => true,
+            'payment_active' => false,
+            'mac_address' => $mac,
+            'phone' => $phone,
+        ]);
     }
 
     /**
@@ -145,9 +193,15 @@ class ConnectivityProbeController extends Controller
             'download_ms' => 'nullable|numeric|min:0|max:120000',
             'latency_ms' => 'nullable|numeric|min:0|max:60000',
             'latency_samples' => 'nullable|array',
+            'payment_active' => 'nullable|boolean',
+            'payment_expires' => 'nullable|string|max:20',
+            'payment_mac' => 'nullable|string|max:20',
+            'payment_phone' => 'nullable|string|max:30',
+            'connection_type' => 'nullable|string|max:40',
+            'is_wifi' => 'nullable|boolean',
+            'is_cellular' => 'nullable|boolean',
             'client_ts' => 'nullable|numeric',
             'screen' => 'nullable|string|max:30',
-            'connection_type' => 'nullable|string|max:40',
         ]);
 
         $probe->update([
@@ -169,11 +223,23 @@ class ConnectivityProbeController extends Controller
             ];
             $info = $labels[$verdict] ?? $labels['failed'];
 
+            // Montar mensagem com info de pagamento e conexão
+            $extraInfo = [];
+            if (isset($validated['payment_active'])) {
+                $extraInfo[] = $validated['payment_active']
+                    ? '💳 Pagamento ativo'
+                    : '❌ Sem pagamento ativo para este telefone/MAC';
+            }
+            if (!empty($validated['is_cellular'])) {
+                $extraInfo[] = '⚠️ Usando dados móveis (não WiFi)';
+            }
+            $extraText = !empty($extraInfo) ? ' | ' . implode(' | ', $extraInfo) : '';
+
             ChatMessage::create([
                 'conversation_id' => $probe->conversation_id,
                 'sender_type' => 'visitor',
                 'type' => 'probe_result',
-                'message' => "{$info['icon']} Teste concluído — {$info['label']}",
+                'message' => "{$info['icon']} Teste concluído — {$info['label']}{$extraText}",
                 'metadata' => [
                     'probe_id' => $probe->id,
                     'probe_token' => $probe->token,
