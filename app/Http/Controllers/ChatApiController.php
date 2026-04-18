@@ -36,11 +36,8 @@ class ChatApiController extends Controller
             'message' => 'required|string|max:2000',
         ]);
 
-        // Verificar se já existe conversa ativa com esse email/telefone (evita duplicatas)
-        $conversation = ChatConversation::where(function($q) use ($request) {
-                $q->where('visitor_email', $request->email)
-                  ->orWhere('visitor_phone', $request->phone);
-            })
+        // Verificar se já existe conversa ativa com esse telefone (evita duplicatas)
+        $conversation = ChatConversation::where('visitor_phone', $request->phone)
             ->whereIn('status', ['active', 'pending'])
             ->first();
 
