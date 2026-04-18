@@ -185,10 +185,24 @@ class ConnectivityProbeController extends Controller
                 'is_read' => false,
             ]);
 
-            ChatConversation::where('id', $probe->conversation_id)->update([
-                'last_message_at' => now(),
-                'unread_count' => \DB::raw('unread_count + 1'),
-            ]);
+            $conversation = ChatConversation::find($probe->conversation_id);
+            if ($conversation) {
+                $conversation->update([
+                    'last_message_at' => now(),
+                    'unread_count' => \DB::raw('unread_count + 1'),
+                ]);
+
+                // 🤖 IA responde automaticamente ao resultado do teste
+                // Assim o usuário não precisa falar "fiz o teste e agora?"
+                try {
+                    $ai = app(\App\Services\ChatAIService::class);
+                    if ($ai->shouldRespond($conversation)) {
+                        $ai->respond($conversation);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('IA não respondeu ao probe result', ['error' => $e->getMessage()]);
+                }
+            }
         }
 
         Log::info('📡 Probe de diagnóstico concluído', [
