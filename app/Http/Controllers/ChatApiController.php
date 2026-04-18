@@ -32,7 +32,7 @@ class ChatApiController extends Controller
         $request->validate([
             'name' => 'required|string|max:100',
             'phone' => 'required|string|max:20',
-            'email' => 'required|email|max:100',
+            'email' => 'nullable|email|max:100',
             'message' => 'required|string|max:2000',
         ]);
 

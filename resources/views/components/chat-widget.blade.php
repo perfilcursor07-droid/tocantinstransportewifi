@@ -76,17 +76,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
                         </svg>
                     </div>
-                    <input type="tel" id="chat-phone" placeholder="(00) 00000-0000" required maxlength="16"
+                    <input type="tel" id="chat-phone" placeholder="Telefone do cadastro" required maxlength="16"
                            class="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500 focus:bg-white transition-all">
-                </div>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                        </svg>
-                    </div>
-                    <input type="email" id="chat-email" placeholder="seu@email.com" required
-                           class="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500 focus:bg-white transition-all">
+                    <p class="text-[10px] text-gray-400 mt-0.5 ml-1">Use o mesmo telefone que cadastrou no WiFi</p>
                 </div>
                 <div class="relative">
                     <div class="absolute top-2.5 left-0 pl-3 pointer-events-none">
@@ -579,10 +571,10 @@
             
             const name = document.getElementById('chat-name').value.trim();
             const phone = document.getElementById('chat-phone').value.trim();
-            const email = document.getElementById('chat-email').value.trim();
+            const email = '';
             const message = document.getElementById('chat-first-message').value.trim();
             
-            if (!name || !phone || !email || !message) {
+            if (!name || !phone || !message) {
                 alert('Preencha todos os campos');
                 return;
             }
@@ -858,7 +850,6 @@
         // Limpar formulário
         document.getElementById('chat-name').value = '';
         document.getElementById('chat-phone').value = '';
-        document.getElementById('chat-email').value = '';
         document.getElementById('chat-first-message').value = '';
         
         // Reabilitar input
