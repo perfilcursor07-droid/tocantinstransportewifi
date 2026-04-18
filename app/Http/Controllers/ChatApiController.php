@@ -55,6 +55,13 @@ class ChatApiController extends Controller
                 'last_message_at' => now(),
                 'unread_count' => 0,
             ]);
+        } else {
+            // Atualizar MAC e IP se a conversa já existia (pode ter mudado)
+            $updateData = ['visitor_ip' => $request->ip()];
+            if ($request->mac) {
+                $updateData['visitor_mac'] = $request->mac;
+            }
+            $conversation->update($updateData);
         }
 
         // Verificar se já existe essa mensagem (evita duplicatas no retry)

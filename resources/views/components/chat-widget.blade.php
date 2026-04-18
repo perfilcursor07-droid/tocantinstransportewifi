@@ -601,7 +601,7 @@
                     phone: phone,
                     email: email,
                     message: message,
-                    mac: window.CLIENT_MAC || null
+                    mac: window.CLIENT_MAC || (window.wifiPortal && window.wifiPortal.deviceMac) || (window.macDetector && window.macDetector.getMacForPayment()) || null
                 })
             })
             .then(response => response.json())

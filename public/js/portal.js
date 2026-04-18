@@ -2061,6 +2061,7 @@ class WiFiPortal {
 // Inicializar quando DOM estiver carregado
 document.addEventListener('DOMContentLoaded', () => {
     const portal = new WiFiPortal();
+    window.wifiPortal = portal;
     
     // Adicionar event listeners para botões de pagamento
     document.addEventListener('click', (e) => {
