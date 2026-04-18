@@ -19,9 +19,12 @@ class ChatApiController extends Controller
      */
     private function maybeRunAI(ChatConversation $conv): ?ChatMessage
     {
+        \Log::info('🤖 maybeRunAI chamado', ['conv' => $conv->id]);
         $conv->refresh();
         if (!$this->ai->shouldRespond($conv)) return null;
-        return $this->ai->respond($conv);
+        $result = $this->ai->respond($conv);
+        \Log::info('🤖 maybeRunAI resultado', ['conv' => $conv->id, 'created_msg_id' => $result?->id]);
+        return $result;
     }
 
     public function startConversation(Request $request)

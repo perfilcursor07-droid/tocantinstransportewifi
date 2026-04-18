@@ -453,9 +453,45 @@
 
         if (msg.type === 'probe_request' && msg.metadata && msg.metadata.probe_url) {
             renderProbeButton(msg.message, msg.metadata.probe_url, adminName, time);
+        } else if (msg.type === 'voucher_offer' && msg.metadata && msg.metadata.voucher_code) {
+            renderVoucherCard(msg.metadata, adminName, time);
         } else {
             addMessage(msg.message, isAdmin, adminName, time);
         }
+    }
+
+    function renderVoucherCard(meta, adminName, time) {
+        const messagesDiv = document.getElementById('chat-messages');
+        const div = document.createElement('div');
+        div.className = 'flex justify-start chat-message-enter';
+        const code = meta.voucher_code || '---';
+        const hours = meta.voucher_hours || 12;
+        const url = meta.activate_url || '/voucher/ativar';
+        div.innerHTML = `
+            <div class="max-w-[92%] w-full bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-300 rounded-xl p-3 shadow-sm">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-base shadow">🎁</div>
+                    <div class="flex-1">
+                        <p class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Voucher de cortesia</p>
+                        <p class="text-xs font-bold text-emerald-800">${hours} horas grátis · ${adminName} · ${time}</p>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg p-2.5 text-center shadow-inner border border-emerald-100 mb-2">
+                    <p class="text-[9px] text-gray-500 uppercase tracking-wider font-bold">Seu código</p>
+                    <p class="text-lg font-mono font-bold text-emerald-700 tracking-widest my-1 select-all">${code}</p>
+                    <button onclick="navigator.clipboard.writeText('${code}'); this.textContent='✓ copiado';"
+                            class="text-[10px] px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 font-semibold text-emerald-700">
+                        copiar código
+                    </button>
+                </div>
+                <a href="${url}" target="_blank" class="block w-full bg-emerald-600 hover:bg-emerald-700 text-white text-center py-2 rounded-lg font-semibold text-xs transition">
+                    ▶ Ativar voucher agora
+                </a>
+                <p class="text-[9px] text-gray-500 mt-1.5 leading-tight">Clique em "Ativar" e informe o código acima para ganhar ${hours}h de internet.</p>
+            </div>
+        `;
+        messagesDiv.appendChild(div);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
     function renderProbeButton(text, url, adminName, time) {

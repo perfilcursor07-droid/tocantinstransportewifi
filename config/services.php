@@ -61,6 +61,7 @@ return [
         'model' => env('CHAT_AI_MODEL', 'deepseek-ai/DeepSeek-V3'),
         'timeout' => env('CHAT_AI_TIMEOUT', 15),
         'max_turns' => env('CHAT_AI_MAX_TURNS', 6),
+        'verify_ssl' => env('CHAT_AI_VERIFY_SSL', true),
     ],
 
 ];

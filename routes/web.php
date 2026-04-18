@@ -123,6 +123,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
         Route::get('/{id}/messages', [App\Http\Controllers\Admin\ChatController::class, 'getMessages'])->name('messages')->where('id', '[0-9]+');
         // 📡 Admin gera link de teste de conexão a partir do chat
         Route::post('/{id}/probe', [ConnectivityProbeController::class, 'createFromChat'])->name('probe.create')->where('id', '[0-9]+');
+        // 🎁 Admin gera voucher de cortesia de 12h a partir do chat
+        Route::post('/{id}/voucher', [App\Http\Controllers\Admin\ChatVoucherController::class, 'createFromChat'])->name('voucher.create')->where('id', '[0-9]+');
     });
 
     Route::middleware(['module:reviews'])->prefix('avaliacoes')->name('reviews.')->group(function () {

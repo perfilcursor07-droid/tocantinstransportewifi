@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.only' => \App\Http\Middleware\AdminOnly::class,
             'module' => \App\Http\Middleware\CheckModule::class,
         ]);
+
+        // Endpoints públicos do probe de diagnóstico — usuário acessa sem sessão ativa
+        $middleware->validateCsrfTokens(except: [
+            'api/diagnostico/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

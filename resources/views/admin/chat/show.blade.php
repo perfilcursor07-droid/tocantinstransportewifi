@@ -211,6 +211,43 @@
                     </div>
                 </div>
 
+            {{-- 🎁 Cartão: voucher de cortesia gerado no chat --}}
+            @elseif($msgType === 'voucher_offer')
+                @php
+                    $voucherCode = $message->metadata['voucher_code'] ?? '---';
+                    $voucherHours = $message->metadata['voucher_hours'] ?? 12;
+                    $activateUrl = $message->metadata['activate_url'] ?? url('/voucher/ativar');
+                    $voucherExpires = isset($message->metadata['expires_at']) ? \Carbon\Carbon::parse($message->metadata['expires_at']) : null;
+                @endphp
+                <div class="flex justify-center chat-message-enter">
+                    <div class="max-w-md w-full bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-300 rounded-2xl p-4 shadow-sm">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-xl shadow">🎁</div>
+                            <div class="flex-1">
+                                <p class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Voucher de cortesia</p>
+                                <p class="text-sm font-bold text-emerald-800">{{ $voucherHours }} horas de internet</p>
+                            </div>
+                            <p class="text-[10px] text-gray-500">{{ $message->created_at->format('H:i') }}</p>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 text-center shadow-inner border border-emerald-100">
+                            <p class="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Código</p>
+                            <p class="text-xl lg:text-2xl font-mono font-bold text-emerald-700 tracking-widest my-1 select-all">{{ $voucherCode }}</p>
+                            <button onclick="navigator.clipboard.writeText('{{ $voucherCode }}'); this.textContent='✓ copiado';"
+                                    class="text-[11px] px-2 py-1 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 font-semibold text-emerald-700">
+                                copiar código
+                            </button>
+                        </div>
+                        <div class="mt-3 text-[11px] text-gray-600 space-y-1">
+                            <p>👤 <strong>{{ $conversation->visitor_name ?: 'Cliente' }}</strong>{{ $conversation->visitor_phone ? ' · ' . $conversation->visitor_phone : '' }}</p>
+                            <p>🔗 Ativar em: <a href="{{ $activateUrl }}" target="_blank" class="text-emerald-700 underline font-mono">{{ $activateUrl }}</a></p>
+                            @if($voucherExpires)
+                                <p>⏰ Expira em {{ $voucherExpires->format('d/m H:i') }} ({{ $voucherExpires->diffForHumans() }})</p>
+                            @endif
+                        </div>
+                        <p class="text-[10px] text-gray-400 mt-2 italic">Enviado por {{ $senderLabel }}</p>
+                    </div>
+                </div>
+
             {{-- Mensagem texto padrão --}}
             @else
                 <div class="flex {{ $message->sender_type === 'admin' ? 'justify-end' : 'justify-start' }} chat-message-enter">
@@ -264,14 +301,23 @@
         <!-- Input de Mensagem -->
         @if($conversation->status !== 'closed')
         <div class="px-3 lg:px-4 pt-2 border-t bg-white">
-            <button type="button" id="request-probe-btn"
-                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg px-3 py-1.5 transition">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                </svg>
-                <span>📡 Solicitar teste de conexão</span>
-            </button>
-            <p class="text-[10px] text-gray-400 mt-1">Envia um link pro usuário clicar — ele roda 5 testes e o resultado aparece aqui.</p>
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" id="request-probe-btn"
+                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg px-3 py-1.5 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span>📡 Solicitar teste de conexão</span>
+                </button>
+                <button type="button" id="create-voucher-btn"
+                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg px-3 py-1.5 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                    </svg>
+                    <span>🎁 Criar voucher (12h)</span>
+                </button>
+            </div>
+            <p class="text-[10px] text-gray-400 mt-1">Teste: link pro usuário rodar diagnóstico. Voucher: cortesia de 12h com o nome e telefone dele.</p>
         </div>
         <div class="p-3 lg:p-4 border-t bg-white">
             <form id="reply-form" class="flex items-center space-x-2 lg:space-x-3">
@@ -695,6 +741,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Erro ao solicitar teste');
                 probeBtn.disabled = false;
                 probeBtn.innerHTML = originalHtml;
+            });
+        });
+    }
+
+    // 🎁 Criar voucher de cortesia (12h)
+    const voucherBtn = document.getElementById('create-voucher-btn');
+    if (voucherBtn) {
+        voucherBtn.addEventListener('click', function() {
+            const visitorName = @json($conversation->visitor_name ?: 'Cliente');
+            const visitorPhone = @json($conversation->visitor_phone ?: '');
+            const confirmMsg = `Criar voucher de cortesia de 12h para:\n\n👤 ${visitorName}\n📞 ${visitorPhone}\n\nO código será enviado no chat automaticamente.`;
+            if (!confirm(confirmMsg)) return;
+            voucherBtn.disabled = true;
+            const originalHtml = voucherBtn.innerHTML;
+            voucherBtn.innerHTML = '<span class="animate-pulse">Gerando...</span>';
+
+            fetch('{{ route("admin.chat.voucher.create", $conversation->id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Erro: ' + (data.error || 'não foi possível criar o voucher'));
+                    voucherBtn.disabled = false;
+                    voucherBtn.innerHTML = originalHtml;
+                }
+            })
+            .catch(e => {
+                console.error(e);
+                alert('Erro ao criar voucher');
+                voucherBtn.disabled = false;
+                voucherBtn.innerHTML = originalHtml;
             });
         });
     }

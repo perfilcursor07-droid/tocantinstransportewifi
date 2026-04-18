@@ -31,27 +31,39 @@ class ChatAIService
      */
     public function shouldRespond(ChatConversation $conv): bool
     {
-        if (!$this->isEnabled()) return false;
-        if ($conv->status === 'closed') return false;
+        if (!$this->isEnabled()) {
+            Log::info('🤖 IA desabilitada (flag ou api_key ausente)', [
+                'enabled' => config('services.together.enabled'),
+                'has_key' => (bool) config('services.together.api_key'),
+            ]);
+            return false;
+        }
+        if ($conv->status === 'closed') {
+            Log::info('🤖 Conversa fechada, IA não responde', ['conv' => $conv->id]);
+            return false;
+        }
 
-        // Se algum admin humano já mandou mensagem, cede o controle
         $humanAdminReplied = ChatMessage::where('conversation_id', $conv->id)
             ->where('sender_type', 'admin')
             ->whereNotNull('admin_id')
             ->exists();
 
-        if ($humanAdminReplied) return false;
+        if ($humanAdminReplied) {
+            Log::info('🤖 Humano já entrou na conversa, IA cede controle', ['conv' => $conv->id]);
+            return false;
+        }
 
-        // Limite de turnos da IA
         $aiTurns = ChatMessage::where('conversation_id', $conv->id)
             ->where('sender_type', 'admin')
             ->whereNull('admin_id')
             ->count();
 
         if ($aiTurns >= (int) config('services.together.max_turns', 6)) {
+            Log::info('🤖 Limite de turnos atingido', ['conv' => $conv->id, 'turns' => $aiTurns]);
             return false;
         }
 
+        Log::info('🤖 IA vai responder', ['conv' => $conv->id, 'ai_turns_so_far' => $aiTurns]);
         return true;
     }
 
@@ -107,6 +119,27 @@ class ChatAIService
         $ip = $conv->visitor_ip ?: 'não capturado';
         $phone = $conv->visitor_phone ?: 'não informado';
 
+        $pendingProbe = ConnectivityProbe::where('conversation_id', $conv->id)
+            ->where('status', 'pending')
+            ->where('expires_at', '>', now())
+            ->exists();
+
+        $lastProbe = ConnectivityProbe::where('conversation_id', $conv->id)
+            ->where('status', 'completed')
+            ->orderByDesc('id')
+            ->first();
+
+        $probeStatus = 'nenhum teste foi enviado ainda nesta conversa';
+        if ($pendingProbe) {
+            $probeStatus = '⚠️ JÁ EXISTE UM TESTE AGUARDANDO RESPOSTA — não peça outro. Oriente o usuário a clicar no botão que apareceu acima.';
+        } elseif ($lastProbe) {
+            $v = $lastProbe->verdict;
+            $r = $lastProbe->results ?? [];
+            $dl = isset($r['download_mbps']) ? number_format($r['download_mbps'], 1) . ' Mbps' : 'n/d';
+            $lt = isset($r['latency_ms']) ? round($r['latency_ms']) . ' ms' : 'n/d';
+            $probeStatus = "Último teste concluído: veredicto={$v}, download={$dl}, latência={$lt}, DNS=" . ($r['dns_ok'] ?? false ? 'OK' : 'falhou') . ", Google=" . ($r['google_ok'] ?? false ? 'OK' : 'falhou') . ". Você pode pedir um novo teste se necessário.";
+        }
+
         return <<<PROMPT
 Você é o assistente virtual da **Tocantins Transporte WiFi**, serviço de internet em ônibus via Starlink (8 ônibus rodando na região de Tocantins, Brasil). Você atende o chat de suporte antes de passar pro humano.
 
@@ -123,6 +156,7 @@ Você é o assistente virtual da **Tocantins Transporte WiFi**, serviço de inte
 - **IP atual:** {$ip}
 - **Ônibus detectado:** {$bus}
 - **Status do cadastro:** {$userStatus}
+- **Status de teste de conexão:** {$probeStatus}
 - **Horário agora:** {$now}
 
 # Sua missão
@@ -137,6 +171,7 @@ Tentar resolver sozinho antes de escalar. Responder sempre em **português brasi
 - **Usuário com ACESSO ATIVO reclamando que não funciona:** peça probe. Exemplo: "Seu acesso está ativo até X. Vou mandar um teste rápido pra entender o que tá acontecendo."
 - **Usuário SEM CADASTRO perguntando como pagar:** explique que precisa abrir o portal do WiFi no navegador e pagar via PIX, 12h de acesso.
 - **Usuário com CADASTRO EXPIRADO:** diga que o acesso já acabou, precisa pagar de novo no portal.
+- **Usuário afirma que "pagou" mas o cadastro está expirado ou não existe:** escale para humano — pode ser pagamento recém-feito que não liberou, ou PIX em outro número. Não fique insistindo que ele não pagou.
 - **ATENÇÃO: randomização de MAC:** se o MAC do chat difere do MAC do cadastro e o cara reclama que não funciona, peça pra ele fechar o WiFi e abrir de novo (ou conectar e desconectar), pra o portal detectar via cookie.
 - **Pedido de atendente humano:** escale sem resistência, não tenta convencer.
 - **Pergunta fora de escopo (fofoca, sobre outro serviço, jurídico):** escale.
@@ -190,12 +225,17 @@ PROMPT;
 
     private function callApi(array $messages): ?array
     {
-        $response = Http::timeout((int) config('services.together.timeout', 15))
+        $http = Http::timeout((int) config('services.together.timeout', 15))
             ->withHeaders([
                 'Authorization' => 'Bearer ' . config('services.together.api_key'),
                 'Content-Type' => 'application/json',
-            ])
-            ->post(config('services.together.api_url'), [
+            ]);
+
+        if (!config('services.together.verify_ssl', true)) {
+            $http = $http->withoutVerifying();
+        }
+
+        $response = $http->post(config('services.together.api_url'), [
                 'model' => config('services.together.model'),
                 'messages' => $messages,
                 'max_tokens' => 400,
@@ -266,13 +306,15 @@ PROMPT;
 
     private function actionProbe(ChatConversation $conv, string $text): ChatMessage
     {
-        // Se já existe probe nesta conversa, vira reply (não spamma probes)
-        $hasProbe = ChatMessage::where('conversation_id', $conv->id)
-            ->where('type', 'probe_request')
+        // Só bloqueia se já existe probe PENDENTE (não expirado, não concluído).
+        // Se o anterior foi completado ou expirou, pode mandar outro.
+        $pendingProbe = ConnectivityProbe::where('conversation_id', $conv->id)
+            ->where('status', 'pending')
+            ->where('expires_at', '>', now())
             ->exists();
 
-        if ($hasProbe) {
-            return $this->actionReply($conv, $text ?: 'Já mandei um teste antes — roda o que tá no chat acima, por favor.');
+        if ($pendingProbe) {
+            return $this->actionReply($conv, 'Já tem um teste aberto acima — clica no botão pra rodar, por favor.');
         }
 
         $probe = ConnectivityProbe::create([
