@@ -448,7 +448,7 @@
         if (!msg) return;
         const isAdmin = msg.sender_type === 'admin';
         const isAI = isAdmin && msg.metadata && msg.metadata.ai === true;
-        const adminName = isAI ? '🤖 Assistente' : (msg.admin && msg.admin.name ? msg.admin.name : 'Atendente');
+        const adminName = isAI ? (msg.metadata.ai_name || 'Ana') : (msg.admin && msg.admin.name ? msg.admin.name : 'Atendente');
         const time = new Date(msg.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
 
         if (msg.type === 'probe_request' && msg.metadata && msg.metadata.probe_url) {
@@ -528,7 +528,7 @@
         msgDiv.className = `flex ${isAdmin ? 'justify-start' : 'justify-end'} chat-message-enter`;
 
         const displayTime = time || new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-        const isAI = adminName && adminName.indexOf('🤖') === 0;
+        const isAI = false; // IA aparece como atendente normal — sem distinção visual
 
         if (isAdmin) {
             if (isAI) {

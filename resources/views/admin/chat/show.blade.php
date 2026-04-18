@@ -79,7 +79,8 @@
             @php
                 $msgType = $message->type ?? 'text';
                 $isAI = ($message->sender_type === 'admin') && is_null($message->admin_id) && !empty($message->metadata['ai']);
-                $senderLabel = $isAI ? '🤖 Assistente IA' : ($message->admin->name ?? 'admin');
+                $aiName = $message->metadata['ai_name'] ?? 'Ana';
+                $senderLabel = $isAI ? "{$aiName} (IA)" : ($message->admin->name ?? 'admin');
             @endphp
 
             {{-- 📡 Cartão: admin solicitou teste de conexão --}}

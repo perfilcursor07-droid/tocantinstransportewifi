@@ -85,7 +85,11 @@
             <h2 id="verdict-title" class="text-xl font-bold text-gray-900"></h2>
             <p id="verdict-subtitle" class="text-sm text-gray-500 mt-1 mb-5"></p>
             <div id="verdict-details" class="bg-gray-50 rounded-xl p-4 text-left text-sm space-y-1.5 mb-4"></div>
-            <p class="text-xs text-gray-400">Seu atendente recebeu o resultado. Pode voltar pro chat.</p>
+            <p class="text-xs text-gray-400">Seu atendente recebeu o resultado.</p>
+            <p id="close-countdown" class="text-xs text-emerald-600 font-semibold mt-2"></p>
+            <button onclick="window.close()" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm shadow transition">
+                ← Voltar ao chat
+            </button>
         </div>
 
         {{-- Tela de erro irrecuperável --}}
@@ -315,6 +319,26 @@
             <div class="flex justify-between"><span class="text-gray-500">Download:</span><span class="font-mono ${downloadOk ? 'text-emerald-600' : 'text-red-600'}">${downloadOk ? p.download_mbps.toFixed(1) + ' Mbps' : '❌ falhou'}</span></div>
             <div class="flex justify-between"><span class="text-gray-500">Latência:</span><span class="font-mono ${p.latency_ms !== null ? 'text-emerald-600' : 'text-red-600'}">${p.latency_ms !== null ? Math.round(p.latency_ms) + ' ms' : '❌ falhou'}</span></div>
         `;
+
+        // Auto-fechar aba após 5 segundos (volta pro chat)
+        let countdown = 5;
+        const countdownEl = document.getElementById('close-countdown');
+        countdownEl.textContent = `Fechando em ${countdown}s...`;
+        const timer = setInterval(() => {
+            countdown--;
+            if (countdown <= 0) {
+                clearInterval(timer);
+                countdownEl.textContent = 'Fechando...';
+                window.close();
+                // Fallback: se window.close() não funcionar (restrição do navegador),
+                // redirecionar para o portal
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 500);
+            } else {
+                countdownEl.textContent = `Fechando em ${countdown}s...`;
+            }
+        }, 1000);
     }
 
     document.getElementById('btn-start').addEventListener('click', runAll);
