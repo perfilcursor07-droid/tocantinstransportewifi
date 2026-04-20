@@ -130,6 +130,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
     Route::middleware(['module:reviews'])->prefix('avaliacoes')->name('reviews.')->group(function () {
         Route::get('/', [AdminServiceReviewController::class, 'index'])->name('index');
         Route::get('/configuracoes', [AdminServiceReviewController::class, 'settings'])->name('settings');
+        Route::get('/relatorio-pdf', [AdminServiceReviewController::class, 'exportPdf'])->name('pdf');
     });
     
     // Rotas APENAS para Administradores

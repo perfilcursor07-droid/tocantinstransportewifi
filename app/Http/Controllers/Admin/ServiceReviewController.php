@@ -271,4 +271,45 @@ class ServiceReviewController extends Controller
             ->with($hasSuccess ? 'success' : 'error', implode(' | ', $messages) . $linkedUserMessage)
             ->with('manual_review_link', $result['link'] ?? null);
     }
+
+    /**
+     * Exportar relatório de avaliações em PDF
+     */
+    public function exportPdf(Request $request)
+    {
+        $startDate = $request->get('start_date', now()->subDays(30)->format('Y-m-d'));
+        $endDate = $request->get('end_date', now()->format('Y-m-d'));
+
+        $reviews = ServiceReview::with('user')
+            ->whereBetween('batch_date', [$startDate, $endDate])
+            ->orderByDesc('batch_date')
+            ->get();
+
+        $answered = $reviews->whereNotNull('submitted_at');
+        $totalInvites = $reviews->count();
+        $totalAnswered = $answered->count();
+        $avgRating = $answered->avg('rating') ?: 0;
+        $responseRate = $totalInvites > 0 ? round(($totalAnswered / $totalInvites) * 100, 1) : 0;
+
+        $distribution = collect(range(1, 5))->mapWithKeys(fn($r) => [
+            $r => $answered->where('rating', $r)->count()
+        ]);
+
+        $lowRatings = $answered->where('rating', '<=', 3);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.reviews.pdf', [
+            'reviews' => $reviews,
+            'answered' => $answered,
+            'totalInvites' => $totalInvites,
+            'totalAnswered' => $totalAnswered,
+            'avgRating' => $avgRating,
+            'responseRate' => $responseRate,
+            'distribution' => $distribution,
+            'lowRatings' => $lowRatings,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download("avaliacoes_{$startDate}_{$endDate}.pdf");
+    }
 }
