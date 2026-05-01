@@ -267,7 +267,11 @@
                                         <p class="text-[11px] text-green-dark font-medium mt-0.5">WiFi até o destino final</p>
                                     </div>
                                     <div class="text-right flex-shrink-0">
-                                        <p class="text-xl font-black text-green-dark tracking-tight leading-none">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
+                                        <div class="flex items-center gap-1.5 justify-end">
+                                            <span class="text-[11px] text-gray-400 line-through">R${{ number_format($original_price ?? 9.99, 2, ',', '.') }}</span>
+                                            <span class="text-[9px] font-bold text-white bg-red-500 rounded px-1 py-0.5 leading-none">-{{ $discount_percentage ?? 30 }}%</span>
+                                        </div>
+                                        <p class="text-xl font-black text-green-dark tracking-tight leading-none mt-0.5">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-3 px-4 pb-3 text-[10px] text-green-dark/70 font-medium">
