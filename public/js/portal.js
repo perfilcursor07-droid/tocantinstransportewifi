@@ -625,7 +625,10 @@ class WiFiPortal {
                     amount: window.WIFI_PRICE || 5.99,
                     mac_address: this.deviceMac,
                     user_id: this.currentUserId,
-                    ip_address: this.deviceIp
+                    ip_address: this.deviceIp,
+                    plan_duration: window.WIFI_SELECTED_PLAN?.duration || window.SESSION_DURATION || 12,
+                    plan_name: window.WIFI_SELECTED_PLAN?.name || 'Viagem completa',
+                    plan_suffix: window.WIFI_SELECTED_PLAN?.suffix || '/ viagem'
                 })
             });
 
@@ -866,7 +869,10 @@ class WiFiPortal {
                     amount: window.WIFI_PRICE || 5.99, // 🎯 VALOR DINÂMICO DO BANCO
                     mac_address: this.deviceMac,
                     user_id: this.currentUserId,
-                    ip_address: this.deviceIp
+                    ip_address: this.deviceIp,
+                    plan_duration: window.WIFI_SELECTED_PLAN?.duration || window.SESSION_DURATION || 12,
+                    plan_name: window.WIFI_SELECTED_PLAN?.name || 'Viagem completa',
+                    plan_suffix: window.WIFI_SELECTED_PLAN?.suffix || '/ viagem'
                 })
             });
 
@@ -1794,7 +1800,10 @@ class WiFiPortal {
                 body: JSON.stringify({
                     code: code,
                     mac_address: this.deviceMac,
-                    ip_address: this.deviceIp
+                    ip_address: this.deviceIp,
+                    plan_duration: window.WIFI_SELECTED_PLAN?.duration || window.SESSION_DURATION || 12,
+                    plan_name: window.WIFI_SELECTED_PLAN?.name || 'Viagem completa',
+                    plan_suffix: window.WIFI_SELECTED_PLAN?.suffix || '/ viagem'
                 })
             });
 

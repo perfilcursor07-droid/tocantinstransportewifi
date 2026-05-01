@@ -56,15 +56,19 @@ class ProcessPendingPayment extends Command
                 return 0;
             }
             
-            // Atualizar pagamento
+            // Preservar duration_hours do plano original antes de atualizar payment_data
+            $originalDurationHours = data_get($payment->payment_data, 'duration_hours');
+
+            // Atualizar pagamento (mesclar com dados originais para preservar duration_hours)
+            $mergedData = array_merge($payment->payment_data ?? [], [
+                'processed_manually' => true,
+                'processed_at' => now()->toISOString(),
+                'reason' => 'Webhook validation failed, processed manually via artisan command',
+            ]);
             $payment->update([
                 'status' => 'completed',
                 'paid_at' => now(),
-                'payment_data' => json_encode([
-                    'processed_manually' => true,
-                    'processed_at' => now()->toISOString(),
-                    'reason' => 'Webhook validation failed, processed manually via artisan command',
-                ]),
+                'payment_data' => $mergedData,
             ]);
             
             $this->info("✅ Pagamento atualizado para 'completed'");
@@ -81,7 +85,8 @@ class ProcessPendingPayment extends Command
                 $this->line("   IP: {$user->ip_address}");
                 $this->newLine();
                 
-                $sessionDurationHours = \App\Helpers\SettingsHelper::getSessionDuration();
+                // Usar duração do plano que o usuário escolheu, com fallback para config global
+                $sessionDurationHours = max((float) ($originalDurationHours ?? \App\Helpers\SettingsHelper::getSessionDuration()), 0.1);
 
                 // Atualizar status do usuário
                 $user->update([

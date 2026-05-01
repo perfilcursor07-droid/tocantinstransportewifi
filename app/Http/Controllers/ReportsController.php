@@ -253,6 +253,9 @@ class ReportsController extends Controller
                 }
 
                 if ($user) {
+                    // Deletar avaliações vinculadas ao usuário
+                    \App\Models\ServiceReview::where('user_id', $user->id)->delete();
+
                     // A FK em payments.user_id possui onDelete('cascade').
                     $user->delete();
                     return;
@@ -261,7 +264,7 @@ class ReportsController extends Controller
                 $payment->delete();
             });
 
-            return back()->with('success', 'Registro removido com sucesso. Os indicadores do relatório foram atualizados.');
+            return back()->with('success', 'Registro removido com sucesso (pagamento, usuário e avaliações). Os indicadores do relatório foram atualizados.');
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         } catch (\Throwable $e) {
@@ -290,10 +293,11 @@ class ReportsController extends Controller
 
         $deletedUsers = 0;
         $deletedPayments = 0;
+        $deletedReviews = 0;
         $blockedRecords = 0;
 
         try {
-            DB::transaction(function () use ($payments, &$deletedUsers, &$deletedPayments, &$blockedRecords) {
+            DB::transaction(function () use ($payments, &$deletedUsers, &$deletedPayments, &$deletedReviews, &$blockedRecords) {
                 $deletedUserIds = [];
 
                 foreach ($payments as $payment) {
@@ -308,6 +312,9 @@ class ReportsController extends Controller
                         if (in_array($user->id, $deletedUserIds)) {
                             continue;
                         }
+
+                        // Deletar avaliações vinculadas ao usuário
+                        $deletedReviews += \App\Models\ServiceReview::where('user_id', $user->id)->delete();
 
                         $user->delete();
                         $deletedUsers++;
@@ -324,7 +331,7 @@ class ReportsController extends Controller
                 return back()->with('error', 'Nenhum registro foi removido. Existem itens vinculados a usuários administrativos.');
             }
 
-            $message = "Exclusão concluída. Usuários removidos: {$deletedUsers}. Pagamentos removidos diretamente: {$deletedPayments}.";
+            $message = "Exclusão concluída. Usuários removidos: {$deletedUsers}. Pagamentos removidos: {$deletedPayments}. Avaliações removidas: {$deletedReviews}.";
             if ($blockedRecords > 0) {
                 $message .= " Itens bloqueados por segurança: {$blockedRecords}.";
             }

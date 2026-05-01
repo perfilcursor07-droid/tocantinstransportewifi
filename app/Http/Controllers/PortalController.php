@@ -83,6 +83,11 @@ class PortalController extends Controller
             'savings' => $priceInfo['savings'],
             'speed' => '100+ Mbps',
             'session_duration' => \App\Helpers\SettingsHelper::getSessionDuration(),
+            'session_duration_short' => \App\Helpers\SettingsHelper::getSessionDurationShort(),
+            'wifi_price_short' => \App\Helpers\SettingsHelper::getWifiPrice(),
+            'wifi_price_full' => \App\Helpers\SettingsHelper::getWifiPriceFull(),
+            'plan_short_enabled' => (bool) \App\Models\SystemSetting::getValue('plan_short_enabled', '1'),
+            'plan_full_enabled' => (bool) \App\Models\SystemSetting::getValue('plan_full_enabled', '1'),
             'connected_user' => $existingUser,
         ]);
     }

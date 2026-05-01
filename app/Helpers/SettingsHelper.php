@@ -8,12 +8,22 @@ use Illuminate\Support\Facades\Cache;
 class SettingsHelper
 {
     /**
-     * Obter preço do WiFi configurado no painel admin
+     * Obter preço do WiFi para plano curto (1 hora)
      */
     public static function getWifiPrice(): float
     {
         return (float) Cache::remember('wifi_price', 3600, function () {
             return SystemSetting::getValue('wifi_price', config('wifi.pricing.default_price', 5.99));
+        });
+    }
+
+    /**
+     * Obter preço do WiFi para viagem completa
+     */
+    public static function getWifiPriceFull(): float
+    {
+        return (float) Cache::remember('wifi_price_full', 3600, function () {
+            return SystemSetting::getValue('wifi_price_full', 6.99);
         });
     }
 
@@ -28,12 +38,22 @@ class SettingsHelper
     }
 
     /**
-     * Obter duração da sessão em horas
+     * Obter duração da sessão viagem completa em horas
      */
     public static function getSessionDuration(): int
     {
         return (int) Cache::remember('session_duration', 3600, function () {
             return SystemSetting::getValue('session_duration', 12);
+        });
+    }
+
+    /**
+     * Obter duração da sessão curta em horas
+     */
+    public static function getSessionDurationShort(): int
+    {
+        return (int) Cache::remember('session_duration_short', 3600, function () {
+            return SystemSetting::getValue('session_duration_short', 1);
         });
     }
 
@@ -123,8 +143,10 @@ class SettingsHelper
     public static function clearCache(): void
     {
         Cache::forget('wifi_price');
+        Cache::forget('wifi_price_full');
         Cache::forget('pix_gateway');
         Cache::forget('session_duration');
+        Cache::forget('session_duration_short');
         Cache::forget('pagbank_account');
         Cache::forget('pagbank_email');
         Cache::forget('pagbank_token');

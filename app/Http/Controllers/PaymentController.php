@@ -35,6 +35,9 @@ class PaymentController extends Controller
             'mac_address' => 'required|string',
             'user_id' => 'nullable|exists:users,id',
             'ip_address' => 'nullable|ip',
+            'plan_duration' => 'nullable|numeric|min:0.1|max:168',
+            'plan_name' => 'nullable|string|max:80',
+            'plan_suffix' => 'nullable|string|max:20',
         ]);
 
         if ($validator->fails()) {
@@ -133,6 +136,10 @@ class PaymentController extends Controller
             // Verificar qual gateway usar
             $gateway = SystemSetting::getValue('pix_gateway', config('wifi.payment_gateways.pix.gateway'));
 
+            $planDuration = max((float) $request->input('plan_duration', \App\Helpers\SettingsHelper::getSessionDuration()), 0.1);
+            $planName = $request->input('plan_name', 'Viagem completa');
+            $planSuffix = $request->input('plan_suffix', '/ viagem');
+
             // Criar registro de pagamento
             $payment = Payment::create([
                 'user_id' => $user->id,
@@ -140,6 +147,11 @@ class PaymentController extends Controller
                 'payment_type' => 'pix',
                 'status' => 'pending',
                 'transaction_id' => $this->generateTransactionId(),
+                'payment_data' => [
+                    'plan_name' => $planName,
+                    'plan_suffix' => $planSuffix,
+                    'duration_hours' => $planDuration,
+                ],
             ]);
 
             // 🔧 FIX: Usar SettingsHelper para ler tokens do banco de dados (painel admin)
@@ -1136,7 +1148,7 @@ class PaymentController extends Controller
                         $payment->update([
                             'status' => 'completed',
                             'paid_at' => $result['paid_at'] ?? now(),
-                            'payment_data' => $webhookData,
+                            'payment_data' => array_merge((array) $payment->payment_data, $webhookData),
                         ]);
 
                         // Ativar acesso do usuário
@@ -1322,7 +1334,7 @@ class PaymentController extends Controller
 
             // Atualizar status do usuário com duração configurável
             // 🔧 FIX: Usar SystemSetting (admin/settings) como fonte primária
-            $sessionDurationConfig = \App\Helpers\SettingsHelper::getSessionDuration();
+            $sessionDurationConfig = data_get($payment->payment_data, 'duration_hours', \App\Helpers\SettingsHelper::getSessionDuration());
             $sessionDurationHours = max((float) $sessionDurationConfig, 0.1);
 
             $expiresAt = now()->addHours($sessionDurationHours);
@@ -1494,7 +1506,7 @@ class PaymentController extends Controller
                         // Marcar como expirado
                         $payment->update([
                             'status' => 'cancelled',
-                            'payment_data' => $webhookData,
+                            'payment_data' => array_merge((array) $payment->payment_data, $webhookData),
                         ]);
 
                         Log::info('⏰ Pagamento marcado como expirado', [
@@ -1581,7 +1593,7 @@ class PaymentController extends Controller
                         $payment->update([
                             'status' => 'completed',
                             'paid_at' => now(),
-                            'payment_data' => $webhookData,
+                            'payment_data' => array_merge((array) $payment->payment_data, $webhookData),
                         ]);
 
                         // Ativar acesso do usuário
@@ -1671,7 +1683,7 @@ class PaymentController extends Controller
                         $payment->update([
                             'status' => 'completed',
                             'paid_at' => now(),
-                            'payment_data' => array_merge($webhookData, [
+                            'payment_data' => array_merge((array) $payment->payment_data, $webhookData, [
                                 'different_payer' => true,
                                 'note' => 'Pagamento feito por pessoa diferente do solicitante',
                             ]),
@@ -1819,7 +1831,7 @@ class PaymentController extends Controller
                         $payment->update([
                             'status' => 'completed',
                             'paid_at' => $result['paid_at'] ?? now(),
-                            'payment_data' => $webhookData,
+                            'payment_data' => array_merge((array) $payment->payment_data, $webhookData),
                         ]);
 
                         // Ativar acesso do usuário
@@ -2058,10 +2070,9 @@ class PaymentController extends Controller
             }
 
             // Buscar pagamento recente completado
-            $sessionDuration = max((float) \App\Helpers\SettingsHelper::getSessionDuration(), 1);
             $payment = Payment::where('user_id', $user->id)
                 ->where('status', 'completed')
-                ->where('paid_at', '>', now()->subHours($sessionDuration))
+                ->where('paid_at', '>', now()->subHours(168))
                 ->orderBy('paid_at', 'desc')
                 ->first();
 
@@ -2088,6 +2099,7 @@ class PaymentController extends Controller
             }
 
             // Reativar acesso
+            $sessionDuration = max((float) data_get($payment->payment_data, 'duration_hours', \App\Helpers\SettingsHelper::getSessionDuration()), 0.1);
             $paidAt = $payment->paid_at ? \Carbon\Carbon::parse($payment->paid_at) : now();
             $expiresAt = $paidAt->copy()->addHours($sessionDuration);
 

@@ -38,30 +38,89 @@
                     </h2>
                 </div>
                 <div class="p-6">
-                    <div class="mb-6">
-                        <label for="wifi_price" class="block text-sm font-bold text-gray-700 mb-2">
-                            💰 Preço do WiFi (R$)
-                        </label>
-                        <div class="relative">
-                            <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">R$</span>
-                            <input 
-                                type="number" 
-                                name="wifi_price" 
-                                id="wifi_price" 
-                                step="0.01" 
-                                min="0.01" 
-                                max="999.99"
-                                value="{{ old('wifi_price', $settings['wifi_price']) }}"
-                                class="w-full pl-12 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-lg font-bold"
-                                required
-                            >
+                    <p class="text-sm text-gray-600 mb-4">Configure os preços dos dois planos disponíveis para os passageiros.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Plano Curto -->
+                        <div class="p-4 border-2 rounded-xl transition-all {{ $settings['plan_short_enabled'] ? 'border-gray-200' : 'border-gray-200 opacity-60' }}" id="plan-short-card">
+                            <div class="flex items-center justify-between mb-3">
+                                <label for="wifi_price" class="block text-sm font-bold text-gray-700">
+                                    ⏱️ Plano por Hora
+                                </label>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="hidden" name="plan_short_enabled" value="0">
+                                    <input type="checkbox" name="plan_short_enabled" value="1" class="sr-only peer" id="plan_short_toggle"
+                                        {{ $settings['plan_short_enabled'] ? 'checked' : '' }}
+                                        onchange="document.getElementById('plan-short-card').classList.toggle('opacity-60', !this.checked)">
+                                    <div class="w-9 h-5 bg-gray-300 peer-focus:ring-2 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+                                </label>
+                            </div>
+                            <p class="text-xs text-gray-500 mb-3">Acesso rápido por tempo limitado</p>
+                            <div class="flex gap-3">
+                                <div class="flex-1 relative">
+                                    <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-sm">R$</span>
+                                    <input 
+                                        type="number" name="wifi_price" id="wifi_price" step="0.01" min="0.01" max="999.99"
+                                        value="{{ old('wifi_price', $settings['wifi_price']) }}"
+                                        class="w-full pl-10 pr-3 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-lg font-bold"
+                                        required>
+                                </div>
+                                <div class="w-24 relative">
+                                    <input 
+                                        type="number" name="session_duration_short" id="session_duration_short" min="1" max="168"
+                                        value="{{ old('session_duration_short', $settings['session_duration_short']) }}"
+                                        class="w-full px-3 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-lg font-bold text-center"
+                                        required>
+                                    <span class="absolute -bottom-5 left-0 right-0 text-center text-[10px] text-gray-400">hora(s)</span>
+                                </div>
+                            </div>
+                            @error('wifi_price')
+                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                            @error('session_duration_short')
+                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
                         </div>
-                        <p class="mt-2 text-sm text-gray-600">
-                            Este valor será cobrado dos usuários para acesso ao WiFi durante toda a viagem.
-                        </p>
-                        @error('wifi_price')
-                            <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
+
+                        <!-- Plano Viagem Completa -->
+                        <div class="p-4 border-2 border-green-200 bg-green-50 rounded-xl transition-all {{ $settings['plan_full_enabled'] ? '' : 'opacity-60' }}" id="plan-full-card">
+                            <div class="flex items-center justify-between mb-3">
+                                <label for="wifi_price_full" class="block text-sm font-bold text-gray-700">
+                                    🚌 Viagem Completa
+                                </label>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="hidden" name="plan_full_enabled" value="0">
+                                    <input type="checkbox" name="plan_full_enabled" value="1" class="sr-only peer" id="plan_full_toggle"
+                                        {{ $settings['plan_full_enabled'] ? 'checked' : '' }}
+                                        onchange="document.getElementById('plan-full-card').classList.toggle('opacity-60', !this.checked)">
+                                    <div class="w-9 h-5 bg-gray-300 peer-focus:ring-2 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+                                </label>
+                            </div>
+                            <p class="text-xs text-gray-500 mb-3">WiFi até o destino final</p>
+                            <div class="flex gap-3">
+                                <div class="flex-1 relative">
+                                    <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-sm">R$</span>
+                                    <input 
+                                        type="number" name="wifi_price_full" id="wifi_price_full" step="0.01" min="0.01" max="999.99"
+                                        value="{{ old('wifi_price_full', $settings['wifi_price_full']) }}"
+                                        class="w-full pl-10 pr-3 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-lg font-bold"
+                                        required>
+                                </div>
+                                <div class="w-24 relative">
+                                    <input 
+                                        type="number" name="session_duration" id="session_duration" min="1" max="168"
+                                        value="{{ old('session_duration', $settings['session_duration']) }}"
+                                        class="w-full px-3 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-lg font-bold text-center"
+                                        required>
+                                    <span class="absolute -bottom-5 left-0 right-0 text-center text-[10px] text-gray-400">hora(s)</span>
+                                </div>
+                            </div>
+                            @error('wifi_price_full')
+                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                            @error('session_duration')
+                                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
                     </div>
                 </div>
             </div>
@@ -198,41 +257,6 @@
                                 </p>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card: Sessão -->
-            <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-                <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
-                    <h2 class="text-xl font-bold text-white flex items-center">
-                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        Duração da Sessão
-                    </h2>
-                </div>
-                <div class="p-6">
-                    <div class="mb-6">
-                        <label for="session_duration" class="block text-sm font-bold text-gray-700 mb-2">
-                            ⏱️ Duração da Sessão WiFi (horas)
-                        </label>
-                        <input 
-                            type="number" 
-                            name="session_duration" 
-                            id="session_duration" 
-                            min="1" 
-                            max="168"
-                            value="{{ old('session_duration', $settings['session_duration']) }}"
-                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-lg font-bold"
-                            required
-                        >
-                        <p class="mt-2 text-sm text-gray-600">
-                            Tempo que o usuário terá acesso ao WiFi após o pagamento (1-168 horas).
-                        </p>
-                        @error('session_duration')
-                            <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
                     </div>
                 </div>
             </div>

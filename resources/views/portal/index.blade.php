@@ -20,51 +20,29 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        surface: '#F8F9FA',
-                        ink:     '#111111',
-                        ink2:    '#333333',
-                        muted:   '#888888',
-                        border:  '#E5E5E5',
-                        green: {
-                            DEFAULT: '#00A335',
-                            light:   '#00C040',
-                            dark:    '#007A28',
-                            pale:    '#E8F5E9',
-                        },
-                        gold: {
-                            DEFAULT: '#E6A817',
-                            pale:    '#FFF8E1',
-                        },
-                        red: {
-                            DEFAULT: '#D32F2F',
-                            pale:    '#FFEBEE',
-                        },
-                        blue: {
-                            DEFAULT: '#1565C0',
-                            light:   '#1E88E5',
-                            pale:    '#E3F2FD',
-                        },
-                        brand: {
-                            50: '#E8F5E9',
-                            100: '#C8E6C9',
-                            500: '#00A335',
-                            600: '#007A28',
-                            700: '#005A1D',
-                        }
+                        surface: '#F0F4F3',
+                        ink: '#111111',
+                        ink2: '#333333',
+                        muted: '#888888',
+                        border: '#E0E0E0',
+                        green: { DEFAULT: '#00A335', light: '#00C040', dark: '#007A28', pale: '#E8F5E9' },
+                        gold: { DEFAULT: '#E6A817', pale: '#FFF8E1' },
+                        red: { DEFAULT: '#D32F2F', pale: '#FFEBEE' },
+                        blue: { DEFAULT: '#1565C0', light: '#1E88E5', pale: '#E3F2FD' },
+                        brand: { 50: '#E8F5E9', 100: '#C8E6C9', 500: '#00A335', 600: '#007A28', 700: '#005A1D' }
                     },
-                    fontFamily: {
-                        'sans': ['Inter', 'sans-serif']
-                    },
+                    fontFamily: { 'sans': ['Inter', 'system-ui', 'sans-serif'] },
                     boxShadow: {
-                        card:  '0 1px 3px rgba(0,0,0,0.08)',
-                        hover: '0 4px 12px rgba(0,0,0,0.10)',
+                        card: '0 1px 4px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.03)',
+                        hover: '0 8px 24px rgba(0,0,0,0.10)',
                         modal: '0 20px 60px rgba(0,0,0,0.20)',
+                        glow: '0 0 20px rgba(0,163,53,0.25)',
                     },
                 }
             }
@@ -72,10 +50,10 @@
     </script>
     <style>
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse-btn {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(0, 163, 53, 0.4); }
-            50% { box-shadow: 0 0 0 12px rgba(0, 163, 53, 0); }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 4px 14px rgba(0,163,53,0.35), 0 0 0 0 rgba(0,163,53,0.4); }
+            50% { box-shadow: 0 4px 20px rgba(0,163,53,0.5), 0 0 0 10px rgba(0,163,53,0); }
         }
         @keyframes shimmer {
             0% { transform: translateX(-100%); }
@@ -83,54 +61,48 @@
         }
         .animate-fade-in { animation: fadeIn 0.4s ease-out; }
         .animate-slide-up { animation: slideUp 0.5s cubic-bezier(.22,1,.36,1); }
-        .btn-pulse { animation: pulse-btn 2s ease-in-out infinite; }
-        .shimmer-effect { position: relative; overflow: hidden; }
-        .shimmer-effect::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            animation: shimmer 2.5s infinite;
-        }
+        .animate-slide-up-delay { animation: slideUp 0.5s cubic-bezier(.22,1,.36,1) 0.1s both; }
+        .btn-pulse { animation: pulse-glow 2s ease-in-out infinite; }
         .connect-button {
-            background: linear-gradient(135deg, #00A335 0%, #007A28 100%);
-            position: relative;
-            overflow: hidden;
-            transition: all 0.2s ease;
+            background: linear-gradient(135deg, #00C040 0%, #007A28 100%);
+            position: relative; overflow: hidden;
+            transition: all 0.25s cubic-bezier(.22,1,.36,1);
         }
-        .connect-button:hover { transform: translateY(-1px); filter: brightness(1.08); }
-        .connect-button:active { transform: scale(0.98); }
-        .gradient-text {
-            background: linear-gradient(135deg, #007A28, #00A335);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .connect-button::after {
+            content: '';
+            position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: shimmer 3s infinite;
         }
-        .elegant-card {
-            background: white;
-            border: 1px solid #E5E5E5;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        .connect-button:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,163,53,0.35); }
+        .connect-button:active { transform: scale(0.97); }
+        .plan-card-selected {
+            border-color: #00A335 !important;
+            background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%) !important;
+            box-shadow: 0 0 0 2px rgba(0,163,53,0.2), 0 4px 12px rgba(0,163,53,0.08) !important;
         }
+        .plan-card-selected [data-plan-radio] {
+            border-width: 5px !important; border-color: #00A335 !important;
+        }
+        .hero-gradient { background: linear-gradient(160deg, #006B25 0%, #00A335 40%, #00C040 100%); }
+        body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
     </style>
 </head>
 <body class="font-sans min-h-screen bg-surface">
-    <!-- No-WiFi Warning Overlay (aparece APENAS quando acessa pelo navegador sem estar no WiFi) -->
+
+    <!-- No-WiFi Warning Overlay -->
     <div id="no-wifi-warning" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden">
         <div class="flex items-center justify-center h-full p-4">
             <div class="bg-white rounded-2xl p-6 w-full max-w-sm animate-slide-up shadow-2xl text-center">
-                <!-- Ícone WiFi desconectado -->
                 <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M6 18L18 6"/>
                     </svg>
                 </div>
-
                 <h3 class="text-lg font-bold text-gray-900 mb-2">Conecte-se ao WiFi primeiro</h3>
                 <p class="text-sm text-gray-600 mb-4">
                     Você está acessando pelo <strong>navegador</strong> sem estar conectado ao <strong>WiFi do ônibus</strong>. Para pagar e usar a internet, siga os passos abaixo:
                 </p>
-
-                <!-- Instruções -->
                 <div class="bg-gray-50 rounded-xl p-4 mb-5 text-left">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Como conectar:</p>
                     <div class="space-y-2.5">
@@ -152,147 +124,68 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5">
                     <p class="text-xs text-amber-800">
                         <strong>Importante:</strong> Se você pagar sem estar no WiFi do ônibus, o acesso <strong>não será liberado</strong> porque não conseguimos identificar seu dispositivo.
                     </p>
                 </div>
-
-                <button 
-                    id="no-wifi-retry-btn"
-                    onclick="retryWifiCheck()"
-                    class="connect-button w-full text-white font-bold py-3.5 rounded-xl shadow-md text-sm mb-3"
-                >
+                <button id="no-wifi-retry-btn" onclick="retryWifiCheck()" class="connect-button w-full text-white font-bold py-3.5 rounded-xl shadow-md text-sm mb-3">
                     JÁ CONECTEI NO WIFI, VERIFICAR
                 </button>
-
                 <p class="text-[11px] text-gray-400 mt-2">A tela de pagamento só aparece quando você estiver no WiFi do ônibus</p>
             </div>
         </div>
     </div>
 
     <script>
-    /**
-     * Detecção inteligente:
-     * - Se tem parâmetros do MikroTik (mac, from_mikrotik, captive, etc.) = veio pelo captive portal = OK
-     * - Se NÃO tem parâmetros = acessou direto pelo navegador = precisa verificar se está no WiFi
-     */
     function hasMikrotikContext() {
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.has('mac') || urlParams.has('mikrotik_mac') || urlParams.has('client_mac') ||
-               urlParams.has('from_mikrotik') || urlParams.has('from_router') || 
+               urlParams.has('from_mikrotik') || urlParams.has('from_router') ||
                urlParams.has('captive') || urlParams.has('from_login');
     }
-
     function showNoWifiWarning() {
         document.getElementById('no-wifi-warning').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
-        // Marcar globalmente que o acesso sem WiFi está bloqueado
         window._noWifiBlocked = true;
     }
-
     function hideNoWifiWarning() {
         document.getElementById('no-wifi-warning').classList.add('hidden');
         document.body.style.overflow = 'auto';
         window._noWifiBlocked = false;
     }
-
     function retryWifiCheck() {
         const btn = document.getElementById('no-wifi-retry-btn');
         btn.innerHTML = '<span class="animate-pulse">Verificando...</span>';
         btn.disabled = true;
-
-        // Testar se consegue alcançar o gateway do MikroTik
         const img = new Image();
         let responded = false;
-        
-        img.onload = function() {
-            responded = true;
-            // Está no WiFi! Recarregar a página
-            hideNoWifiWarning();
-            window.location.href = 'http://10.5.50.1';
-        };
-        
+        img.onload = function() { responded = true; hideNoWifiWarning(); window.location.href = 'http://10.5.50.1'; };
         img.onerror = function() {
-            // onerror também pode significar que alcançou mas não tem a imagem
-            // Tentar via fetch como fallback
             fetch('http://10.5.50.1', { mode: 'no-cors', cache: 'no-cache' })
-                .then(() => {
-                    responded = true;
-                    hideNoWifiWarning();
-                    window.location.href = 'http://10.5.50.1';
-                })
+                .then(() => { responded = true; hideNoWifiWarning(); window.location.href = 'http://10.5.50.1'; })
                 .catch(() => {
-                    btn.innerHTML = 'WIFI NÃO DETECTADO!';
-                    btn.classList.remove('connect-button');
-                    btn.classList.add('bg-red-500');
-                    setTimeout(() => {
-                        btn.innerHTML = 'JÁ CONECTEI NO WIFI, VERIFICAR';
-                        btn.classList.add('connect-button');
-                        btn.classList.remove('bg-red-500');
-                        btn.disabled = false;
-                    }, 2500);
+                    btn.innerHTML = 'WIFI NÃO DETECTADO!'; btn.classList.remove('connect-button'); btn.classList.add('bg-red-500');
+                    setTimeout(() => { btn.innerHTML = 'JÁ CONECTEI NO WIFI, VERIFICAR'; btn.classList.add('connect-button'); btn.classList.remove('bg-red-500'); btn.disabled = false; }, 2500);
                 });
         };
-        
         img.src = 'http://10.5.50.1/favicon.ico?t=' + Date.now();
-        
-        // Timeout de 4 segundos
         setTimeout(function() {
             if (!responded) {
-                btn.innerHTML = 'WIFI NÃO DETECTADO!';
-                btn.classList.remove('connect-button');
-                btn.classList.add('bg-red-500');
-                setTimeout(() => {
-                    btn.innerHTML = 'JÁ CONECTEI NO WIFI, VERIFICAR';
-                    btn.classList.add('connect-button');
-                    btn.classList.remove('bg-red-500');
-                    btn.disabled = false;
-                }, 2500);
+                btn.innerHTML = 'WIFI NÃO DETECTADO!'; btn.classList.remove('connect-button'); btn.classList.add('bg-red-500');
+                setTimeout(() => { btn.innerHTML = 'JÁ CONECTEI NO WIFI, VERIFICAR'; btn.classList.add('connect-button'); btn.classList.remove('bg-red-500'); btn.disabled = false; }, 2500);
             }
         }, 4000);
     }
-
-    // Executar detecção ao carregar a página
     document.addEventListener('DOMContentLoaded', function() {
-        // Se veio pelo captive portal (tem parâmetros do MikroTik), não precisa verificar nada
-        if (hasMikrotikContext()) {
-            window._noWifiBlocked = false;
-            return;
-        }
-
-        // Acessou direto pelo navegador - verificar se está na rede WiFi
+        if (hasMikrotikContext()) { window._noWifiBlocked = false; return; }
         const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-        if (conn && conn.type === 'cellular') {
-            // API confirma que está em dados móveis
-            showNoWifiWarning();
-            return;
-        }
-
-        // Testar conectividade com o gateway para confirmar
+        if (conn && conn.type === 'cellular') { showNoWifiWarning(); return; }
         let gatewayReached = false;
-        
         fetch('http://10.5.50.1', { mode: 'no-cors', cache: 'no-cache' })
-            .then(() => {
-                gatewayReached = true;
-                // Está no WiFi sem parâmetros - redirecionar para o captive portal
-                // para que pegue MAC e IP corretamente
-                window.location.href = 'http://10.5.50.1';
-            })
-            .catch(() => {
-                // Não alcançou o gateway = não está no WiFi do ônibus
-                if (!gatewayReached) {
-                    showNoWifiWarning();
-                }
-            });
-        
-        // Timeout: se não responder em 4s, mostrar aviso
-        setTimeout(function() {
-            if (!gatewayReached) {
-                showNoWifiWarning();
-            }
-        }, 4000);
+            .then(() => { gatewayReached = true; window.location.href = 'http://10.5.50.1'; })
+            .catch(() => { if (!gatewayReached) showNoWifiWarning(); });
+        setTimeout(function() { if (!gatewayReached) showNoWifiWarning(); }, 4000);
     });
     </script>
 
@@ -309,88 +202,145 @@
 
     <div class="min-h-screen flex flex-col">
 
+        <!-- Hero Header -->
+        <header class="hero-gradient relative overflow-hidden">
+            <!-- Decoração sutil -->
+            <div class="absolute inset-0">
+                <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
+                <div class="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+            </div>
+            <div class="relative max-w-lg mx-auto px-5 pt-6 pb-10 sm:pt-8 sm:pb-12 text-center">
+                <div class="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm rounded-full px-3 py-1 mb-2">
+                    <span class="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse"></span>
+                    <span class="text-white/90 text-[10px] font-semibold tracking-wide uppercase">Internet via Starlink</span>
+                </div>
+                <h1 class="text-white text-xl sm:text-2xl font-extrabold tracking-tight">WiFi Tocantins</h1>
+            </div>
+            <!-- Curva suave -->
+            <div class="absolute bottom-0 left-0 right-0">
+                <svg viewBox="0 0 1440 48" fill="none" preserveAspectRatio="none" class="w-full h-6 sm:h-8 block">
+                    <path d="M0 48h1440V24C1200 0 960 0 720 12 480 24 240 48 0 24v24z" fill="#F0F4F3"/>
+                </svg>
+            </div>
+        </header>
+
         <!-- Conteudo Principal -->
-        <main class="flex-1 px-4 pt-12 pb-6 sm:pt-16 sm:pb-8">
+        <main class="flex-1 px-4 pt-4 pb-6 sm:pt-6 sm:pb-8">
             <div class="max-w-lg mx-auto space-y-4 sm:space-y-5">
 
-                <!-- SEÇÃO 1: Card de Conexão (CTA principal) -->
-                <section class="bg-white rounded-2xl border border-border shadow-[0_8px_30px_rgba(0,0,0,0.08)] overflow-hidden animate-slide-up">
-                    <!-- Faixa de preço -->
-                    <div class="bg-gradient-to-r from-green-dark via-green to-green-light px-5 py-5 text-center relative">
-                        @if($discount_percentage > 0)
-                        <span class="absolute top-2.5 right-3 text-[9px] font-bold uppercase tracking-wider bg-white/20 text-white px-2 py-0.5 rounded-full">
-                            -{{ $discount_percentage }}%
-                        </span>
-                        @endif
-                        <p class="text-sm font-bold text-white mb-1">Internet durante toda a viagem</p>
-                        <p class="text-[11px] text-white/60 mb-3">Navegue, assista e conecte-se sem limites até o destino</p>
-                        <div class="flex items-baseline justify-center gap-2">
-                            @if($discount_percentage > 0)
-                            <span class="text-white/30 text-sm line-through">R$ {{ number_format($original_price, 2, ',', '.') }}</span>
+                <!-- Card de Planos -->
+                <section class="bg-white rounded-2xl border border-border shadow-card overflow-hidden animate-slide-up">
+                    <div class="px-5 py-5 sm:px-6 sm:py-6">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-green to-green-dark flex items-center justify-center">
+                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0"/></svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-ink leading-tight">Escolha seu plano</p>
+                                <p class="text-[11px] text-muted">Selecione e conecte-se</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3" id="wifi-plan-options">
+                            @if($plan_short_enabled ?? true)
+                            <!-- Plano 1 hora (compacto) -->
+                            <button type="button" data-plan-option data-plan-price="{{ $wifi_price_short ?? 5.99 }}" data-plan-duration="{{ $session_duration_short ?? 1 }}" data-plan-name="{{ $session_duration_short ?? 1 }} hora(s) de acesso" data-plan-suffix="/ hora"
+                                class="wifi-plan-card flex w-full items-center gap-3 rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-left transition-all duration-200 hover:border-green/40 focus:outline-none focus:ring-2 focus:ring-green/20">
+                                <span data-plan-radio class="h-5 w-5 rounded-full border-2 border-gray-300 bg-white flex-shrink-0 transition-all duration-200"></span>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-bold text-ink leading-tight">{{ $session_duration_short ?? 1 }} hora(s) de acesso</p>
+                                    <p class="text-[11px] text-muted mt-0.5">Ideal para uso rápido</p>
+                                </div>
+                                <p class="text-lg font-extrabold text-ink tracking-tight">R${{ number_format($wifi_price_short ?? 5.99, 2, ',', '.') }}</p>
+                            </button>
                             @endif
-                            <span class="text-white text-4xl sm:text-5xl font-extrabold tracking-tight">R$ {{ number_format($price, 2, ',', '.') }}</span>
+
+                            @if($plan_full_enabled ?? true)
+                            <!-- Plano Viagem Completa (PRÉ-SELECIONADO) -->
+                            <button type="button" data-plan-option data-plan-price="{{ $wifi_price_full ?? 6.99 }}" data-plan-duration="{{ $session_duration ?? 12 }}" data-plan-name="Viagem completa" data-plan-suffix="/ viagem" data-plan-default="true"
+                                class="wifi-plan-card plan-card-selected relative flex w-full rounded-2xl border-2 border-green text-left transition-all duration-200 hover:shadow-hover focus:outline-none focus:ring-2 focus:ring-green/20 flex-col">
+                                <span class="absolute -top-2.5 right-4 bg-gradient-to-r from-green to-green-dark text-white text-[9px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full shadow-sm z-10">Mais escolhido</span>
+                                <div class="flex items-center gap-3 px-4 pt-4 pb-3">
+                                    <span data-plan-radio class="h-6 w-6 rounded-full border-[5px] border-green bg-white flex-shrink-0 transition-all duration-200"></span>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-base font-extrabold text-ink leading-tight">Viagem completa</p>
+                                        <p class="text-xs text-green-dark font-medium mt-0.5">WiFi até o destino final</p>
+                                    </div>
+                                    <div class="text-right flex-shrink-0">
+                                        <p class="text-2xl font-black text-green-dark tracking-tight leading-none">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-4 px-4 pb-3 text-[11px] text-green-dark/70 font-medium">
+                                    <span class="flex items-center gap-1">✓ Apps</span>
+                                    <span class="flex items-center gap-1">✓ Streaming</span>
+                                    <span class="flex items-center gap-1">✓ Redes sociais</span>
+                                    <span class="flex items-center gap-1">✓ Melhor custo</span>
+                                </div>
+                            </button>
+                            @endif
                         </div>
                     </div>
 
-                    <div class="p-5">
+                    <div class="border-t border-gray-100"></div>
+
+                    <div class="px-5 py-5 sm:px-6">
                         <!-- Apps compatíveis -->
-                        <p class="text-[10px] font-bold text-muted uppercase tracking-widest text-center mb-3">Acesse todos os apps</p>
-                        <div class="flex justify-center items-center gap-3 mb-5">
-                            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center shadow-hover">
-                                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                        <div class="flex justify-center items-center gap-2.5 mb-5">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center shadow-sm" title="Instagram">
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
                             </div>
-                            <div class="w-11 h-11 rounded-xl bg-red-600 flex items-center justify-center shadow-hover">
-                                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                            <div class="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center shadow-sm" title="YouTube">
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
                             </div>
-                            <div class="w-11 h-11 rounded-xl bg-black flex items-center justify-center shadow-hover">
+                            <div class="w-10 h-10 rounded-xl bg-black flex items-center justify-center shadow-sm" title="Netflix">
                                 <span class="text-red-600 font-black text-base">N</span>
                             </div>
-                            <div class="w-11 h-11 rounded-xl bg-green-500 flex items-center justify-center shadow-hover">
-                                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                            <div class="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center shadow-sm" title="WhatsApp">
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                             </div>
-                            <div class="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center shadow-hover">
-                                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                            <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-sm" title="Facebook">
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-black flex items-center justify-center shadow-sm" title="TikTok">
+                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.46V13a8.28 8.28 0 005.58 2.17V11.7a4.83 4.83 0 01-3.77-1.24V6.69h3.77z"/></svg>
                             </div>
                         </div>
 
-                        <!-- Botão CTA Principal - Mobile -->
-                        <button 
-                            id="connect-btn" 
-                            class="connect-button btn-pulse w-full text-white font-bold py-4 rounded-xl text-base flex items-center justify-center gap-2 shadow-lg lg:hidden"
-                        >
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
-                            ACESSAR INTERNET AGORA
-                        </button>
-
-                        <!-- Botão CTA Principal - Desktop -->
-                        <button 
-                            id="connect-btn-desktop" 
-                            class="connect-button btn-pulse w-full text-white font-bold py-4 rounded-xl text-base items-center justify-center gap-2 shadow-lg hidden lg:flex"
-                        >
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
-                            ACESSAR INTERNET AGORA
-                        </button>
+                        <!-- Botão CTA Principal - PULSANDO -->
+                        <div id="plan-cta-wrapper">
+                            <button id="connect-btn"
+                                class="connect-button btn-pulse w-full text-white font-extrabold py-5 rounded-2xl text-xl flex items-center justify-center gap-3 shadow-lg lg:hidden">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
+                                ACESSAR INTERNET AGORA
+                            </button>
+                            <button id="connect-btn-desktop"
+                                class="connect-button btn-pulse w-full text-white font-extrabold py-5 rounded-2xl text-xl items-center justify-center gap-3 shadow-lg hidden lg:flex">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
+                                ACESSAR INTERNET AGORA
+                            </button>
+                        </div>
 
                         <!-- Indicadores de confiança -->
-                        <div class="mt-3 flex items-center justify-center gap-4 text-xs text-muted">
-                            <span class="flex items-center gap-1">
+                        <div class="mt-4 flex items-center justify-center gap-5 text-xs text-muted">
+                            <span class="flex items-center gap-1.5">
                                 <svg class="w-3.5 h-3.5 text-green" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
                                 Pagamento seguro
                             </span>
-                            <span class="flex items-center gap-1">
+                            <span class="flex items-center gap-1.5">
                                 <svg class="w-3.5 h-3.5 text-green" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/></svg>
                                 PIX instantâneo
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-green" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                Liberação automática
                             </span>
                         </div>
                     </div>
                 </section>
 
-                <!-- SEÇÃO 2: Voucher do motorista -->
-                <section class="bg-white rounded-xl border border-border shadow-card animate-fade-in">
-                    <a 
-                        href="{{ route('voucher.activate') }}{{ request()->has('mac') ? '?source=mikrotik&mac=' . request('mac') . '&ip=' . request('ip') : '' }}" 
-                        class="flex items-center justify-between p-4 group"
-                    >
+                <!-- Voucher do motorista -->
+                <section class="bg-white rounded-xl border border-border shadow-card animate-slide-up-delay">
+                    <a href="{{ route('voucher.activate') }}{{ request()->has('mac') ? '?source=mikrotik&mac=' . request('mac') . '&ip=' . request('ip') : '' }}" class="flex items-center justify-between p-4 group">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-gold-pale rounded-xl flex items-center justify-center border border-gold/20">
                                 <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
@@ -400,16 +350,13 @@
                                 <p class="text-[11px] text-muted">Acesso gratuito com código</p>
                             </div>
                         </div>
-                        <svg class="w-5 h-5 text-border group-hover:text-green transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <svg class="w-5 h-5 text-gray-300 group-hover:text-green group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </a>
                 </section>
 
-                <!-- SEÇÃO 2.5: Tutorial em vídeo -->
-                <section class="bg-white rounded-xl border border-border shadow-card animate-fade-in">
-                    <button
-                        onclick="openVideoTutorial()"
-                        class="flex items-center justify-between p-4 w-full group"
-                    >
+                <!-- Tutorial em vídeo -->
+                <section class="bg-white rounded-xl border border-border shadow-card animate-slide-up-delay">
+                    <button onclick="openVideoTutorial()" class="flex items-center justify-between p-4 w-full group">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-red-pale rounded-xl flex items-center justify-center border border-red/20">
                                 <svg class="w-5 h-5 text-red" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
@@ -419,132 +366,69 @@
                                 <p class="text-[11px] text-muted">Assista o passo a passo</p>
                             </div>
                         </div>
-                        <svg class="w-5 h-5 text-border group-hover:text-red transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <svg class="w-5 h-5 text-gray-300 group-hover:text-red group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
-                </section>
-
-                <!-- SEÇÃO 3: Serviços extras -->
-                <section class="animate-fade-in">
-                    <p class="text-[10px] font-bold text-muted uppercase tracking-widest mb-2.5 px-1">Outros serviços</p>
-                    <div class="grid grid-cols-2 gap-3">
-                        <button 
-                            type="button"
-                            onclick="openPassagensModal()" 
-                            class="bg-white rounded-xl border border-border p-4 text-left shadow-card hover:shadow-hover hover:border-blue/30 transition-all group"
-                        >
-                            <div class="w-10 h-10 bg-blue-pale rounded-xl flex items-center justify-center mb-2 group-hover:bg-blue/10 transition-colors">
-                                <span class="text-xl">&#x1F3AB;</span>
-                            </div>
-                            <p class="text-sm font-bold text-ink">Passagens</p>
-                            <p class="text-[11px] text-muted mt-0.5">Compre sem fila</p>
-                        </button>
-                        <button 
-                            type="button"
-                            onclick="openTurismoModal()" 
-                            class="bg-white rounded-xl border border-border p-4 text-left shadow-card hover:shadow-hover hover:border-gold/30 transition-all group"
-                        >
-                            <div class="w-10 h-10 bg-gold-pale rounded-xl flex items-center justify-center mb-2 group-hover:bg-gold/10 transition-colors">
-                                <span class="text-xl">&#x1F3D6;&#xFE0F;</span>
-                            </div>
-                            <p class="text-sm font-semibold text-gray-800">Turismo</p>
-                            <p class="text-[11px] text-gray-400 mt-0.5">Alugue um ônibus</p>
-                        </button>
-                    </div>
                 </section>
 
             </div>
         </main>
 
-        <!-- Footer simples -->
-        <footer class="text-center py-4 px-4">
-            <p class="text-[11px] text-gray-300">WiFi Tocantins Express &bull; Internet via Starlink</p>
+        <!-- Footer -->
+        <footer class="text-center py-5 px-4">
+            <div class="flex items-center justify-center gap-2 mb-1">
+                <svg class="w-3.5 h-3.5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0"/></svg>
+                <p class="text-[11px] text-gray-300 font-medium">WiFi Tocantins Express</p>
+            </div>
+            <p class="text-[10px] text-gray-300/60">Internet de alta velocidade via Starlink</p>
         </footer>
     </div>
 
     <!-- Modal Vídeo Tutorial -->
     <div id="video-tutorial-modal" class="fixed inset-0 bg-black/90 z-50 hidden flex-col lg:items-center lg:justify-center">
-
-        <!-- DESKTOP: card centralizado -->
         <div class="hidden lg:flex flex-col w-full max-w-2xl bg-gray-900 rounded-2xl overflow-hidden shadow-2xl">
             <div class="flex items-center justify-between px-5 py-3 bg-gray-800">
                 <p class="text-white font-semibold text-sm">Como se conectar ao WiFi</p>
-                <button
-                    onclick="closeVideoTutorial()"
-                    class="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold px-4 py-2 rounded-full transition-colors"
-                >
+                <button onclick="closeVideoTutorial()" class="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold px-4 py-2 rounded-full transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                     FECHAR
                 </button>
             </div>
-            <video
-                id="tutorial-video-desktop"
-                class="w-full max-h-[70vh] object-contain bg-black"
-                autoplay
-                controls
-                playsinline
-                preload="none"
-            >
+            <video id="tutorial-video-desktop" class="w-full max-h-[70vh] object-contain bg-black" autoplay controls playsinline preload="none">
                 <source src="{{ asset('videos/CaptivePortalVideo.mp4') }}" type="video/mp4">
             </video>
         </div>
-
-        <!-- MOBILE: tela cheia -->
         <div class="flex flex-col flex-1 w-full lg:hidden">
             <div class="flex items-center justify-between px-4 py-3 bg-gray-900 flex-shrink-0">
                 <p class="text-white font-semibold text-sm">Como se conectar ao WiFi</p>
-                <button
-                    onclick="closeVideoTutorial()"
-                    class="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold px-4 py-2 rounded-full transition-colors"
-                >
+                <button onclick="closeVideoTutorial()" class="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold px-4 py-2 rounded-full transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                     FECHAR
                 </button>
             </div>
             <div class="flex-1 flex items-center justify-center bg-black">
-                <video
-                    id="tutorial-video"
-                    class="w-full h-full object-contain"
-                    autoplay
-                    controls
-                    playsinline
-                    preload="none"
-                >
+                <video id="tutorial-video" class="w-full h-full object-contain" autoplay controls playsinline preload="none">
                     <source src="{{ asset('videos/CaptivePortalVideo.mp4') }}" type="video/mp4">
                 </video>
             </div>
         </div>
-
     </div>
 
     <script>
     function openVideoTutorial() {
         const modal = document.getElementById('video-tutorial-modal');
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+        modal.classList.remove('hidden'); modal.classList.add('flex');
         document.body.style.overflow = 'hidden';
-
-        // Toca o vídeo correto dependendo do tamanho da tela
         const isDesktop = window.innerWidth >= 1024;
-        const videoId = isDesktop ? 'tutorial-video-desktop' : 'tutorial-video';
-        const video = document.getElementById(videoId);
+        const video = document.getElementById(isDesktop ? 'tutorial-video-desktop' : 'tutorial-video');
         if (video) { video.currentTime = 0; video.play(); }
     }
     function closeVideoTutorial() {
         const modal = document.getElementById('video-tutorial-modal');
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
+        modal.classList.add('hidden'); modal.classList.remove('flex');
         document.body.style.overflow = 'auto';
-
-        // Para os dois vídeos
-        ['tutorial-video', 'tutorial-video-desktop'].forEach(id => {
-            const v = document.getElementById(id);
-            if (v) v.pause();
-        });
+        ['tutorial-video', 'tutorial-video-desktop'].forEach(id => { const v = document.getElementById(id); if (v) v.pause(); });
     }
-    // Fechar clicando no fundo (desktop)
-    document.getElementById('video-tutorial-modal').addEventListener('click', function(e) {
-        if (e.target === this) closeVideoTutorial();
-    });
+    document.getElementById('video-tutorial-modal').addEventListener('click', function(e) { if (e.target === this) closeVideoTutorial(); });
     </script>
 
     <!-- Registration Modal -->
@@ -555,38 +439,19 @@
                     <h3 class="text-lg font-bold text-gray-900">Acesso rápido</h3>
                     <button id="close-registration-modal" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors">&times;</button>
                 </div>
-                
                 <p class="text-sm text-gray-500 mb-5">Informe seus dados para gerar o QR Code PIX.</p>
-                
                 <form id="registration-form" class="space-y-4">
                     <div id="registration-errors" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm"></div>
-                    
                     <div>
                         <label for="user_phone" class="block text-sm font-medium text-gray-700 mb-1.5">Telefone com DDD</label>
-                        <input 
-                            type="tel" 
-                            id="user_phone" 
-                            name="phone" 
-                            required
-                            placeholder="(63) 9 8101-3050"
-                            maxlength="16"
-                            autofocus
-                            class="w-full border border-gray-300 rounded-xl px-4 py-3.5 focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition-all text-base text-center font-medium"
-                        >
+                        <input type="tel" id="user_phone" name="phone" required placeholder="(63) 9 8101-3050" maxlength="16" autofocus
+                            class="w-full border border-gray-300 rounded-xl px-4 py-3.5 focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition-all text-base text-center font-medium">
                     </div>
-
-                    <button 
-                        type="submit" 
-                        id="registration-submit-btn"
-                        class="connect-button w-full text-white font-bold py-3.5 rounded-xl shadow-md text-sm"
-                    >
+                    <button type="submit" id="registration-submit-btn" class="connect-button w-full text-white font-bold py-3.5 rounded-xl shadow-md text-sm">
                         GERAR QR CODE PIX
                     </button>
                 </form>
-                
-                <p class="text-center text-xs text-gray-400 mt-4">
-                    Pagamento seguro &bull; Liberação automática
-                </p>
+                <p class="text-center text-xs text-gray-400 mt-4">Pagamento seguro &bull; Liberação automática</p>
             </div>
         </div>
     </div>
@@ -599,145 +464,28 @@
                     <h3 class="text-lg font-bold text-gray-900">Pagamento PIX</h3>
                     <button id="close-modal" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors">&times;</button>
                 </div>
-                
                 <div class="bg-emerald-50 rounded-xl p-5 mb-5 text-center border border-emerald-100">
-                    <p class="text-3xl font-extrabold text-emerald-700">R$ {{ number_format($price, 2, ',', '.') }}</p>
-                    <p class="text-sm text-emerald-600 mt-1">Internet durante toda a viagem</p>
+                    <p id="selected-plan-price" class="text-3xl font-extrabold text-emerald-700">R$6,99</p>
+                    <p id="selected-plan-name" class="text-sm text-emerald-600 mt-1">Viagem completa / viagem</p>
                 </div>
-                
                 <button data-payment="pix" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md text-sm">
                     PAGAR AGORA
                 </button>
-                
-                <p class="text-center text-xs text-gray-400 mt-3">
-                    Pagamento seguro e instantâneo
-                </p>
+                <p class="text-center text-xs text-gray-400 mt-3">Pagamento seguro e instantâneo</p>
             </div>
         </div>
     </div>
-
-    <!-- Modal de Passagens -->
-    <div id="passagensModal" class="fixed inset-0 bg-black/50 z-50 hidden backdrop-blur-sm">
-        <div class="flex items-end sm:items-center justify-center h-full p-0 sm:p-4">
-            <div class="bg-white rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 w-full max-w-md animate-slide-up shadow-xl max-h-[85vh] overflow-y-auto">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
-                        <span class="text-lg">&#x1F3AB;</span>
-                        Passagens Rodoviárias
-                    </h3>
-                    <button onclick="closePassagensModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors">&times;</button>
-                </div>
-                
-                <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-4">
-                    <h4 class="text-sm font-bold text-blue-800 mb-2">Compre sem fila pelo WhatsApp</h4>
-                    <ul class="text-xs text-blue-700 space-y-1.5">
-                        <li class="flex items-center gap-2"><span class="text-emerald-500">&#x2713;</span> Escolha seu assento</li>
-                        <li class="flex items-center gap-2"><span class="text-emerald-500">&#x2713;</span> Pagamento via PIX instantâneo</li>
-                        <li class="flex items-center gap-2"><span class="text-emerald-500">&#x2713;</span> Bilhete digital no celular</li>
-                        <li class="flex items-center gap-2"><span class="text-emerald-500">&#x2713;</span> Empresa licenciada ANTT</li>
-                    </ul>
-                </div>
-                
-                <a href="https://wa.me/556384962118?text=Olá!%20Quero%20comprar%20uma%20passagem%20rodoviária.%20Pode%20me%20ajudar?" 
-                   target="_blank"
-                   class="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md text-sm">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                    COMPRAR VIA WHATSAPP
-                </a>
-                
-                <p class="text-[11px] text-gray-400 mt-3 text-center">Disponível 24h</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Turismo -->
-    <div id="turismoModal" class="fixed inset-0 bg-black/50 z-50 hidden backdrop-blur-sm">
-        <div class="flex items-end sm:items-center justify-center h-full p-0 sm:p-4">
-            <div class="bg-white rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 w-full max-w-md animate-slide-up shadow-xl max-h-[85vh] overflow-y-auto">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
-                        <span class="text-lg">&#x1F3D6;&#xFE0F;</span>
-                        Turismo & Fretamento
-                    </h3>
-                    <button onclick="closeTurismoModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors">&times;</button>
-                </div>
-                
-                <div class="space-y-3 mb-4">
-                    <div class="bg-orange-50 border border-orange-100 rounded-xl p-4">
-                        <h5 class="font-bold text-orange-800 text-xs mb-2">Tipos de serviço</h5>
-                        <div class="grid grid-cols-2 gap-2 text-xs text-orange-700">
-                            <span class="flex items-center gap-1.5">&#x1F389; Excursões</span>
-                            <span class="flex items-center gap-1.5">&#x1F470; Casamentos</span>
-                            <span class="flex items-center gap-1.5">&#x1F3E2; Corporativo</span>
-                            <span class="flex items-center gap-1.5">&#x1F393; Formaturas</span>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-gray-50 border border-gray-100 rounded-xl p-4">
-                        <h5 class="font-bold text-gray-700 text-xs mb-2">Diferenciais</h5>
-                        <ul class="text-xs text-gray-600 space-y-1.5">
-                            <li class="flex items-center gap-2"><span class="text-emerald-500">&#x2713;</span> Ar condicionado + WiFi</li>
-                            <li class="flex items-center gap-2"><span class="text-emerald-500">&#x2713;</span> Poltronas reclináveis</li>
-                            <li class="flex items-center gap-2"><span class="text-emerald-500">&#x2713;</span> Motoristas certificados</li>
-                        </ul>
-                    </div>
-                </div>
-                
-                <a href="https://wa.me/5563984666184?text=Olá!%20Gostaria%20de%20alugar%20um%20ônibus%20para%20turismo.%20Pode%20me%20passar%20mais%20informações?" 
-                   target="_blank"
-                   class="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md text-sm">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                    SOLICITAR ORÇAMENTO
-                </a>
-                
-                <p class="text-[11px] text-gray-400 mt-3 text-center">Sem compromisso</p>
-            </div>
-        </div>
-    </div>
-
 
     <script>
-        function openPassagensModal() {
-            document.getElementById('passagensModal')?.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-        }
-        function closePassagensModal() {
-            document.getElementById('passagensModal')?.classList.add('hidden');
-            document.body.style.overflow = 'auto';
-        }
-        function openTurismoModal() {
-            document.getElementById('turismoModal')?.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-        }
-        function closeTurismoModal() {
-            document.getElementById('turismoModal')?.classList.add('hidden');
-            document.body.style.overflow = 'auto';
-        }
-
+        // ===== VOUCHER SYSTEM =====
         document.addEventListener('DOMContentLoaded', function() {
-            // Fechar modais clicando no backdrop
-            ['passagensModal', 'turismoModal'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.addEventListener('click', e => { if (e.target === el) { el.classList.add('hidden'); document.body.style.overflow = 'auto'; } });
-            });
-
-            // ESC para fechar
-            document.addEventListener('keydown', e => {
-                if (e.key === 'Escape') { closePassagensModal(); closeTurismoModal(); }
-            });
-
-            // ===== VOUCHER SYSTEM =====
             function applyVoucher(inputId, buttonId) {
                 const input = document.getElementById(inputId);
                 const button = document.getElementById(buttonId);
                 if (!input || !button) return;
-
                 const voucherCode = input.value.trim().toUpperCase();
                 if (!voucherCode) { alert('Por favor, digite o código do voucher'); return; }
-
-                button.disabled = true;
-                button.textContent = '...';
-
+                button.disabled = true; button.textContent = '...';
                 fetch('/api/voucher/validate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
@@ -747,22 +495,12 @@
                 .then(data => {
                     if (data.success) {
                         alert(`${data.message}\n\nTipo: ${data.voucher_type === 'unlimited' ? 'Ilimitado' : 'Limitado'}\nHoras: ${data.hours_granted}h\nVálido até: ${new Date(data.expires_at).toLocaleString('pt-BR')}` +
-                              (data.voucher_type === 'limited' ? `\nHoras restantes hoje: ${data.remaining_hours_today}h` : ''));
+                            (data.voucher_type === 'limited' ? `\nHoras restantes hoje: ${data.remaining_hours_today}h` : ''));
                         setTimeout(() => { window.location.href = 'https://www.google.com'; }, 2000);
-                    } else {
-                        alert(data.message);
-                        button.disabled = false;
-                        button.textContent = 'OK';
-                    }
+                    } else { alert(data.message); button.disabled = false; button.textContent = 'OK'; }
                 })
-                .catch(() => {
-                    alert('Erro ao processar voucher. Tente novamente.');
-                    button.disabled = false;
-                    button.textContent = 'OK';
-                });
+                .catch(() => { alert('Erro ao processar voucher. Tente novamente.'); button.disabled = false; button.textContent = 'OK'; });
             }
-
-            // Event listeners voucher
             ['mobile', 'desktop'].forEach(suffix => {
                 const btn = document.getElementById(`apply-voucher-${suffix}`);
                 if (btn) btn.addEventListener('click', () => applyVoucher(`voucher-code-${suffix}`, `apply-voucher-${suffix}`));
@@ -771,17 +509,60 @@
             });
         });
     </script>
-    
+
     <script>
-        window.WIFI_PRICE = {{ $price }};
-        window.SESSION_DURATION = {{ $session_duration ?? 12 }};
+        window.WIFI_PRICE = {{ ($plan_full_enabled ?? true) ? ($wifi_price_full ?? 6.99) : ($wifi_price_short ?? 5.99) }};
+        window.SESSION_DURATION = {{ ($plan_full_enabled ?? true) ? ($session_duration ?? 12) : ($session_duration_short ?? 1) }};
+        window.WIFI_SELECTED_PLAN = null;
+
+        function selectWifiPlan(card) {
+            const amount = Number(card.dataset.planPrice);
+            const duration = Number(card.dataset.planDuration);
+            const name = card.dataset.planName;
+            const suffix = card.dataset.planSuffix;
+            window.WIFI_PRICE = amount;
+            window.SESSION_DURATION = duration;
+            window.WIFI_SELECTED_PLAN = { amount, duration, name, suffix };
+            if (window.wifiPortal) window.wifiPortal.sessionDurationHours = duration;
+
+            document.querySelectorAll('[data-plan-option]').forEach(option => {
+                const selected = option === card;
+                option.classList.toggle('plan-card-selected', selected);
+                option.classList.toggle('border-gray-200', !selected);
+                option.classList.toggle('bg-white', !selected);
+                const radio = option.querySelector('[data-plan-radio]');
+                if (radio) {
+                    radio.classList.toggle('border-[5px]', selected);
+                    radio.classList.toggle('border-green', selected);
+                    radio.classList.toggle('border-2', !selected);
+                    radio.classList.toggle('border-gray-300', !selected);
+                    if (selected) { radio.classList.add('h-6', 'w-6'); radio.classList.remove('h-5', 'w-5'); }
+                    else { radio.classList.add('h-5', 'w-5'); radio.classList.remove('h-6', 'w-6'); }
+                }
+            });
+
+            const formatted = amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const priceEl = document.getElementById('selected-plan-price');
+            const nameEl = document.getElementById('selected-plan-name');
+            if (priceEl) priceEl.textContent = formatted;
+            if (nameEl) nameEl.textContent = `${name} ${suffix}`;
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-plan-option]').forEach(card => {
+                card.addEventListener('click', () => selectWifiPlan(card));
+            });
+            // Auto-selecionar plano: default primeiro, senão o primeiro disponível
+            const defaultPlan = document.querySelector('[data-plan-default="true"]');
+            const firstPlan = document.querySelector('[data-plan-option]');
+            const planToSelect = defaultPlan || firstPlan;
+            if (planToSelect) selectWifiPlan(planToSelect);
+        });
     </script>
 
-
-    
     <script src="{{ asset('js/mac-detector.js') }}?v={{ filemtime(public_path('js/mac-detector.js')) }}"></script>
     <script src="{{ asset('js/portal.js') }}?v={{ filemtime(public_path('js/portal.js')) }}"></script>
-    
+
     @include('components.chat-widget')
 </body>
 </html>
