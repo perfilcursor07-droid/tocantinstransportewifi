@@ -260,21 +260,21 @@
                             <button type="button" data-plan-option data-plan-price="{{ $wifi_price_full ?? 6.99 }}" data-plan-duration="{{ $session_duration ?? 12 }}" data-plan-name="Viagem completa" data-plan-suffix="/ viagem" data-plan-default="true"
                                 class="wifi-plan-card plan-card-selected relative flex w-full rounded-2xl border-2 border-green text-left transition-all duration-200 hover:shadow-hover focus:outline-none focus:ring-2 focus:ring-green/20 flex-col">
                                 <span class="absolute -top-2.5 right-4 bg-gradient-to-r from-green to-green-dark text-white text-[9px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full shadow-sm z-10">Mais escolhido</span>
-                                <div class="flex items-center gap-3 px-4 pt-4 pb-3">
-                                    <span data-plan-radio class="h-6 w-6 rounded-full border-[5px] border-green bg-white flex-shrink-0 transition-all duration-200"></span>
+                                <div class="flex items-center gap-3 px-4 pt-3.5 pb-2">
+                                    <span data-plan-radio class="h-5 w-5 rounded-full border-[5px] border-green bg-white flex-shrink-0 transition-all duration-200"></span>
                                     <div class="min-w-0 flex-1">
-                                        <p class="text-base font-extrabold text-ink leading-tight">Viagem completa</p>
-                                        <p class="text-xs text-green-dark font-medium mt-0.5">WiFi até o destino final</p>
+                                        <p class="text-sm font-extrabold text-ink leading-tight">Viagem completa</p>
+                                        <p class="text-[11px] text-green-dark font-medium mt-0.5">WiFi até o destino final</p>
                                     </div>
                                     <div class="text-right flex-shrink-0">
-                                        <p class="text-2xl font-black text-green-dark tracking-tight leading-none">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
+                                        <p class="text-xl font-black text-green-dark tracking-tight leading-none">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-4 px-4 pb-3 text-[11px] text-green-dark/70 font-medium">
-                                    <span class="flex items-center gap-1">✓ Apps</span>
-                                    <span class="flex items-center gap-1">✓ Streaming</span>
-                                    <span class="flex items-center gap-1">✓ Redes sociais</span>
-                                    <span class="flex items-center gap-1">✓ Melhor custo</span>
+                                <div class="flex items-center gap-3 px-4 pb-3 text-[10px] text-green-dark/70 font-medium">
+                                    <span>✓ Apps</span>
+                                    <span>✓ Streaming</span>
+                                    <span>✓ Redes sociais</span>
+                                    <span>✓ Melhor custo</span>
                                 </div>
                             </button>
                             @endif
@@ -309,13 +309,13 @@
                         <!-- Botão CTA Principal - PULSANDO -->
                         <div id="plan-cta-wrapper">
                             <button id="connect-btn"
-                                class="connect-button btn-pulse w-full text-white font-extrabold py-5 rounded-2xl text-xl flex items-center justify-center gap-3 shadow-lg lg:hidden">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
+                                class="connect-button btn-pulse w-full text-white font-extrabold py-4 rounded-xl text-base flex items-center justify-center gap-2.5 shadow-lg lg:hidden">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
                                 ACESSAR INTERNET AGORA
                             </button>
                             <button id="connect-btn-desktop"
-                                class="connect-button btn-pulse w-full text-white font-extrabold py-5 rounded-2xl text-xl items-center justify-center gap-3 shadow-lg hidden lg:flex">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
+                                class="connect-button btn-pulse w-full text-white font-extrabold py-4 rounded-xl text-base items-center justify-center gap-2.5 shadow-lg hidden lg:flex">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
                                 ACESSAR INTERNET AGORA
                             </button>
                         </div>
