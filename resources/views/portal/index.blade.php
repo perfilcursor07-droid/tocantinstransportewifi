@@ -428,8 +428,8 @@
                                 <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
                             </div>
                             <div>
-                                <p class="font-bold text-sm text-gray-800">Não, obrigado</p>
-                                <p class="text-gray-500 text-xs mt-0.5">Continuar com preço normal</p>
+                                <p class="font-bold text-sm text-gray-800">Pular e pagar normal</p>
+                                <p class="text-gray-500 text-xs mt-0.5">Sem vídeo, sem desconto</p>
                                 <p class="text-gray-600 text-xs font-bold mt-1" id="video-choice-normal-price"></p>
                             </div>
                         </div>
@@ -468,8 +468,8 @@
                         <p class="text-purple-200 text-[10px]">Desconto liberado ao terminar o vídeo</p>
                     </div>
                 </div>
-                <button onclick="skipFromVideoPlayer()" class="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold px-3 py-1.5 rounded-full transition-colors">
-                    Não quero assistir
+                <button onclick="skipFromVideoPlayer()" class="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold px-3 py-1.5 rounded-full transition-colors animate-pulse">
+                    Pular vídeo
                 </button>
             </div>
 
