@@ -277,12 +277,6 @@
                                         <p data-plan-price-display class="text-[22px] font-black text-green-dark tracking-tight leading-none mt-0.5">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-3 px-4 pb-3.5 text-[11px] text-green-dark/70 font-medium">
-                                    <span>✓ Apps</span>
-                                    <span>✓ Streaming</span>
-                                    <span>✓ Redes sociais</span>
-                                    <span>✓ Melhor custo</span>
-                                </div>
                             </button>
                             @endif
                         </div>
@@ -499,8 +493,8 @@
                         <p class="text-purple-200 text-[10px]">Desconto liberado ao terminar o vídeo</p>
                     </div>
                 </div>
-                <button onclick="closeVideoDiscount(false)" class="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                <button onclick="skipFromVideoPlayer()" class="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold px-3 py-1.5 rounded-full transition-colors">
+                    Não quero assistir
                 </button>
             </div>
 
@@ -519,17 +513,6 @@
                 </video>
             </div>
 
-            <!-- Mensagem de conclusão -->
-            <div id="video-discount-complete" class="hidden bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-4 text-center flex-shrink-0 sm:rounded-b-2xl">
-                <div class="flex items-center justify-center gap-2 mb-2">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                    <p class="text-white font-extrabold text-base">Desconto desbloqueado!</p>
-                </div>
-                <p class="text-green-100 text-sm mb-3">R${{ number_format($video_discount_amount ?? 1, 2, ',', '.') }} de desconto aplicado</p>
-                <button onclick="closeVideoDiscount(true)" class="bg-white text-green-700 font-bold py-2.5 px-8 rounded-xl text-sm shadow-lg hover:bg-green-50 transition-colors">
-                    CONTINUAR COM DESCONTO
-                </button>
-            </div>
         </div>
     </div>
 
@@ -604,36 +587,38 @@
             }
         };
 
-        /** Fecha o player de vídeo */
-        window.closeVideoDiscount = function(completed) {
-            const modal = document.getElementById('video-discount-modal');
+        /** Fecha o player de vídeo (usuário fechou antes de terminar) */
+        window.closeVideoDiscount = function() {
+            var modal = document.getElementById('video-discount-modal');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
             document.body.style.overflow = 'auto';
 
-            const video = document.getElementById('discount-video');
+            var video = document.getElementById('discount-video');
+            if (video) { video.pause(); video.controls = false; video.currentTime = 0; }
+            var progressBar = document.getElementById('video-discount-progress');
+            var timerEl = document.getElementById('video-discount-timer');
+            if (progressBar) progressBar.style.width = '0%';
+            if (timerEl) timerEl.textContent = '0:42';
+
+            // Voltar ao modal de escolha
+            document.getElementById('video-choice-modal').classList.remove('hidden');
+        };
+
+        /** Usuário clicou "Não quero assistir" dentro do player — pula direto pro pagamento */
+        window.skipFromVideoPlayer = function() {
+            videoDiscountApplied = true; // não perguntar de novo
+            var modal = document.getElementById('video-discount-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.style.overflow = 'auto';
+
+            var video = document.getElementById('discount-video');
             if (video) { video.pause(); video.controls = false; }
 
-            if (completed && videoWatchedFully) {
-                applyVideoDiscount();
-                // Seguir o fluxo original com desconto aplicado
-                if (pendingConnectAction) {
-                    pendingConnectAction();
-                    pendingConnectAction = null;
-                }
-            } else if (!completed) {
-                // Fechou sem terminar — voltar ao modal de escolha
-                document.getElementById('video-choice-modal').classList.remove('hidden');
-                // Resetar vídeo para próxima tentativa
-                if (video) { video.currentTime = 0; }
-                const progressBar = document.getElementById('video-discount-progress');
-                const timerEl = document.getElementById('video-discount-timer');
-                if (progressBar) progressBar.style.width = '0%';
-                if (timerEl) timerEl.textContent = '0:42';
-                const completeEl = document.getElementById('video-discount-complete');
-                const playerContainer = document.getElementById('video-player-container');
-                if (completeEl) completeEl.classList.add('hidden');
-                if (playerContainer) playerContainer.classList.remove('hidden');
+            if (pendingConnectAction) {
+                pendingConnectAction();
+                pendingConnectAction = null;
             }
         };
 
@@ -671,8 +656,6 @@
 
             var progressBar = document.getElementById('video-discount-progress');
             var timerEl = document.getElementById('video-discount-timer');
-            var completeEl = document.getElementById('video-discount-complete');
-            var playerContainer = document.getElementById('video-player-container');
 
             // Impedir seek (pular)
             var lastValidTime = 0;
@@ -701,9 +684,22 @@
                 lastValidTime = 0;
                 if (progressBar) progressBar.style.width = '100%';
                 if (timerEl) timerEl.textContent = '0:00';
-                if (completeEl) completeEl.classList.remove('hidden');
-                if (playerContainer) playerContainer.classList.add('hidden');
+
+                // Aplicar desconto e seguir direto pro pagamento
                 applyVideoDiscount();
+
+                // Fechar modal do vídeo e seguir o fluxo
+                var modal = document.getElementById('video-discount-modal');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                document.body.style.overflow = 'auto';
+                var vid = document.getElementById('discount-video');
+                if (vid) { vid.pause(); vid.controls = false; }
+
+                if (pendingConnectAction) {
+                    pendingConnectAction();
+                    pendingConnectAction = null;
+                }
             });
 
             video.addEventListener('contextmenu', function(e) { e.preventDefault(); });
