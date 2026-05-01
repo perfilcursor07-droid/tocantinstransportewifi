@@ -202,31 +202,34 @@
 
     <div class="min-h-screen flex flex-col">
 
-        <!-- Hero Header -->
-        <header class="hero-gradient relative overflow-hidden">
-            <!-- Decoração sutil -->
-            <div class="absolute inset-0">
-                <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
-                <div class="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-            </div>
-            <div class="relative max-w-lg mx-auto px-5 pt-6 pb-10 sm:pt-8 sm:pb-12 text-center">
-                <div class="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm rounded-full px-3 py-1 mb-2">
-                    <span class="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse"></span>
-                    <span class="text-white/90 text-[10px] font-semibold tracking-wide uppercase">Internet via Starlink</span>
-                </div>
-                <h1 class="text-white text-xl sm:text-2xl font-extrabold tracking-tight">WiFi Tocantins</h1>
-            </div>
-            <!-- Curva suave -->
-            <div class="absolute bottom-0 left-0 right-0">
-                <svg viewBox="0 0 1440 48" fill="none" preserveAspectRatio="none" class="w-full h-6 sm:h-8 block">
-                    <path d="M0 48h1440V24C1200 0 960 0 720 12 480 24 240 48 0 24v24z" fill="#F0F4F3"/>
-                </svg>
-            </div>
-        </header>
-
         <!-- Conteudo Principal -->
-        <main class="flex-1 px-4 pt-4 pb-6 sm:pt-6 sm:pb-8">
+        <main class="flex-1 px-4 pt-5 pb-6 sm:pt-6 sm:pb-8">
             <div class="max-w-lg mx-auto space-y-4 sm:space-y-5">
+
+                <!-- Como se conectar -->
+                <section class="bg-white rounded-xl border border-border shadow-card animate-fade-in">
+                    <div class="px-4 py-3">
+                        <p class="text-[11px] font-bold text-ink mb-2">Como se conectar</p>
+                        <div class="grid grid-cols-4 gap-2 text-center">
+                            <div>
+                                <span class="w-5 h-5 rounded-full bg-green-pale text-green-dark text-[9px] font-bold flex items-center justify-center mx-auto">1</span>
+                                <p class="text-[9px] text-muted mt-1 leading-tight">Desative os dados móveis</p>
+                            </div>
+                            <div>
+                                <span class="w-5 h-5 rounded-full bg-green-pale text-green-dark text-[9px] font-bold flex items-center justify-center mx-auto">2</span>
+                                <p class="text-[9px] text-muted mt-1 leading-tight">Conecte ao WiFi do ônibus</p>
+                            </div>
+                            <div>
+                                <span class="w-5 h-5 rounded-full bg-green-pale text-green-dark text-[9px] font-bold flex items-center justify-center mx-auto">3</span>
+                                <p class="text-[9px] text-muted mt-1 leading-tight">Escolha o plano e pague via PIX</p>
+                            </div>
+                            <div>
+                                <span class="w-5 h-5 rounded-full bg-green text-white text-[9px] font-bold flex items-center justify-center mx-auto">✓</span>
+                                <p class="text-[9px] text-green-dark font-medium mt-1 leading-tight">Pronto! É só navegar</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
                 <!-- Card de Planos -->
                 <section class="bg-white rounded-2xl border border-border shadow-card overflow-hidden animate-slide-up">
@@ -260,21 +263,21 @@
                             <button type="button" data-plan-option data-plan-price="{{ $wifi_price_full ?? 6.99 }}" data-plan-duration="{{ $session_duration ?? 12 }}" data-plan-name="Viagem completa" data-plan-suffix="/ viagem" data-plan-default="true"
                                 class="wifi-plan-card plan-card-selected relative flex w-full rounded-2xl border-2 border-green text-left transition-all duration-200 hover:shadow-hover focus:outline-none focus:ring-2 focus:ring-green/20 flex-col">
                                 <span class="absolute -top-2.5 right-4 bg-gradient-to-r from-green to-green-dark text-white text-[9px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full shadow-sm z-10">Mais escolhido</span>
-                                <div class="flex items-center gap-3 px-4 pt-3.5 pb-2">
+                                <div class="flex items-center gap-3 px-4 pt-4 pb-2.5">
                                     <span data-plan-radio class="h-5 w-5 rounded-full border-[5px] border-green bg-white flex-shrink-0 transition-all duration-200"></span>
                                     <div class="min-w-0 flex-1">
-                                        <p class="text-sm font-extrabold text-ink leading-tight">Viagem completa</p>
-                                        <p class="text-[11px] text-green-dark font-medium mt-0.5">WiFi até o destino final</p>
+                                        <p class="text-[15px] font-extrabold text-ink leading-tight">Viagem completa</p>
+                                        <p class="text-xs text-green-dark font-medium mt-0.5">WiFi até o destino final</p>
                                     </div>
                                     <div class="text-right flex-shrink-0">
                                         <div class="flex items-center gap-1.5 justify-end">
-                                            <span class="text-[11px] text-gray-400 line-through">R${{ number_format($original_price ?? 9.99, 2, ',', '.') }}</span>
+                                            <span class="text-[11px] text-gray-400 line-through font-medium">R${{ number_format($original_price ?? 9.99, 2, ',', '.') }}</span>
                                             <span class="text-[9px] font-bold text-white bg-red-500 rounded px-1 py-0.5 leading-none">-{{ $discount_percentage ?? 30 }}%</span>
                                         </div>
-                                        <p class="text-xl font-black text-green-dark tracking-tight leading-none mt-0.5">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
+                                        <p class="text-[22px] font-black text-green-dark tracking-tight leading-none mt-0.5">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-3 px-4 pb-3 text-[10px] text-green-dark/70 font-medium">
+                                <div class="flex items-center gap-3 px-4 pb-3.5 text-[11px] text-green-dark/70 font-medium">
                                     <span>✓ Apps</span>
                                     <span>✓ Streaming</span>
                                     <span>✓ Redes sociais</span>
@@ -342,6 +345,22 @@
                     </div>
                 </section>
 
+                <!-- Tutorial em vídeo -->
+                <section class="bg-white rounded-xl border border-border shadow-card animate-slide-up-delay">
+                    <button onclick="openVideoTutorial()" class="flex items-center justify-between p-4 w-full group">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-red-pale rounded-xl flex items-center justify-center border border-red/20">
+                                <svg class="w-5 h-5 text-red" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-ink">Como se conectar?</p>
+                                <p class="text-[11px] text-muted">Assista o passo a passo</p>
+                            </div>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-300 group-hover:text-red group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </section>
+
                 <!-- Voucher do motorista -->
                 <section class="bg-white rounded-xl border border-border shadow-card animate-slide-up-delay">
                     <a href="{{ route('voucher.activate') }}{{ request()->has('mac') ? '?source=mikrotik&mac=' . request('mac') . '&ip=' . request('ip') : '' }}" class="flex items-center justify-between p-4 group">
@@ -358,21 +377,7 @@
                     </a>
                 </section>
 
-                <!-- Tutorial em vídeo -->
-                <section class="bg-white rounded-xl border border-border shadow-card animate-slide-up-delay">
-                    <button onclick="openVideoTutorial()" class="flex items-center justify-between p-4 w-full group">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-red-pale rounded-xl flex items-center justify-center border border-red/20">
-                                <svg class="w-5 h-5 text-red" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-bold text-ink">Como se conectar?</p>
-                                <p class="text-[11px] text-muted">Assista o passo a passo</p>
-                            </div>
-                        </div>
-                        <svg class="w-5 h-5 text-gray-300 group-hover:text-red group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                    </button>
-                </section>
+                
 
             </div>
         </main>

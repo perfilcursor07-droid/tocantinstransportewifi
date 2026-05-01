@@ -1,0 +1,182 @@
+<div id="video-tutorial-modal" class="fixed inset-0 bg-black/90 z-50 hidden flex-col lg:items-center lg:justify-center">
+        <div class="hidden lg:flex flex-col w-full max-w-2xl bg-gray-900 rounded-2xl overflow-hidden shadow-2xl">
+            <div class="flex items-center justify-between px-5 py-3 bg-gray-800">
+                <p class="text-white font-semibold text-sm">Como se conectar ao WiFi</p>
+                <button onclick="closeVideoTutorial()" class="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold px-4 py-2 rounded-full transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                    FECHAR
+                </button>
+            </div>
+            <video id="tutorial-video-desktop" class="w-full max-h-[70vh] object-contain bg-black" autoplay controls playsinline preload="none">
+                <source src="{{ asset('videos/CaptivePortalVideo.mp4') }}" type="video/mp4">
+            </video>
+        </div>
+        <div class="flex flex-col flex-1 w-full lg:hidden">
+            <div class="flex items-center justify-between px-4 py-3 bg-gray-900 flex-shrink-0">
+                <p class="text-white font-semibold text-sm">Como se conectar ao WiFi</p>
+                <button onclick="closeVideoTutorial()" class="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold px-4 py-2 rounded-full transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                    FECHAR
+                </button>
+            </div>
+            <div class="flex-1 flex items-center justify-center bg-black">
+                <video id="tutorial-video" class="w-full h-full object-contain" autoplay controls playsinline preload="none">
+                    <source src="{{ asset('videos/CaptivePortalVideo.mp4') }}" type="video/mp4">
+                </video>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function openVideoTutorial() {
+        const modal = document.getElementById('video-tutorial-modal');
+        modal.classList.remove('hidden'); modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+        const isDesktop = window.innerWidth >= 1024;
+        const video = document.getElementById(isDesktop ? 'tutorial-video-desktop' : 'tutorial-video');
+        if (video) { video.currentTime = 0; video.play(); }
+    }
+    function closeVideoTutorial() {
+        const modal = document.getElementById('video-tutorial-modal');
+        modal.classList.add('hidden'); modal.classList.remove('flex');
+        document.body.style.overflow = 'auto';
+        ['tutorial-video', 'tutorial-video-desktop'].forEach(id => { const v = document.getElementById(id); if (v) v.pause(); });
+    }
+    document.getElementById('video-tutorial-modal').addEventListener('click', function(e) { if (e.target === this) closeVideoTutorial(); });
+    </script>
+
+    <!-- Registration Modal -->
+    <div id="registration-modal" class="fixed inset-0 bg-black/50 z-50 hidden backdrop-blur-sm">
+        <div class="flex items-center justify-center h-full p-4">
+            <div class="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md animate-slide-up shadow-xl">
+                <div class="flex justify-between items-center mb-5">
+                    <h3 class="text-lg font-bold text-gray-900">Acesso r├ípido</h3>
+                    <button id="close-registration-modal" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors">&times;</button>
+                </div>
+                <p class="text-sm text-gray-500 mb-5">Informe seus dados para gerar o QR Code PIX.</p>
+                <form id="registration-form" class="space-y-4">
+                    <div id="registration-errors" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm"></div>
+                    <div>
+                        <label for="user_phone" class="block text-sm font-medium text-gray-700 mb-1.5">Telefone com DDD</label>
+                        <input type="tel" id="user_phone" name="phone" required placeholder="(63) 9 8101-3050" maxlength="16" autofocus
+                            class="w-full border border-gray-300 rounded-xl px-4 py-3.5 focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition-all text-base text-center font-medium">
+                    </div>
+                    <button type="submit" id="registration-submit-btn" class="connect-button w-full text-white font-bold py-3.5 rounded-xl shadow-md text-sm">
+                        GERAR QR CODE PIX
+                    </button>
+                </form>
+                <p class="text-center text-xs text-gray-400 mt-4">Pagamento seguro &bull; Libera├º├úo autom├ítica</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="fixed inset-0 bg-black/50 z-40 hidden backdrop-blur-sm">
+        <div class="flex items-end sm:items-center justify-center h-full p-0 sm:p-4">
+            <div class="bg-white rounded-t-2xl sm:rounded-2xl p-6 sm:p-8 w-full max-w-md animate-slide-up shadow-xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-gray-900">Pagamento PIX</h3>
+                    <button id="close-modal" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors">&times;</button>
+                </div>
+                <div class="bg-emerald-50 rounded-xl p-5 mb-5 text-center border border-emerald-100">
+                    <p id="selected-plan-price" class="text-3xl font-extrabold text-emerald-700">R$6,99</p>
+                    <p id="selected-plan-name" class="text-sm text-emerald-600 mt-1">Viagem completa / viagem</p>
+                </div>
+                <button data-payment="pix" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md text-sm">
+                    PAGAR AGORA
+                </button>
+                <p class="text-center text-xs text-gray-400 mt-3">Pagamento seguro e instant├óneo</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== VOUCHER SYSTEM =====
+        document.addEventListener('DOMContentLoaded', function() {
+            function applyVoucher(inputId, buttonId) {
+                const input = document.getElementById(inputId);
+                const button = document.getElementById(buttonId);
+                if (!input || !button) return;
+                const voucherCode = input.value.trim().toUpperCase();
+                if (!voucherCode) { alert('Por favor, digite o c├│digo do voucher'); return; }
+                button.disabled = true; button.textContent = '...';
+                fetch('/api/voucher/validate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                    body: JSON.stringify({ voucher_code: voucherCode })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(`${data.message}\n\nTipo: ${data.voucher_type === 'unlimited' ? 'Ilimitado' : 'Limitado'}\nHoras: ${data.hours_granted}h\nV├ílido at├®: ${new Date(data.expires_at).toLocaleString('pt-BR')}` +
+                            (data.voucher_type === 'limited' ? `\nHoras restantes hoje: ${data.remaining_hours_today}h` : ''));
+                        setTimeout(() => { window.location.href = 'https://www.google.com'; }, 2000);
+                    } else { alert(data.message); button.disabled = false; button.textContent = 'OK'; }
+                })
+                .catch(() => { alert('Erro ao processar voucher. Tente novamente.'); button.disabled = false; button.textContent = 'OK'; });
+            }
+            ['mobile', 'desktop'].forEach(suffix => {
+                const btn = document.getElementById(`apply-voucher-${suffix}`);
+                if (btn) btn.addEventListener('click', () => applyVoucher(`voucher-code-${suffix}`, `apply-voucher-${suffix}`));
+                const input = document.getElementById(`voucher-code-${suffix}`);
+                if (input) input.addEventListener('keypress', e => { if (e.key === 'Enter') applyVoucher(`voucher-code-${suffix}`, `apply-voucher-${suffix}`); });
+            });
+        });
+    </script>
+
+    <script>
+        window.WIFI_PRICE = {{ ($plan_full_enabled ?? true) ? ($wifi_price_full ?? 6.99) : ($wifi_price_short ?? 5.99) }};
+        window.SESSION_DURATION = {{ ($plan_full_enabled ?? true) ? ($session_duration ?? 12) : ($session_duration_short ?? 1) }};
+        window.WIFI_SELECTED_PLAN = null;
+
+        function selectWifiPlan(card) {
+            const amount = Number(card.dataset.planPrice);
+            const duration = Number(card.dataset.planDuration);
+            const name = card.dataset.planName;
+            const suffix = card.dataset.planSuffix;
+            window.WIFI_PRICE = amount;
+            window.SESSION_DURATION = duration;
+            window.WIFI_SELECTED_PLAN = { amount, duration, name, suffix };
+            if (window.wifiPortal) window.wifiPortal.sessionDurationHours = duration;
+
+            document.querySelectorAll('[data-plan-option]').forEach(option => {
+                const selected = option === card;
+                option.classList.toggle('plan-card-selected', selected);
+                option.classList.toggle('border-gray-200', !selected);
+                option.classList.toggle('bg-white', !selected);
+                const radio = option.querySelector('[data-plan-radio]');
+                if (radio) {
+                    radio.classList.toggle('border-[5px]', selected);
+                    radio.classList.toggle('border-green', selected);
+                    radio.classList.toggle('border-2', !selected);
+                    radio.classList.toggle('border-gray-300', !selected);
+                    if (selected) { radio.classList.add('h-6', 'w-6'); radio.classList.remove('h-5', 'w-5'); }
+                    else { radio.classList.add('h-5', 'w-5'); radio.classList.remove('h-6', 'w-6'); }
+                }
+            });
+
+            const formatted = amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const priceEl = document.getElementById('selected-plan-price');
+            const nameEl = document.getElementById('selected-plan-name');
+            if (priceEl) priceEl.textContent = formatted;
+            if (nameEl) nameEl.textContent = `${name} ${suffix}`;
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-plan-option]').forEach(card => {
+                card.addEventListener('click', () => selectWifiPlan(card));
+            });
+            // Auto-selecionar plano: default primeiro, sen├úo o primeiro dispon├¡vel
+            const defaultPlan = document.querySelector('[data-plan-default="true"]');
+            const firstPlan = document.querySelector('[data-plan-option]');
+            const planToSelect = defaultPlan || firstPlan;
+            if (planToSelect) selectWifiPlan(planToSelect);
+        });
+    </script>
+
+    <script src="{{ asset('js/mac-detector.js') }}?v={{ filemtime(public_path('js/mac-detector.js')) }}"></script>
+    <script src="{{ asset('js/portal.js') }}?v={{ filemtime(public_path('js/portal.js')) }}"></script>
+
+    @include('components.chat-widget')
+</body>
+</html>
