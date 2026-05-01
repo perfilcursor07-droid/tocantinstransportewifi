@@ -138,8 +138,8 @@
 /* ===== BOTÃO FAB DO CHAT ===== */
 .chat-fab-button {
     position: relative;
-    width: 60px;
-    height: 60px;
+    width: 56px;
+    height: 56px;
     border: none;
     background: transparent;
     cursor: pointer;
@@ -150,33 +150,27 @@
 .chat-fab-outer {
     position: absolute;
     inset: 0;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
-    opacity: 0.3;
-    animation: fabPulse 2s ease-in-out infinite;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    opacity: 0.2;
+    animation: fabPulse 2.5s ease-in-out infinite;
 }
 
 .chat-fab-inner {
     position: absolute;
-    inset: 4px;
-    border-radius: 50%;
+    inset: 3px;
+    border-radius: 15px;
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 
-        0 4px 15px rgba(16, 185, 129, 0.4),
-        0 2px 6px rgba(0, 0, 0, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35), 0 1px 3px rgba(0, 0, 0, 0.08);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .chat-fab-button:hover .chat-fab-inner {
-    transform: scale(1.05);
-    box-shadow: 
-        0 8px 25px rgba(16, 185, 129, 0.5),
-        0 4px 10px rgba(0, 0, 0, 0.15),
-        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: scale(1.06);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45), 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .chat-fab-button:active .chat-fab-inner {
@@ -185,19 +179,18 @@
 
 .chat-fab-icon {
     color: white;
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
     transition: transform 0.3s ease;
 }
 
 .chat-fab-icon svg {
     width: 100%;
     height: 100%;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
 .chat-fab-button:hover .chat-fab-icon {
-    transform: scale(1.1);
+    transform: scale(1.08);
 }
 
 .chat-fab-badge {
@@ -259,11 +252,11 @@
 @keyframes fabPulse {
     0%, 100% {
         transform: scale(1);
-        opacity: 0.3;
+        opacity: 0.2;
     }
     50% {
-        transform: scale(1.15);
-        opacity: 0.15;
+        transform: scale(1.2);
+        opacity: 0.08;
     }
 }
 
@@ -337,13 +330,13 @@
     }
     
     .chat-fab-button {
-        width: 54px !important;
-        height: 54px !important;
+        width: 50px !important;
+        height: 50px !important;
     }
     
     .chat-fab-icon {
-        width: 22px !important;
-        height: 22px !important;
+        width: 20px !important;
+        height: 20px !important;
     }
     
     .chat-tooltip {
