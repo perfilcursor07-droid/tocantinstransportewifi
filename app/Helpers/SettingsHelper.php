@@ -138,6 +138,26 @@ class SettingsHelper
     }
 
     /**
+     * Verificar se desconto por vídeo está habilitado
+     */
+    public static function isVideoDiscountEnabled(): bool
+    {
+        return (bool) Cache::remember('video_discount_enabled', 3600, function () {
+            return SystemSetting::getValue('video_discount_enabled', '1');
+        });
+    }
+
+    /**
+     * Obter valor do desconto por assistir vídeo
+     */
+    public static function getVideoDiscountAmount(): float
+    {
+        return (float) Cache::remember('video_discount_amount', 3600, function () {
+            return SystemSetting::getValue('video_discount_amount', '1.00');
+        });
+    }
+
+    /**
      * Limpar cache de configurações
      */
     public static function clearCache(): void
@@ -150,5 +170,7 @@ class SettingsHelper
         Cache::forget('pagbank_account');
         Cache::forget('pagbank_email');
         Cache::forget('pagbank_token');
+        Cache::forget('video_discount_enabled');
+        Cache::forget('video_discount_amount');
     }
 }

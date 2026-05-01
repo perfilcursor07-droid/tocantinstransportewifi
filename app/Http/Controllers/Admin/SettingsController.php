@@ -22,6 +22,8 @@ class SettingsController extends Controller
             'pagbank_account' => SystemSetting::getValue('pagbank_account', 'junior'),
             'pagbank_email' => SystemSetting::getValue('pagbank_email', 'juniormoreiragloboplay@gmail.com'),
             'pagbank_token' => SystemSetting::getValue('pagbank_token', 'c75a2308-ec9d-4825-94fd-bacba8a7248344f58a634d1b857348dba39f6a5b6c957b2a-2890-4da4-9866-af24b6eee984'),
+            'video_discount_enabled' => SystemSetting::getValue('video_discount_enabled', '1'),
+            'video_discount_amount' => SystemSetting::getValue('video_discount_amount', '1.00'),
         ];
 
         return view('admin.settings.index', compact('settings'));
@@ -40,6 +42,8 @@ class SettingsController extends Controller
             'pagbank_account' => 'nullable|in:junior,erick',
             'pagbank_email' => 'nullable|email|max:255',
             'pagbank_token' => 'nullable|string|max:500',
+            'video_discount_enabled' => 'nullable|in:0,1',
+            'video_discount_amount' => 'required|numeric|min:0.01|max:99.99',
         ]);
 
         SystemSetting::setValue('wifi_price', $request->wifi_price);
@@ -49,6 +53,8 @@ class SettingsController extends Controller
         SystemSetting::setValue('session_duration_short', $request->session_duration_short);
         SystemSetting::setValue('plan_short_enabled', $request->input('plan_short_enabled', '0'));
         SystemSetting::setValue('plan_full_enabled', $request->input('plan_full_enabled', '0'));
+        SystemSetting::setValue('video_discount_enabled', $request->input('video_discount_enabled', '0'));
+        SystemSetting::setValue('video_discount_amount', $request->video_discount_amount);
         
         // Salvar conta e credenciais PagBank
         if ($request->filled('pagbank_account')) {

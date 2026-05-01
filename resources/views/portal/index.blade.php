@@ -254,7 +254,7 @@
                                     <p class="text-sm font-bold text-ink leading-tight">{{ $session_duration_short ?? 1 }} hora(s) de acesso</p>
                                     <p class="text-[11px] text-muted mt-0.5">Ideal para uso rápido</p>
                                 </div>
-                                <p class="text-lg font-extrabold text-ink tracking-tight">R${{ number_format($wifi_price_short ?? 5.99, 2, ',', '.') }}</p>
+                                <p data-plan-price-display class="text-lg font-extrabold text-ink tracking-tight">R${{ number_format($wifi_price_short ?? 5.99, 2, ',', '.') }}</p>
                             </button>
                             @endif
 
@@ -274,7 +274,7 @@
                                             <span class="text-[11px] text-gray-400 line-through font-medium">R${{ number_format($original_price ?? 9.99, 2, ',', '.') }}</span>
                                             <span class="text-[9px] font-bold text-white bg-red-500 rounded px-1 py-0.5 leading-none">-{{ $discount_percentage ?? 30 }}%</span>
                                         </div>
-                                        <p class="text-[22px] font-black text-green-dark tracking-tight leading-none mt-0.5">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
+                                        <p data-plan-price-display class="text-[22px] font-black text-green-dark tracking-tight leading-none mt-0.5">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-3 px-4 pb-3.5 text-[11px] text-green-dark/70 font-medium">
@@ -291,6 +291,33 @@
                     <div class="border-t border-gray-100"></div>
 
                     <div class="px-5 py-5 sm:px-6">
+                        <!-- Desconto por Vídeo -->
+                        @if($video_discount_enabled ?? false)
+                        <div id="video-discount-section" class="mb-5">
+                            <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 p-4 relative overflow-hidden">
+                                <div class="absolute top-0 right-0 bg-purple-500 text-white text-[9px] font-bold px-3 py-1 rounded-bl-lg">ECONOMIZE</div>
+                                <div class="flex items-center gap-3">
+                                    <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 border border-purple-200">
+                                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-bold text-purple-900">Assista e ganhe R${{ number_format($video_discount_amount ?? 1, 2, ',', '.') }} de desconto!</p>
+                                        <p class="text-[11px] text-purple-600 mt-0.5">Vídeo curto de 42 segundos. Assista completo para desbloquear.</p>
+                                    </div>
+                                </div>
+                                <button id="watch-video-discount-btn" onclick="openVideoDiscount()" class="mt-3 w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98]">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                    ASSISTIR VÍDEO E GANHAR DESCONTO
+                                </button>
+                                <div id="video-discount-applied" class="hidden mt-3 bg-green-50 border border-green-300 rounded-lg p-3 text-center">
+                                    <p class="text-green-700 font-bold text-sm flex items-center justify-center gap-1.5">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                        Desconto de R${{ number_format($video_discount_amount ?? 1, 2, ',', '.') }} aplicado!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
                         <!-- Apps compatíveis -->
                         <div class="flex justify-center items-center gap-2.5 mb-5">
                             <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center shadow-sm" title="Instagram">
@@ -439,6 +466,185 @@
     }
     document.getElementById('video-tutorial-modal').addEventListener('click', function(e) { if (e.target === this) closeVideoTutorial(); });
     </script>
+
+    <!-- Modal Vídeo Desconto -->
+    @if($video_discount_enabled ?? false)
+    <div id="video-discount-modal" class="fixed inset-0 bg-black/95 z-[60] hidden flex-col items-center justify-center">
+        <div class="w-full max-w-lg mx-auto flex flex-col h-full sm:h-auto sm:max-h-[90vh]">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-700 flex-shrink-0 sm:rounded-t-2xl">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center">
+                        <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-white font-bold text-sm">Assista e ganhe desconto!</p>
+                        <p class="text-purple-200 text-[10px]">Assista o vídeo completo (42s) para desbloquear</p>
+                    </div>
+                </div>
+                <button onclick="closeVideoDiscount()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Barra de progresso -->
+            <div class="bg-gray-800 px-4 py-2 flex items-center gap-3 flex-shrink-0">
+                <div class="flex-1 bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                    <div id="video-discount-progress" class="bg-gradient-to-r from-purple-400 to-pink-400 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <span id="video-discount-timer" class="text-white text-xs font-bold min-w-[40px] text-right">0:42</span>
+            </div>
+
+            <!-- Vídeo -->
+            <div class="flex-1 flex items-center justify-center bg-black sm:rounded-b-2xl overflow-hidden">
+                <video id="discount-video" class="w-full h-full object-contain" playsinline preload="metadata"
+                    oncontextmenu="return false;">
+                    <source src="{{ asset('videos/video-tocantins.mp4') }}" type="video/mp4">
+                </video>
+            </div>
+
+            <!-- Mensagem de conclusão (oculta inicialmente) -->
+            <div id="video-discount-complete" class="hidden bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-4 text-center flex-shrink-0 sm:rounded-b-2xl">
+                <div class="flex items-center justify-center gap-2 mb-2">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    <p class="text-white font-extrabold text-base">Desconto desbloqueado!</p>
+                </div>
+                <p class="text-green-100 text-sm">R${{ number_format($video_discount_amount ?? 1, 2, ',', '.') }} de desconto aplicado ao seu plano</p>
+                <button onclick="closeVideoDiscount()" class="mt-3 bg-white text-green-700 font-bold py-2.5 px-8 rounded-xl text-sm shadow-lg hover:bg-green-50 transition-colors">
+                    CONTINUAR COM DESCONTO
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        const VIDEO_DISCOUNT_AMOUNT = {{ $video_discount_amount ?? 1 }};
+        const VIDEO_DURATION = 42; // segundos
+        let videoDiscountApplied = false;
+        let videoWatchedFully = false;
+
+        // Flag global para o selectWifiPlan saber que tem desconto ativo
+        window.VIDEO_DISCOUNT_APPLIED = false;
+        window.VIDEO_DISCOUNT_AMOUNT = 0;
+
+        window.openVideoDiscount = function() {
+            if (videoDiscountApplied) return;
+
+            const modal = document.getElementById('video-discount-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+
+            const video = document.getElementById('discount-video');
+            if (video) {
+                video.currentTime = 0;
+                video.play().catch(() => {});
+            }
+        };
+
+        window.closeVideoDiscount = function() {
+            const modal = document.getElementById('video-discount-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.style.overflow = 'auto';
+
+            const video = document.getElementById('discount-video');
+            if (video) video.pause();
+
+            if (videoWatchedFully && !videoDiscountApplied) {
+                applyVideoDiscount();
+            }
+        };
+
+        function applyVideoDiscount() {
+            videoDiscountApplied = true;
+            window.VIDEO_DISCOUNT_APPLIED = true;
+            window.VIDEO_DISCOUNT_AMOUNT = VIDEO_DISCOUNT_AMOUNT;
+
+            // Mostrar badge de desconto aplicado, esconder botão
+            const btn = document.getElementById('watch-video-discount-btn');
+            const applied = document.getElementById('video-discount-applied');
+            if (btn) btn.classList.add('hidden');
+            if (applied) applied.classList.remove('hidden');
+
+            // Atualizar preços visuais nos cards de plano
+            document.querySelectorAll('[data-plan-option]').forEach(card => {
+                const originalPrice = Number(card.dataset.planOriginalPrice || card.dataset.planPrice);
+                // Guardar preço original se ainda não guardou
+                if (!card.dataset.planOriginalPrice) {
+                    card.dataset.planOriginalPrice = card.dataset.planPrice;
+                }
+                const newPrice = Math.max(0.01, originalPrice - VIDEO_DISCOUNT_AMOUNT);
+                card.dataset.planPrice = String(newPrice);
+
+                // Atualizar texto do preço no card
+                const priceDisplay = card.querySelector('[data-plan-price-display]');
+                if (priceDisplay) {
+                    priceDisplay.textContent = 'R$' + newPrice.toFixed(2).replace('.', ',');
+                }
+            });
+
+            // Re-selecionar plano atual para atualizar window.WIFI_PRICE e modal
+            const selectedCard = document.querySelector('.plan-card-selected');
+            if (selectedCard && typeof selectWifiPlan === 'function') {
+                selectWifiPlan(selectedCard);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const video = document.getElementById('discount-video');
+            if (!video) return;
+
+            const progressBar = document.getElementById('video-discount-progress');
+            const timerEl = document.getElementById('video-discount-timer');
+            const completeEl = document.getElementById('video-discount-complete');
+
+            // Impedir seek (pular) no vídeo
+            let lastValidTime = 0;
+            video.addEventListener('seeking', function() {
+                if (video.currentTime > lastValidTime + 1) {
+                    video.currentTime = lastValidTime;
+                }
+            });
+
+            video.addEventListener('timeupdate', function() {
+                if (video.currentTime > lastValidTime) {
+                    lastValidTime = video.currentTime;
+                }
+
+                const duration = video.duration || VIDEO_DURATION;
+                const progress = Math.min((video.currentTime / duration) * 100, 100);
+                if (progressBar) progressBar.style.width = progress + '%';
+
+                const remaining = Math.max(0, Math.ceil(duration - video.currentTime));
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                if (timerEl) timerEl.textContent = mins + ':' + secs.toString().padStart(2, '0');
+            });
+
+            video.addEventListener('ended', function() {
+                videoWatchedFully = true;
+
+                if (progressBar) progressBar.style.width = '100%';
+                if (timerEl) timerEl.textContent = '0:00';
+
+                // Mostrar mensagem de conclusão
+                if (completeEl) {
+                    completeEl.classList.remove('hidden');
+                    // Esconder o vídeo
+                    video.parentElement.classList.add('hidden');
+                }
+
+                applyVideoDiscount();
+            });
+
+            // Impedir clique direito no vídeo
+            video.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+        });
+    })();
+    </script>
+    @endif
 
     <!-- Registration Modal -->
     <div id="registration-modal" class="fixed inset-0 bg-black/50 z-50 hidden backdrop-blur-sm">

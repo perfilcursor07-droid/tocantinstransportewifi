@@ -88,6 +88,8 @@ class PortalController extends Controller
             'wifi_price_full' => \App\Helpers\SettingsHelper::getWifiPriceFull(),
             'plan_short_enabled' => (bool) \App\Models\SystemSetting::getValue('plan_short_enabled', '1'),
             'plan_full_enabled' => (bool) \App\Models\SystemSetting::getValue('plan_full_enabled', '1'),
+            'video_discount_enabled' => \App\Helpers\SettingsHelper::isVideoDiscountEnabled(),
+            'video_discount_amount' => \App\Helpers\SettingsHelper::getVideoDiscountAmount(),
             'connected_user' => $existingUser,
         ]);
     }
