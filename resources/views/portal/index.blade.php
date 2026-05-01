@@ -448,7 +448,7 @@
                 <!-- Header -->
                 <div class="bg-gradient-to-r from-emerald-600 to-emerald-700 px-5 py-4 text-center">
                     <p class="text-white font-extrabold text-base">Quer pagar menos?</p>
-                    <p class="text-emerald-100 text-xs mt-1">Siga nossa página e assista um vídeo curto</p>
+                    <p class="text-emerald-100 text-xs mt-1">Assista um vídeo curto e ganhe desconto</p>
                 </div>
 
                 <div class="p-5 space-y-3">
@@ -466,16 +466,16 @@
                         </div>
                     </button>
 
-                    <!-- Opção 2: Seguir no Instagram + Assistir vídeo -->
-                    <button id="btn-watch-video" onclick="startDiscountFlow()" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-2xl p-4 text-left transition-all active:scale-[0.98] shadow-lg relative overflow-hidden">
+                    <!-- Opção 2: Assistir vídeo com desconto -->
+                    <button id="btn-watch-video" onclick="startVideoDiscount()" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-2xl p-4 text-left transition-all active:scale-[0.98] shadow-lg relative overflow-hidden">
                         <div class="absolute top-2 right-3 bg-yellow-400 text-yellow-900 text-[9px] font-extrabold px-2 py-0.5 rounded-full">ECONOMIZE</div>
                         <div class="flex items-center gap-3">
                             <div class="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
                                 <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                             </div>
                             <div>
-                                <p class="font-extrabold text-sm">Curtir página + ver vídeo</p>
-                                <p class="text-purple-100 text-xs mt-0.5">Siga no Instagram e assista 42s para ganhar <strong>R${{ number_format($video_discount_amount ?? 1, 2, ',', '.') }} de desconto</strong></p>
+                                <p class="font-extrabold text-sm">Assistir vídeo (42s)</p>
+                                <p class="text-purple-100 text-xs mt-0.5">Ganhe <strong>R${{ number_format($video_discount_amount ?? 1, 2, ',', '.') }} de desconto</strong> no plano</p>
                                 <p class="text-yellow-300 text-xs font-bold mt-1" id="video-choice-discounted-price"></p>
                             </div>
                         </div>
@@ -485,43 +485,7 @@
         </div>
     </div>
 
-    <!-- Modal Etapa 1: Seguir no Instagram -->
-    <div id="instagram-step-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[65] hidden">
-        <div class="flex items-center justify-center h-full p-4">
-            <div class="bg-white rounded-2xl w-full max-w-sm animate-slide-up shadow-2xl overflow-hidden">
-                <!-- Header Instagram -->
-                <div class="bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 px-5 py-4 text-center">
-                    <div class="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                        <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-                    </div>
-                    <p class="text-white font-extrabold text-base">Passo 1 de 2</p>
-                    <p class="text-white/80 text-xs mt-1">Siga nossa página no Instagram</p>
-                </div>
-
-                <div class="p-5">
-                    <div class="bg-gray-50 rounded-xl p-4 mb-4 text-center">
-                        <p class="text-sm font-bold text-gray-800 mb-1">@tocantinstransporte</p>
-                        <p class="text-xs text-gray-500">Clique no botão abaixo, siga a página e volte aqui</p>
-                    </div>
-
-                    <a href="https://www.instagram.com/tocantinstransporte/" target="_blank" rel="noopener noreferrer" id="btn-open-instagram" onclick="markInstagramOpened()"
-                        class="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 hover:brightness-110 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-md active:scale-[0.98] mb-3">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073z"/></svg>
-                        ABRIR INSTAGRAM E SEGUIR
-                    </a>
-
-                    <button id="btn-instagram-done" onclick="instagramStepDone()" disabled
-                        class="w-full bg-gray-200 text-gray-400 font-bold py-3.5 rounded-xl text-sm transition-all cursor-not-allowed flex items-center justify-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                        JÁ SEGUI, PRÓXIMO PASSO
-                    </button>
-                    <p id="instagram-hint" class="text-center text-[10px] text-gray-400 mt-2">Clique em "Abrir Instagram" primeiro</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Etapa 2: Player de Vídeo -->
+    <!-- Modal Player de Vídeo -->
     <div id="video-discount-modal" class="fixed inset-0 bg-black/95 z-[70] hidden flex-col items-center justify-center">
         <div class="w-full max-w-lg mx-auto flex flex-col h-full sm:h-auto sm:max-h-[90vh]">
             <!-- Header -->
@@ -531,7 +495,7 @@
                         <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                     </div>
                     <div>
-                        <p class="text-white font-bold text-sm">Passo 2 de 2 — Assista até o final</p>
+                        <p class="text-white font-bold text-sm">Assista até o final</p>
                         <p class="text-purple-200 text-[10px]">Desconto liberado ao terminar o vídeo</p>
                     </div>
                 </div>
@@ -574,8 +538,7 @@
         const VIDEO_DISCOUNT_AMOUNT = {{ $video_discount_amount ?? 1 }};
         let videoDiscountApplied = false;
         let videoWatchedFully = false;
-        let instagramOpened = false;
-        let pendingConnectAction = null;
+        let pendingConnectAction = null; // guarda a callback do handleConnectClick original
 
         // Flags globais
         window.VIDEO_DISCOUNT_APPLIED = false;
@@ -583,97 +546,92 @@
 
         /**
          * Intercepta o clique em "ACESSAR INTERNET AGORA"
+         * Se desconto por vídeo está ativo e ainda não foi usado, mostra modal de escolha.
+         * Senão, segue o fluxo normal.
          */
         window.VIDEO_DISCOUNT_INTERCEPT = function(originalCallback) {
             if (videoDiscountApplied) {
+                // Já assistiu ou já pulou — seguir direto
                 originalCallback();
                 return;
             }
+            // Guardar callback e mostrar modal de escolha
             pendingConnectAction = originalCallback;
 
-            var currentPrice = window.WIFI_PRICE || 6.99;
-            var discountedPrice = Math.max(0.01, currentPrice - VIDEO_DISCOUNT_AMOUNT);
-            var normalEl = document.getElementById('video-choice-normal-price');
-            var discountEl = document.getElementById('video-choice-discounted-price');
+            // Atualizar preços no modal de escolha
+            const currentPrice = window.WIFI_PRICE || 6.99;
+            const discountedPrice = Math.max(0.01, currentPrice - VIDEO_DISCOUNT_AMOUNT);
+            const normalEl = document.getElementById('video-choice-normal-price');
+            const discountEl = document.getElementById('video-choice-discounted-price');
             if (normalEl) normalEl.textContent = 'Pagar R$' + currentPrice.toFixed(2).replace('.', ',');
             if (discountEl) discountEl.textContent = 'Pagar apenas R$' + discountedPrice.toFixed(2).replace('.', ',');
 
-            document.getElementById('video-choice-modal').classList.remove('hidden');
+            const modal = document.getElementById('video-choice-modal');
+            modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         };
 
-        /** Usuário escolheu pular — preço normal */
-        window.skipVideoDiscount = function() {
-            videoDiscountApplied = true;
+        /** Usuário escolheu assistir o vídeo */
+        window.startVideoDiscount = function() {
+            // Fechar modal de escolha
             document.getElementById('video-choice-modal').classList.add('hidden');
-            document.body.style.overflow = 'auto';
-            if (pendingConnectAction) { pendingConnectAction(); pendingConnectAction = null; }
-        };
 
-        /** Etapa 1: Usuário clicou "Curtir página + ver vídeo" → mostra modal Instagram */
-        window.startDiscountFlow = function() {
-            document.getElementById('video-choice-modal').classList.add('hidden');
-            document.getElementById('instagram-step-modal').classList.remove('hidden');
-            // Resetar estado do botão
-            instagramOpened = false;
-            var btn = document.getElementById('btn-instagram-done');
-            btn.disabled = true;
-            btn.className = 'w-full bg-gray-200 text-gray-400 font-bold py-3.5 rounded-xl text-sm transition-all cursor-not-allowed flex items-center justify-center gap-2';
-            document.getElementById('instagram-hint').textContent = 'Clique em "Abrir Instagram" primeiro';
-        };
-
-        /** Marca que o Instagram foi aberto — habilita botão "Já segui" após 5s */
-        window.markInstagramOpened = function() {
-            instagramOpened = true;
-            var btn = document.getElementById('btn-instagram-done');
-            var hint = document.getElementById('instagram-hint');
-            hint.textContent = 'Siga a página e volte aqui...';
-            // Habilitar após 5 segundos (tempo mínimo para seguir)
-            setTimeout(function() {
-                if (instagramOpened) {
-                    btn.disabled = false;
-                    btn.className = 'w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-md active:scale-[0.98]';
-                    hint.textContent = 'Pronto? Clique abaixo para o próximo passo';
-                }
-            }, 5000);
-        };
-
-        /** Etapa 1 concluída → abre player de vídeo (etapa 2) */
-        window.instagramStepDone = function() {
-            document.getElementById('instagram-step-modal').classList.add('hidden');
             // Abrir player de vídeo
-            var modal = document.getElementById('video-discount-modal');
+            const modal = document.getElementById('video-discount-modal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
-            var video = document.getElementById('discount-video');
+
+            const video = document.getElementById('discount-video');
             if (video) {
+                // Forçar carregamento e play
                 video.load();
-                video.play().catch(function() { video.controls = true; });
+                video.play().catch(function() {
+                    // Autoplay bloqueado — mostrar botão de play
+                    video.controls = true;
+                });
+            }
+        };
+
+        /** Usuário escolheu pular — preço normal, segue fluxo */
+        window.skipVideoDiscount = function() {
+            videoDiscountApplied = true; // marca como "já decidiu" para não perguntar de novo
+            document.getElementById('video-choice-modal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+
+            if (pendingConnectAction) {
+                pendingConnectAction();
+                pendingConnectAction = null;
             }
         };
 
         /** Fecha o player de vídeo */
         window.closeVideoDiscount = function(completed) {
-            var modal = document.getElementById('video-discount-modal');
+            const modal = document.getElementById('video-discount-modal');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
             document.body.style.overflow = 'auto';
-            var video = document.getElementById('discount-video');
+
+            const video = document.getElementById('discount-video');
             if (video) { video.pause(); video.controls = false; }
 
             if (completed && videoWatchedFully) {
                 applyVideoDiscount();
-                if (pendingConnectAction) { pendingConnectAction(); pendingConnectAction = null; }
+                // Seguir o fluxo original com desconto aplicado
+                if (pendingConnectAction) {
+                    pendingConnectAction();
+                    pendingConnectAction = null;
+                }
             } else if (!completed) {
                 // Fechou sem terminar — voltar ao modal de escolha
                 document.getElementById('video-choice-modal').classList.remove('hidden');
-                if (video) video.currentTime = 0;
-                var progressBar = document.getElementById('video-discount-progress');
-                var timerEl = document.getElementById('video-discount-timer');
+                // Resetar vídeo para próxima tentativa
+                if (video) { video.currentTime = 0; }
+                const progressBar = document.getElementById('video-discount-progress');
+                const timerEl = document.getElementById('video-discount-timer');
                 if (progressBar) progressBar.style.width = '0%';
                 if (timerEl) timerEl.textContent = '0:42';
-                var completeEl = document.getElementById('video-discount-complete');
-                var playerContainer = document.getElementById('video-player-container');
+                const completeEl = document.getElementById('video-discount-complete');
+                const playerContainer = document.getElementById('video-player-container');
                 if (completeEl) completeEl.classList.add('hidden');
                 if (playerContainer) playerContainer.classList.remove('hidden');
             }
@@ -684,17 +642,26 @@
             window.VIDEO_DISCOUNT_APPLIED = true;
             window.VIDEO_DISCOUNT_AMOUNT = VIDEO_DISCOUNT_AMOUNT;
 
+            // Atualizar preços nos cards de plano
             document.querySelectorAll('[data-plan-option]').forEach(function(card) {
                 var originalPrice = Number(card.dataset.planOriginalPrice || card.dataset.planPrice);
-                if (!card.dataset.planOriginalPrice) card.dataset.planOriginalPrice = card.dataset.planPrice;
+                if (!card.dataset.planOriginalPrice) {
+                    card.dataset.planOriginalPrice = card.dataset.planPrice;
+                }
                 var newPrice = Math.max(0.01, originalPrice - VIDEO_DISCOUNT_AMOUNT);
                 card.dataset.planPrice = String(newPrice);
+
                 var priceDisplay = card.querySelector('[data-plan-price-display]');
-                if (priceDisplay) priceDisplay.textContent = 'R$' + newPrice.toFixed(2).replace('.', ',');
+                if (priceDisplay) {
+                    priceDisplay.textContent = 'R$' + newPrice.toFixed(2).replace('.', ',');
+                }
             });
 
+            // Re-selecionar plano atual para atualizar window.WIFI_PRICE
             var selectedCard = document.querySelector('.plan-card-selected');
-            if (selectedCard && typeof selectWifiPlan === 'function') selectWifiPlan(selectedCard);
+            if (selectedCard && typeof selectWifiPlan === 'function') {
+                selectWifiPlan(selectedCard);
+            }
         }
 
         // Setup do player de vídeo
@@ -707,16 +674,22 @@
             var completeEl = document.getElementById('video-discount-complete');
             var playerContainer = document.getElementById('video-player-container');
 
+            // Impedir seek (pular)
             var lastValidTime = 0;
             video.addEventListener('seeking', function() {
-                if (video.currentTime > lastValidTime + 1) video.currentTime = lastValidTime;
+                if (video.currentTime > lastValidTime + 1) {
+                    video.currentTime = lastValidTime;
+                }
             });
 
             video.addEventListener('timeupdate', function() {
-                if (video.currentTime > lastValidTime) lastValidTime = video.currentTime;
+                if (video.currentTime > lastValidTime) {
+                    lastValidTime = video.currentTime;
+                }
                 var duration = video.duration || 42;
                 var progress = Math.min((video.currentTime / duration) * 100, 100);
                 if (progressBar) progressBar.style.width = progress + '%';
+
                 var remaining = Math.max(0, Math.ceil(duration - video.currentTime));
                 var mins = Math.floor(remaining / 60);
                 var secs = remaining % 60;
