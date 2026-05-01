@@ -206,31 +206,6 @@
         <main class="flex-1 px-4 pt-5 pb-6 sm:pt-6 sm:pb-8">
             <div class="max-w-lg mx-auto space-y-4 sm:space-y-5">
 
-                <!-- Como se conectar -->
-                <section class="bg-white rounded-xl border border-border shadow-card animate-fade-in">
-                    <div class="px-4 py-3">
-                        <p class="text-[11px] font-bold text-ink mb-2">Como se conectar</p>
-                        <div class="grid grid-cols-4 gap-2 text-center">
-                            <div>
-                                <span class="w-5 h-5 rounded-full bg-green-pale text-green-dark text-[9px] font-bold flex items-center justify-center mx-auto">1</span>
-                                <p class="text-[9px] text-muted mt-1 leading-tight">Desative os dados móveis</p>
-                            </div>
-                            <div>
-                                <span class="w-5 h-5 rounded-full bg-green-pale text-green-dark text-[9px] font-bold flex items-center justify-center mx-auto">2</span>
-                                <p class="text-[9px] text-muted mt-1 leading-tight">Conecte ao WiFi do ônibus</p>
-                            </div>
-                            <div>
-                                <span class="w-5 h-5 rounded-full bg-green-pale text-green-dark text-[9px] font-bold flex items-center justify-center mx-auto">3</span>
-                                <p class="text-[9px] text-muted mt-1 leading-tight">Escolha o plano e pague via PIX</p>
-                            </div>
-                            <div>
-                                <span class="w-5 h-5 rounded-full bg-green text-white text-[9px] font-bold flex items-center justify-center mx-auto">✓</span>
-                                <p class="text-[9px] text-green-dark font-medium mt-1 leading-tight">Pronto! É só navegar</p>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
                 <!-- Card de Planos -->
                 <section class="bg-white rounded-2xl border border-border shadow-card overflow-hidden animate-slide-up">
                     <div class="px-5 py-5 sm:px-6 sm:py-6">
