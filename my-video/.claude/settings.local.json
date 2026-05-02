@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"C:\\\\wamp64\\\\www\\\\tocantinstransportewifi\\\\my-video\" -Recurse -Force | Select-Object FullName | ForEach-Object { $_.FullName } | Sort-Object)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\wamp64\\\\www\\\\tocantinstransportewifi\\\\my-video\\\\src\" -Recurse | ForEach-Object { $_.FullName -replace [regex]::Escape\\(\"C:\\\\wamp64\\\\www\\\\tocantinstransportewifi\\\\my-video\\\\\"\\), \"\" })",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\wamp64\\\\www\\\\tocantinstransportewifi\\\\my-video\\\\public\" | ForEach-Object { $_.Name })",
+      "PowerShell(if \\(Test-Path \"C:\\\\wamp64\\\\www\\\\tocantinstransportewifi\\\\my-video\\\\public\"\\) { Get-ChildItem -Path \"C:\\\\wamp64\\\\www\\\\tocantinstransportewifi\\\\my-video\\\\public\" -Recurse | ForEach-Object { $_.FullName -replace [regex]::Escape\\(\"C:\\\\wamp64\\\\www\\\\tocantinstransportewifi\\\\my-video\\\\public\"\\), \"\" } } else { Write-Host \"public directory is empty or doesn't exist\" })",
+      "Bash(npm install *)",
+      "Bash(New-Item -ItemType Directory -Force -Path \"src\\\\scenes\")",
+      "Bash(Out-Null)",
+      "Bash(npx tsc *)",
+      "Bash(npx remotion *)",
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=4096\" npx remotion still WifiTocantinsTutorial --frame=0 --scale=0.25 --output=\"preview-frame0.jpeg\")"
+    ]
+  }
+}

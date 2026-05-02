@@ -509,14 +509,15 @@
          */
         window.VIDEO_DISCOUNT_INTERCEPT = function(originalCallback) {
             if (videoDiscountApplied) {
-                // Já assistiu ou já pulou — seguir direto
                 originalCallback();
                 return;
             }
-            // Guardar callback e mostrar modal de escolha
             pendingConnectAction = originalCallback;
 
-            // Atualizar preços no modal de escolha
+            // Esconder loading overlay antes de mostrar o modal
+            var loadingOverlay = document.getElementById('loading-overlay');
+            if (loadingOverlay) loadingOverlay.classList.add('hidden');
+
             const currentPrice = window.WIFI_PRICE || 6.99;
             const discountedPrice = Math.max(0.01, currentPrice - VIDEO_DISCOUNT_AMOUNT);
             const normalEl = document.getElementById('video-choice-normal-price');
@@ -818,41 +819,36 @@
     @if($video_discount_enabled ?? false)
     <script>
     /**
-     * Intercepta handleConnectClick do WiFiPortal para mostrar modal de escolha
-     * (assistir vídeo com desconto OU pagar preço normal) antes de seguir o fluxo.
+     * Intercepta processPixPayment e processPixPaymentFast do WiFiPortal
+     * para mostrar modal de escolha (vídeo com desconto OU preço normal)
+     * DEPOIS do cadastro de telefone, antes de gerar o QR Code PIX.
      */
     document.addEventListener('DOMContentLoaded', function() {
-        // Aguardar portal.js instanciar o WiFiPortal
         var checkPortal = setInterval(function() {
             if (window.wifiPortal) {
                 clearInterval(checkPortal);
 
-                var originalHandleConnect = window.wifiPortal.handleConnectClick.bind(window.wifiPortal);
+                // Guardar métodos originais
+                var originalProcessPix = window.wifiPortal.processPixPayment.bind(window.wifiPortal);
+                var originalProcessPixFast = window.wifiPortal.processPixPaymentFast.bind(window.wifiPortal);
 
-                window.wifiPortal.handleConnectClick = function() {
+                // Interceptar processPixPayment (usuário já cadastrado)
+                window.wifiPortal.processPixPayment = function() {
                     if (typeof window.VIDEO_DISCOUNT_INTERCEPT === 'function') {
-                        window.VIDEO_DISCOUNT_INTERCEPT(originalHandleConnect);
+                        window.VIDEO_DISCOUNT_INTERCEPT(originalProcessPix);
                     } else {
-                        originalHandleConnect();
+                        originalProcessPix();
                     }
                 };
 
-                // Re-bind botões para usar o novo handleConnectClick
-                var connectBtn = document.getElementById('connect-btn');
-                var connectBtnDesktop = document.getElementById('connect-btn-desktop');
-
-                if (connectBtn) {
-                    connectBtn.replaceWith(connectBtn.cloneNode(true));
-                    document.getElementById('connect-btn').addEventListener('click', function() {
-                        window.wifiPortal.handleConnectClick();
-                    });
-                }
-                if (connectBtnDesktop) {
-                    connectBtnDesktop.replaceWith(connectBtnDesktop.cloneNode(true));
-                    document.getElementById('connect-btn-desktop').addEventListener('click', function() {
-                        window.wifiPortal.handleConnectClick();
-                    });
-                }
+                // Interceptar processPixPaymentFast (após cadastro de telefone)
+                window.wifiPortal.processPixPaymentFast = function() {
+                    if (typeof window.VIDEO_DISCOUNT_INTERCEPT === 'function') {
+                        window.VIDEO_DISCOUNT_INTERCEPT(originalProcessPixFast);
+                    } else {
+                        originalProcessPixFast();
+                    }
+                };
             }
         }, 100);
     });
