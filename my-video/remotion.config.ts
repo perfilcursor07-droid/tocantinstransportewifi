@@ -18,5 +18,6 @@ Config.overrideWebpackConfig((current) => {
       ...withTailwind.output,
       hashFunction: 'sha256',
     },
+    cache: false,
   };
 });

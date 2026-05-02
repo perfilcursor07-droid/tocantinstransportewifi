@@ -478,9 +478,9 @@
                         <p class="text-green-100/70 text-[10px]">Desconto liberado ao terminar o vídeo</p>
                     </div>
                 </div>
-                <button onclick="skipFromVideoPlayer()" class="flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold px-3 py-1.5 rounded-full transition-colors animate-pulse backdrop-blur-sm">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
-                    Pular
+                <button onclick="skipFromVideoPlayer()" class="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold px-4 py-2 rounded-full transition-colors animate-pulse backdrop-blur-sm">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+                    Pular agora
                 </button>
             </div>
 

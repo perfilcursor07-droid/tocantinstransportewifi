@@ -1,111 +1,200 @@
 import React from 'react';
 import { AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
-import { BRAND } from '../colors';
+import { heroGradient, BRAND } from '../colors';
 import { fontFamily } from '../font';
+
+// Mini QR code SVG for the bus seat
+const MiniQR: React.FC = () => {
+  const size = 160;
+  const cell = size / 10;
+  const pattern = [
+    [1,1,1,0,1,0,1,1,1],
+    [1,0,1,0,0,0,1,0,1],
+    [1,0,1,0,1,0,1,0,1],
+    [1,0,1,0,1,1,1,0,1],
+    [1,1,1,0,0,1,0,0,0],
+    [0,1,0,1,0,1,1,1,0],
+    [1,1,1,0,1,0,1,0,1],
+    [1,0,1,0,0,1,0,1,1],
+    [1,1,1,1,1,0,1,1,1],
+  ];
+  return (
+    <div style={{ width: size, height: size, background: 'white', padding: 8, borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
+      {pattern.map((row, y) => (
+        <div key={y} style={{ display: 'flex' }}>
+          {row.map((c, x) => (
+            <div key={x} style={{ width: cell - 0.5, height: cell - 0.5, background: c ? '#111' : 'white', margin: 0.25 }} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export const Step2Scene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const badgeScale = spring({ fps, frame, config: { damping: 12, stiffness: 200, mass: 0.5 }, durationInFrames: 30 });
-  const iconScale = spring({ fps, frame: Math.max(0, frame - 10), config: { damping: 13, stiffness: 140, mass: 0.8 }, durationInFrames: 40 });
+  // Phase 1: Auto-redirect (0–110f)
+  // Phase 2: QR code alternative (110–210f)
+  const phase2 = frame >= 110;
 
-  const titleOpacity = interpolate(frame, [22, 44], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const titleY = interpolate(frame, [22, 44], [45, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) });
+  const phase1Opacity = interpolate(frame, [0, 18], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const phase1FadeOut = interpolate(frame, [95, 110], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 
-  const cardOpacity = interpolate(frame, [50, 72], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const cardY = interpolate(frame, [50, 72], [40, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) });
-  const cardScale = interpolate(frame, [50, 72], [0.92, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.back(1.5)) });
+  const phase2Opacity = interpolate(frame, [115, 132], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 
-  const descOpacity = interpolate(frame, [80, 100], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const descY = interpolate(frame, [80, 100], [25, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.quad) });
+  // Browser bar typing animation (phase 1)
+  const urlProgress = interpolate(frame, [30, 70], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const fullUrl = 'www.tocantinstransportewifi.com.br';
+  const urlText = fullUrl.slice(0, Math.floor(urlProgress * fullUrl.length));
 
-  const arrowOpacity = interpolate(frame, [100, 120], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  // Portal loading bar (phase 1)
+  const loadProgress = interpolate(frame, [55, 95], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.quad) });
 
-  // Animated WiFi waves
-  const waveFrame = frame;
-  const wave1 = interpolate(Math.sin((waveFrame * Math.PI) / 30), [-1, 1], [0.75, 1]);
-  const wave2 = interpolate(Math.sin((waveFrame * Math.PI) / 30 + (Math.PI * 2) / 3), [-1, 1], [0.75, 1]);
-  const wave3 = interpolate(Math.sin((waveFrame * Math.PI) / 30 + (Math.PI * 4) / 3), [-1, 1], [0.75, 1]);
+  // Check icon for auto-redirect
+  const checkScale = spring({ fps, frame: Math.max(0, frame - 60), config: { damping: 10, stiffness: 260 }, durationInFrames: 22 });
+
+  // Phase 2 - QR elements
+  const qrScale = spring({ fps, frame: Math.max(0, frame - 118), config: { damping: 11, stiffness: 200, mass: 0.6 }, durationInFrames: 28 });
+  const scanLineY = ((frame - 118) * 5) % 160;
+  const phoneBeamOpacity = interpolate(frame, [148, 165], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 
   return (
-    <AbsoluteFill style={{ background: BRAND.surface, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily, paddingLeft: 70, paddingRight: 70 }}>
+    <AbsoluteFill style={{ background: heroGradient, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily, overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: -100, right: -100, width: 450, height: 450, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
+      <div style={{ position: 'absolute', bottom: -80, left: -80, width: 280, height: 280, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
 
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 8, background: `linear-gradient(90deg, ${BRAND.greenDeep}, ${BRAND.greenLight})` }} />
-
-      {/* Step Badge */}
-      <div style={{ transform: `scale(${badgeScale})`, marginBottom: 52 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, background: 'white', borderRadius: 60, paddingLeft: 28, paddingRight: 36, paddingTop: 14, paddingBottom: 14, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <div style={{ width: 52, height: 52, borderRadius: '50%', background: BRAND.green, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: 28, fontWeight: 900, color: 'white' }}>2</span>
-          </div>
-          <span style={{ fontSize: 28, fontWeight: 700, color: BRAND.muted, letterSpacing: 0.5 }}>PASSO 2 DE 4</span>
-        </div>
-      </div>
-
-      {/* Animated WiFi Icon */}
-      <div style={{ transform: `scale(${iconScale})`, marginBottom: 44, position: 'relative' }}>
-        <div style={{
-          width: 180, height: 180, borderRadius: 48,
-          background: '#E8F5E9',
-          border: `3px solid ${BRAND.green}30`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 12px 48px rgba(0,163,53,0.12)',
-        }}>
-          <svg width="100" height="100" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M1.42 9a16 16 0 0 1 21.16 0" stroke={BRAND.green} strokeWidth="2" opacity={wave1} />
-            <path d="M5 12.55a11 11 0 0 1 14.08 0" stroke={BRAND.green} strokeWidth="2" opacity={wave2} />
-            <path d="M8.53 16.11a6 6 0 0 1 6.95 0" stroke={BRAND.green} strokeWidth="2" opacity={wave3} />
-            <circle cx="12" cy="20" r="1.5" fill={BRAND.green} />
-          </svg>
-        </div>
-      </div>
-
-      {/* Title */}
-      <div style={{ opacity: titleOpacity, transform: `translateY(${titleY}px)`, textAlign: 'center', marginBottom: 36 }}>
-        <div style={{ fontSize: 68, fontWeight: 900, color: BRAND.ink, lineHeight: 1.05, letterSpacing: -2 }}>CONECTE AO</div>
-        <div style={{ fontSize: 68, fontWeight: 900, color: BRAND.green, lineHeight: 1.05, letterSpacing: -2 }}>WiFi</div>
-      </div>
-
-      {/* Network Name Card */}
-      <div style={{ opacity: cardOpacity, transform: `translateY(${cardY}px) scale(${cardScale})`, width: '100%', marginBottom: 36 }}>
-        <div style={{ background: 'white', borderRadius: 28, padding: 32, boxShadow: `0 0 0 3px ${BRAND.green}30, 0 8px 32px rgba(0,163,53,0.10)`, border: `2px solid ${BRAND.green}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 14 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: '#E8F5E9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill={BRAND.green}>
-                <path d="M1.42 9a16 16 0 0 1 21.16 0" stroke={BRAND.green} fill="none" strokeWidth="2" strokeLinecap="round" />
-                <path d="M5 12.55a11 11 0 0 1 14.08 0" stroke={BRAND.green} fill="none" strokeWidth="2" strokeLinecap="round" />
-                <path d="M8.53 16.11a6 6 0 0 1 6.95 0" stroke={BRAND.green} fill="none" strokeWidth="2" strokeLinecap="round" />
-                <circle cx="12" cy="20" r="1.5" fill={BRAND.green} />
-              </svg>
+      {/* === PHASE 1: Auto-redirect === */}
+      {!phase2 && (
+        <div style={{ opacity: phase1Opacity * phase1FadeOut, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingLeft: 60, paddingRight: 60 }}>
+          {/* Step badge */}
+          <div style={{ marginBottom: 36, display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(255,255,255,0.18)', border: '2px solid rgba(255,255,255,0.3)', borderRadius: 60, paddingLeft: 24, paddingRight: 32, paddingTop: 12, paddingBottom: 12 }}>
+            <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,0.28)', border: '2px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 24, fontWeight: 900, color: 'white' }}>2</span>
             </div>
-            <span style={{ fontSize: 22, fontWeight: 600, color: BRAND.muted }}>Nome da rede:</span>
+            <span style={{ fontSize: 25, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>PASSO 2</span>
           </div>
-          <div style={{ fontSize: 38, fontWeight: 900, color: BRAND.ink, letterSpacing: -0.5, lineHeight: 1.2 }}>
-            TocantinsTransporteWiFi
+
+          <div style={{ textAlign: 'center', marginBottom: 44 }}>
+            <div style={{ fontSize: 56, fontWeight: 900, color: 'white', letterSpacing: -1.5, lineHeight: 1.08 }}>REDIRECIONADO</div>
+            <div style={{ fontSize: 56, fontWeight: 900, color: 'rgba(255,255,255,0.85)', letterSpacing: -1.5, lineHeight: 1.08 }}>AUTOMATICAMENTE</div>
+            <div style={{ fontSize: 26, color: 'rgba(255,255,255,0.7)', marginTop: 14, fontWeight: 500 }}>O portal abrirá no navegador do seu celular</div>
+          </div>
+
+          {/* Phone browser mockup */}
+          <div style={{ width: 820, background: 'white', borderRadius: 24, overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.3)' }}>
+            {/* Browser chrome */}
+            <div style={{ background: '#F5F5F5', padding: '14px 18px', borderBottom: '1px solid #E5E5E5', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 7 }}>
+                {['#FF5F56', '#FFBD2E', '#27C93F'].map(c => (
+                  <div key={c} style={{ width: 14, height: 14, borderRadius: '50%', background: c }} />
+                ))}
+              </div>
+              {/* URL bar */}
+              <div style={{ flex: 1, background: 'white', border: '1.5px solid #DDD', borderRadius: 8, paddingLeft: 14, paddingRight: 14, paddingTop: 8, paddingBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.green} strokeWidth="2.5" strokeLinecap="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span style={{ fontSize: 17, color: frame >= 65 ? '#333' : '#999', fontFamily: 'monospace', letterSpacing: 0 }}>
+                  {urlText || 'Abrindo portal...'}
+                </span>
+                {urlProgress >= 1 && (
+                  <div style={{ marginLeft: 'auto', transform: `scale(${checkScale})` }}>
+                    <div style={{ width: 18, height: 18, borderRadius: '50%', background: BRAND.green, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Loading bar */}
+            <div style={{ height: 4, background: '#F0F0F0' }}>
+              <div style={{ height: '100%', width: `${loadProgress * 100}%`, background: `linear-gradient(90deg, ${BRAND.greenDeep}, ${BRAND.greenLight})`, borderRadius: 2 }} />
+            </div>
+            {/* Page content preview */}
+            <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: BRAND.green, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+                  <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+                  <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                  <circle cx="12" cy="20" r="1.5" fill="white" stroke="none" />
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#222' }}>WiFi Tocantins Express</div>
+                <div style={{ fontSize: 14, color: '#888' }}>tocantinstransportewifi.com.br</div>
+              </div>
+              <div style={{ marginLeft: 'auto', fontSize: 15, fontWeight: 600, color: BRAND.green }}>
+                {loadProgress >= 0.9 ? '✓ Portal carregado' : 'Carregando...'}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Description */}
-      <div style={{ opacity: descOpacity, transform: `translateY(${descY}px)`, textAlign: 'center', marginBottom: 28 }}>
-        <div style={{ fontSize: 32, fontWeight: 500, color: BRAND.muted, lineHeight: 1.5 }}>
-          Encontre nas configurações de WiFi
+      {/* === PHASE 2: QR Code alternative === */}
+      {phase2 && (
+        <div style={{ opacity: phase2Opacity, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingLeft: 60, paddingRight: 60 }}>
+          <div style={{ textAlign: 'center', marginBottom: 36 }}>
+            <div style={{ fontSize: 48, fontWeight: 900, color: 'white', letterSpacing: -1.5, lineHeight: 1.1 }}>NÃO REDIRECIONOU?</div>
+            <div style={{ fontSize: 34, fontWeight: 600, color: 'rgba(255,255,255,0.85)', marginTop: 10 }}>Aponte o celular para o QR Code</div>
+            <div style={{ fontSize: 26, fontWeight: 500, color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>Disponível no banco da sua frente no ônibus</div>
+          </div>
+
+          {/* Bus seat card with QR */}
+          <div style={{ display: 'flex', gap: 48, alignItems: 'center', background: 'rgba(255,255,255,0.12)', borderRadius: 28, paddingLeft: 56, paddingRight: 56, paddingTop: 44, paddingBottom: 44, border: '2px solid rgba(255,255,255,0.22)' }}>
+            {/* QR code with scan animation */}
+            <div style={{ transform: `scale(${qrScale})`, position: 'relative' }}>
+              <MiniQR />
+              {/* Scan line */}
+              {frame >= 118 && (
+                <div style={{ position: 'absolute', left: 8, right: 8, top: 8 + (scanLineY % 144), height: 2, background: `${BRAND.greenLight}CC`, borderRadius: 1, boxShadow: `0 0 8px ${BRAND.greenLight}` }} />
+              )}
+              {/* Corner brackets */}
+              {[
+                { top: 0, left: 0, borderTop: '3px solid', borderLeft: '3px solid' },
+                { top: 0, right: 0, borderTop: '3px solid', borderRight: '3px solid' },
+                { bottom: 0, left: 0, borderBottom: '3px solid', borderLeft: '3px solid' },
+                { bottom: 0, right: 0, borderBottom: '3px solid', borderRight: '3px solid' },
+              ].map((style, i) => (
+                <div key={i} style={{ position: 'absolute', width: 22, height: 22, borderColor: BRAND.greenLight, ...style }} />
+              ))}
+            </div>
+
+            {/* Instructions */}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 30, fontWeight: 800, color: 'white', marginBottom: 16, lineHeight: 1.3 }}>
+                📱 Aponte a câmera
+              </div>
+              {[
+                'QR Code no banco da frente',
+                'Será redirecionado ao portal',
+                'Escolha seu plano e conecte',
+              ].map((step, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: BRAND.green, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: 'white' }}>{i + 1}</span>
+                  </div>
+                  <span style={{ fontSize: 24, color: 'rgba(255,255,255,0.88)', fontWeight: 500 }}>{step}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* URL tip */}
+          <div style={{ opacity: phoneBeamOpacity, marginTop: 28, display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.15)', borderRadius: 14, paddingLeft: 22, paddingRight: 26, paddingTop: 12, paddingBottom: 12 }}>
+            <span style={{ fontSize: 22 }}>🌐</span>
+            <span style={{ fontSize: 21, color: 'rgba(255,255,255,0.92)', fontWeight: 500 }}>
+              Ou acesse: <strong>www.tocantinstransportewifi.com.br</strong>
+            </span>
+          </div>
         </div>
-        <div style={{ fontSize: 32, fontWeight: 500, color: BRAND.muted }}>
-          do seu celular
-        </div>
-      </div>
-
-      {/* Arrow hint */}
-      <div style={{ opacity: arrowOpacity, display: 'flex', alignItems: 'center', gap: 12, background: `${BRAND.green}12`, borderRadius: 20, paddingLeft: 24, paddingRight: 24, paddingTop: 12, paddingBottom: 12 }}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill={BRAND.green}>
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
-        </svg>
-        <span style={{ fontSize: 27, fontWeight: 700, color: BRAND.greenDark }}>Sem senha necessária</span>
-      </div>
-
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 8, background: `linear-gradient(90deg, ${BRAND.greenDeep}, ${BRAND.greenLight})` }} />
+      )}
     </AbsoluteFill>
   );
 };

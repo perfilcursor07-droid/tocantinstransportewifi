@@ -1,96 +1,102 @@
 import React from 'react';
-import { AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
-import { heroGradient } from '../colors';
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from 'remotion';
+import { heroGradient, BRAND } from '../colors';
 import { fontFamily } from '../font';
 
 export const Step4Scene: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
-  const badgeScale = spring({ fps, frame, config: { damping: 12, stiffness: 200, mass: 0.5 }, durationInFrames: 30 });
+  const titleOpacity = interpolate(frame, [0, 20], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const titleY = interpolate(frame, [0, 20], [-30, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) });
 
-  const title1Opacity = interpolate(frame, [20, 42], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const title1Y = interpolate(frame, [20, 42], [50, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) });
+  const cardOpacity = interpolate(frame, [10, 32], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const cardScale = interpolate(frame, [10, 35], [0.9, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.back(1.4)) });
 
-  const title2Opacity = interpolate(frame, [34, 56], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const title2Y = interpolate(frame, [34, 56], [50, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) });
+  // Button pulses then gets clicked
+  const pulseScale = frame < 60 ? 1 + Math.sin((frame / 20) * Math.PI) * 0.025 : 1;
+  const btnPress = frame >= 60 && frame < 82
+    ? interpolate(frame, [60, 70, 82], [1, 0.93, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.quad) })
+    : pulseScale;
 
-  const btnOpacity = interpolate(frame, [56, 76], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const btnScale = interpolate(frame, [56, 76], [0.85, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.back(1.8)) });
+  // Arrow bounce
+  const arrowBounce = interpolate(Math.sin((frame / 20) * Math.PI), [-1, 1], [0, 14]);
+  const arrowOpacity = interpolate(frame, [30, 48], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 
-  // Pulsing animation for button
-  const pulseProgress = (Math.cos((frame / 50) * Math.PI * 2) + 1) / 2;
-  const pulseScale = 1 + pulseProgress * 0.035;
-  const pulseGlow = interpolate(pulseProgress, [0, 1], [0.35, 0.6]);
+  // Cursor
+  const cursorOpacity = interpolate(frame, [32, 46], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const cursorLeft = interpolate(frame, [32, 62], [860, 475], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) });
+  const cursorTop = interpolate(frame, [32, 62], [350, 1075], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic) });
+  const fingerScale = frame >= 62 && frame < 82
+    ? interpolate(frame, [62, 70, 82], [1, 0.55, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+    : 1;
+  const cursorFade = interpolate(frame, [84, 100], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 
-  const arrowOpacity = interpolate(frame, [80, 100], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const arrowBounce = interpolate(Math.sin((frame / 20) * Math.PI), [-1, 1], [0, 12]);
+  // Ripple after click
+  const rippleOpacity = interpolate(frame, [70, 110], [0.8, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const rippleScale = interpolate(frame, [70, 110], [0.5, 2.8], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.quad) });
 
-  const descOpacity = interpolate(frame, [95, 115], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const descOpacity = interpolate(frame, [92, 112], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 
   return (
-    <AbsoluteFill style={{ background: heroGradient, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily, paddingLeft: 70, paddingRight: 70, overflow: 'hidden' }}>
-
-      {/* Background decorations */}
-      <div style={{ position: 'absolute', top: -80, right: -80, width: 350, height: 350, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
-      <div style={{ position: 'absolute', bottom: -60, left: -60, width: 280, height: 280, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
-
-      {/* Step Badge */}
-      <div style={{ transform: `scale(${badgeScale})`, marginBottom: 56 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, background: 'rgba(255,255,255,0.18)', border: '2px solid rgba(255,255,255,0.3)', borderRadius: 60, paddingLeft: 28, paddingRight: 36, paddingTop: 14, paddingBottom: 14 }}>
-          <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(255,255,255,0.25)', border: '2px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: 28, fontWeight: 900, color: 'white' }}>4</span>
-          </div>
-          <span style={{ fontSize: 28, fontWeight: 700, color: 'rgba(255,255,255,0.9)', letterSpacing: 0.5 }}>PASSO 4 DE 4</span>
-          <span style={{ fontSize: 24, fontWeight: 800, color: 'rgba(255,255,255,0.8)' }}>✓✓✓</span>
-        </div>
-      </div>
+    <AbsoluteFill style={{ background: heroGradient, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily, paddingLeft: 64, paddingRight: 64, overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: -100, right: -100, width: 420, height: 420, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
+      <div style={{ position: 'absolute', bottom: -70, left: -70, width: 280, height: 280, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
 
       {/* Title */}
-      <div style={{ textAlign: 'center', marginBottom: 52 }}>
-        <div style={{ opacity: title1Opacity, transform: `translateY(${title1Y}px)`, fontSize: 70, fontWeight: 900, color: 'white', lineHeight: 1.05, letterSpacing: -2 }}>
-          TOQUE NO
-        </div>
-        <div style={{ opacity: title2Opacity, transform: `translateY(${title2Y}px)`, fontSize: 70, fontWeight: 900, color: 'rgba(255,255,255,0.9)', lineHeight: 1.05, letterSpacing: -2 }}>
-          BOTÃO VERDE
-        </div>
+      <div style={{ opacity: titleOpacity, transform: `translateY(${titleY}px)`, textAlign: 'center', marginBottom: 56 }}>
+        <div style={{ fontSize: 66, fontWeight: 900, color: 'white', letterSpacing: -2, lineHeight: 1.05 }}>TOQUE EM</div>
+        <div style={{ fontSize: 66, fontWeight: 900, color: 'rgba(255,255,255,0.88)', letterSpacing: -2, lineHeight: 1.05 }}>ACESSAR INTERNET</div>
+        <div style={{ fontSize: 66, fontWeight: 900, color: 'rgba(255,255,255,0.88)', letterSpacing: -2, lineHeight: 1.05 }}>AGORA</div>
       </div>
 
-      {/* Arrow indicator */}
-      <div style={{ opacity: arrowOpacity, transform: `translateY(${arrowBounce}px)`, marginBottom: 20 }}>
-        <svg width="44" height="44" viewBox="0 0 24 24" fill="rgba(255,255,255,0.8)">
+      {/* Arrow */}
+      <div style={{ opacity: arrowOpacity, transform: `translateY(${arrowBounce}px)`, marginBottom: 16 }}>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="rgba(255,255,255,0.8)">
           <path d="M7 10l5 5 5-5z" />
         </svg>
       </div>
 
-      {/* CTA Button - Pulsing */}
-      <div style={{ opacity: btnOpacity, transform: `scale(${btnScale})`, marginBottom: 40, width: '100%' }}>
-        <div style={{
-          transform: `scale(${pulseScale})`,
-          background: 'linear-gradient(135deg, #00C040 0%, #007A28 100%)',
-          borderRadius: 24,
-          paddingTop: 28, paddingBottom: 28,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16,
-          boxShadow: `0 8px 32px rgba(0,163,53,${pulseGlow}), 0 0 0 4px rgba(255,255,255,0.15)`,
-          border: '2px solid rgba(255,255,255,0.25)',
-        }}>
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M1.42 9a16 16 0 0 1 21.16 0" />
-            <path d="M5 12.55a11 11 0 0 1 14.08 0" />
-            <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-            <circle cx="12" cy="20" r="1.5" fill="white" stroke="none" />
-          </svg>
-          <span style={{ fontSize: 34, fontWeight: 900, color: 'white', letterSpacing: 0.5 }}>ACESSAR INTERNET AGORA</span>
+      {/* Portal card with button */}
+      <div style={{ opacity: cardOpacity, transform: `scale(${cardScale})`, width: '100%' }}>
+        <div style={{ background: 'white', borderRadius: 28, padding: '32px 40px', boxShadow: '0 28px 72px rgba(0,0,0,0.32)' }}>
+          {/* Trust row */}
+          <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: 24 }}>
+            {['🔒 Pagamento seguro', '⚡ PIX instantâneo', '✅ Liberação automática'].map(t => (
+              <span key={t} style={{ fontSize: 19, color: '#888', fontWeight: 500 }}>{t}</span>
+            ))}
+          </div>
+          {/* Button */}
+          <div style={{
+            transform: `scale(${btnPress})`,
+            background: `linear-gradient(135deg, ${BRAND.greenLight} 0%, ${BRAND.greenDark} 100%)`,
+            borderRadius: 18,
+            paddingTop: 28, paddingBottom: 28,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,
+            boxShadow: `0 10px 36px ${BRAND.green}55`,
+            position: 'relative', overflow: 'visible',
+          }}>
+            {frame >= 70 && (
+              <div style={{ position: 'absolute', inset: 0, borderRadius: 18, border: `4px solid ${BRAND.greenLight}90`, opacity: rippleOpacity, transform: `scale(${rippleScale})` }} />
+            )}
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+              <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+              <circle cx="12" cy="20" r="1.5" fill="white" stroke="none" />
+            </svg>
+            <span style={{ fontSize: 30, fontWeight: 900, color: 'white', letterSpacing: 0.3 }}>ACESSAR INTERNET AGORA</span>
+          </div>
         </div>
       </div>
 
-      {/* Description */}
-      <div style={{ opacity: descOpacity, textAlign: 'center' }}>
-        <div style={{ fontSize: 30, fontWeight: 500, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>
-          Escolha seu plano e toque
-        </div>
-        <div style={{ fontSize: 30, fontWeight: 500, color: 'rgba(255,255,255,0.75)' }}>
-          no botão verde
+      <div style={{ opacity: descOpacity, marginTop: 32, textAlign: 'center' }}>
+        <div style={{ fontSize: 28, fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>Em seguida será solicitado seu telefone</div>
+      </div>
+
+      {/* Cursor */}
+      <div style={{ position: 'absolute', left: cursorLeft, top: cursorTop, opacity: cursorOpacity * cursorFade, transform: `scale(${fingerScale})`, zIndex: 20, pointerEvents: 'none' }}>
+        <div style={{ width: 76, height: 76, borderRadius: '50%', background: 'rgba(255,255,255,0.92)', border: `4px solid ${BRAND.green}`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', fontSize: 36 }}>
+          👆
         </div>
       </div>
     </AbsoluteFill>
