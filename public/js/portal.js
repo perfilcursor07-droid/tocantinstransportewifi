@@ -1560,6 +1560,10 @@ class WiFiPortal {
     async checkPaymentStatus(paymentId) {
         console.log('🔄 Verificando status do pagamento:', paymentId);
         
+        // Contador de tentativas manuais (quando clicou "JÁ PAGUEI")
+        if (!this._manualCheckCount) this._manualCheckCount = 0;
+        this._manualCheckCount++;
+        
         try {
             const response = await fetch(`/api/payment/pix/status?payment_id=${paymentId}`);
             const result = await response.json();
@@ -1568,15 +1572,128 @@ class WiFiPortal {
             
             if (result.success && result.payment.status === 'completed') {
                 console.log('✅ Pagamento confirmado!');
+                this._manualCheckCount = 0;
                 
                 // Ir para confirmação (passo 2 sub-estado "pago") → depois passo 3
                 this.showPaymentConfirmed();
             } else {
-                console.log('⏱️ Pagamento ainda pendente');
+                console.log('⏱️ Pagamento ainda pendente (tentativa ' + this._manualCheckCount + ')');
+                
+                // Após 6 tentativas (30s) sem confirmação, mostrar "não encontrado"
+                if (this._manualCheckCount >= 6) {
+                    this._manualCheckCount = 0;
+                    this.showPaymentNotFound();
+                }
             }
         } catch (error) {
             console.error('❌ Erro ao verificar status do pagamento:', error);
+            this._manualCheckCount++;
+            if (this._manualCheckCount >= 6) {
+                this._manualCheckCount = 0;
+                this.showPaymentNotFound();
+            }
         }
+    }
+    
+    /**
+     * Mostra mensagem de pagamento não encontrado e volta para o QR Code
+     */
+    showPaymentNotFound() {
+        // Parar verificação automática
+        if (this.paymentCheckInterval) {
+            clearInterval(this.paymentCheckInterval);
+            this.paymentCheckInterval = null;
+        }
+        
+        const checkingEl = document.getElementById('step-2-checking');
+        if (checkingEl) {
+            checkingEl.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="w-14 h-14 mx-auto mb-3 bg-red-100 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </div>
+                    <p class="text-gray-800 font-bold text-sm mb-1">Pagamento não encontrado</p>
+                    <p class="text-gray-500 text-xs mb-4">Não localizamos o pagamento. Copie o código PIX e pague pelo app do banco.</p>
+                    <button id="btn-back-to-qr" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-lg text-xs transition-all shadow-md flex items-center justify-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                        VOLTAR E COPIAR CÓDIGO
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('btn-back-to-qr')?.addEventListener('click', () => {
+                this.backToStep1();
+            });
+        }
+    }
+    
+    /**
+     * Volta para o Passo 1 (QR Code) para o usuário copiar e pagar
+     */
+    backToStep1() {
+        // Resetar timeline visual
+        document.getElementById('step-1').innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>';
+        document.getElementById('step-1').classList.add('bg-emerald-500', 'text-white');
+        document.getElementById('step-1-text').textContent = 'Copiar';
+        document.getElementById('step-1-text').classList.add('text-emerald-700', 'font-bold');
+        
+        document.getElementById('line-1-2').style.width = '0%';
+        document.getElementById('line-1-2').classList.remove('bg-emerald-400');
+        document.getElementById('line-1-2').classList.add('bg-gray-200');
+        
+        document.getElementById('step-2').classList.remove('bg-amber-500', 'bg-emerald-500', 'text-white', 'animate-pulse');
+        document.getElementById('step-2').classList.add('bg-gray-200', 'text-gray-400');
+        document.getElementById('step-2').innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>';
+        document.getElementById('step-2-text').textContent = 'Pagar';
+        document.getElementById('step-2-text').classList.remove('text-amber-600', 'text-emerald-600', 'font-bold');
+        document.getElementById('step-2-text').classList.add('text-gray-400');
+        
+        // Restaurar conteúdo do step-2-checking
+        const checkingEl = document.getElementById('step-2-checking');
+        if (checkingEl) {
+            checkingEl.innerHTML = `
+                <div class="mb-3">
+                    <div class="w-14 h-14 mx-auto mb-2 relative">
+                        <div class="absolute inset-0 rounded-full border-4 border-amber-200"></div>
+                        <div class="absolute inset-0 rounded-full border-4 border-amber-500 border-t-transparent animate-spin"></div>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </div>
+                    </div>
+                    <p class="text-gray-800 font-bold text-sm">Verificando pagamento</p>
+                    <div class="flex items-center justify-center gap-1 mt-1">
+                        <span class="text-gray-500 text-xs">Consultando banco</span>
+                        <span class="inline-flex gap-0.5">
+                            <span class="w-1 h-1 bg-amber-400 rounded-full animate-bounce" style="animation-delay:0s"></span>
+                            <span class="w-1 h-1 bg-amber-400 rounded-full animate-bounce" style="animation-delay:0.15s"></span>
+                            <span class="w-1 h-1 bg-amber-400 rounded-full animate-bounce" style="animation-delay:0.3s"></span>
+                        </span>
+                    </div>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                    <div class="flex items-center justify-center gap-2">
+                        <div class="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                        <p class="text-amber-700 text-xs font-medium">Aguarde, estamos localizando seu pagamento...</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Mostrar step 1, esconder step 2
+        document.getElementById('step-1-content')?.classList.remove('hidden');
+        document.getElementById('step-2-content')?.classList.add('hidden');
+        document.getElementById('step-2-paid')?.classList.add('hidden');
+        document.getElementById('step-2-checking')?.classList.remove('hidden');
+        
+        // Mostrar botão JÁ PAGUEI de novo
+        document.getElementById('btn-paid')?.classList.remove('hidden');
+        
+        // Reiniciar verificação automática
+        this._manualCheckCount = 0;
+        this.startPixCountdown();
+        this.paymentCheckInterval = setInterval(() => {
+            this.checkPaymentStatus(this.currentPaymentId);
+        }, 5000);
     }
     
     /**
