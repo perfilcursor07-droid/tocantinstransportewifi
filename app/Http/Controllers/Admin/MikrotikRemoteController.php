@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BusHealthLog;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Carbon\Carbon;
@@ -63,7 +64,51 @@ class MikrotikRemoteController extends Controller
             'total_users' => $data->sum('active_users'),
         ];
 
-        return view('admin.mikrotik.saude', compact('data', 'summary'));
+        // Histórico dos últimos 7 dias para cada ônibus
+        $days = 7;
+        $startDate = now()->subDays($days - 1)->startOfDay();
+
+        $historyRaw = BusHealthLog::where('recorded_at', '>=', $startDate)
+            ->orderBy('recorded_at')
+            ->get();
+
+        // Organizar: bus_id => [date => [logs]]
+        $history = [];
+        foreach ($buses as $bus) {
+            $busLogs = $historyRaw->where('bus_id', $bus->id);
+            $dailyData = [];
+
+            for ($i = 0; $i < $days; $i++) {
+                $date = now()->subDays($days - 1 - $i)->format('Y-m-d');
+                $dayLogs = $busLogs->filter(fn($log) => $log->recorded_at->format('Y-m-d') === $date);
+
+                $totalChecks = $dayLogs->count();
+                $onlineChecks = $dayLogs->whereIn('status', ['online', 'lagging'])->count();
+
+                // Cada check = 5 minutos. online_minutes = checks_online * 5
+                $onlineMinutes = $onlineChecks * 5;
+                $totalMinutes = $totalChecks * 5;
+                $uptimePercent = $totalChecks > 0 ? round(($onlineChecks / $totalChecks) * 100, 1) : null;
+
+                $dailyData[] = [
+                    'date' => $date,
+                    'date_label' => Carbon::parse($date)->format('d/m'),
+                    'day_name' => Carbon::parse($date)->locale('pt_BR')->isoFormat('ddd'),
+                    'total_checks' => $totalChecks,
+                    'online_checks' => $onlineChecks,
+                    'offline_checks' => $totalChecks - $onlineChecks,
+                    'online_minutes' => $onlineMinutes,
+                    'total_minutes' => $totalMinutes,
+                    'uptime_percent' => $uptimePercent,
+                    'online_hours' => round($onlineMinutes / 60, 1),
+                    'total_hours' => round($totalMinutes / 60, 1),
+                ];
+            }
+
+            $history[$bus->id] = $dailyData;
+        }
+
+        return view('admin.mikrotik.saude', compact('data', 'summary', 'history', 'days'));
     }
 
     /**

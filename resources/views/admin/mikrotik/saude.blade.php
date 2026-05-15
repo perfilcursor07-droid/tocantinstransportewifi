@@ -18,17 +18,17 @@
             <p class="text-[10px] font-bold uppercase tracking-widest text-white/60 mb-0.5">Starlink · Monitoramento</p>
             <h1 class="text-xl font-bold text-white">Saúde dos {{ $summary['total'] }} MikroTiks</h1>
             <p class="text-xs text-white/70 mt-0.5">
-                Cada ônibus sincroniza a cada 15s. Se parou de sincronizar, ninguém paga nem conecta naquele ônibus.
+                Cada ônibus sincroniza a cada 15s. Histórico de uptime dos últimos {{ $days }} dias.
             </p>
         </div>
         <div class="flex items-center gap-2">
             <span id="auto-refresh-indicator" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/15 border border-white/20 rounded-lg text-[10px] font-semibold text-white">
                 <span class="w-1.5 h-1.5 rounded-full bg-green-light animate-pulse"></span>
-                Atualizando a cada 15s
+                Auto-refresh 15s
             </span>
             <button onclick="refreshNow()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-green font-bold text-xs rounded-lg hover:bg-green-pale transition shadow-card">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                Atualizar agora
+                Atualizar
             </button>
         </div>
     </div>
@@ -36,75 +36,84 @@
     {{-- Summary Cards --}}
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <div class="bg-white rounded-xl border border-green/30 shadow-card p-4">
-            <p class="text-[10px] text-muted font-medium uppercase tracking-wider">Online</p>
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-green"></span>
+                <p class="text-[10px] text-muted font-medium uppercase tracking-wider">Online</p>
+            </div>
             <p class="text-3xl font-bold text-green mt-1" id="sum-online">{{ $summary['online'] }}</p>
             <p class="text-[10px] text-muted mt-0.5">sync ≤ 30s</p>
         </div>
         <div class="bg-white rounded-xl border border-gold/30 shadow-card p-4">
-            <p class="text-[10px] text-muted font-medium uppercase tracking-wider">Atrasado</p>
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-gold"></span>
+                <p class="text-[10px] text-muted font-medium uppercase tracking-wider">Atrasado</p>
+            </div>
             <p class="text-3xl font-bold text-gold mt-1" id="sum-lagging">{{ $summary['lagging'] }}</p>
             <p class="text-[10px] text-muted mt-0.5">30s a 5min</p>
         </div>
         <div class="bg-white rounded-xl border border-red/30 shadow-card p-4">
-            <p class="text-[10px] text-muted font-medium uppercase tracking-wider">Offline</p>
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-red"></span>
+                <p class="text-[10px] text-muted font-medium uppercase tracking-wider">Offline</p>
+            </div>
             <p class="text-3xl font-bold text-red mt-1" id="sum-offline">{{ $summary['offline'] }}</p>
             <p class="text-[10px] text-muted mt-0.5">&gt; 5min sem sync</p>
         </div>
         <div class="bg-white rounded-xl border border-blue/30 shadow-card p-4">
-            <p class="text-[10px] text-muted font-medium uppercase tracking-wider">Usuários ativos</p>
+            <div class="flex items-center gap-2">
+                <svg class="w-2.5 h-2.5 text-blue" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
+                <p class="text-[10px] text-muted font-medium uppercase tracking-wider">Usuários</p>
+            </div>
             <p class="text-3xl font-bold text-blue mt-1" id="sum-users">{{ $summary['total_users'] }}</p>
             <p class="text-[10px] text-muted mt-0.5">conectados agora</p>
         </div>
     </div>
 
-    {{-- Lista de ônibus --}}
-    <div class="bg-white rounded-xl border border-border shadow-card overflow-hidden">
-        <div class="px-5 py-3 border-b border-border flex items-center justify-between">
-            <h2 class="text-sm font-bold text-ink">Ônibus / MikroTiks</h2>
-            <span class="text-[10px] text-muted" id="last-check-label">
-                Última verificação: <span id="last-check-time">agora</span>
-            </span>
-        </div>
-
+    {{-- Status atual + Histórico por ônibus --}}
+    <div class="space-y-4" id="bus-list">
         @if($data->isEmpty())
-            <div class="p-8 text-center text-muted text-sm">
+            <div class="bg-white rounded-xl border border-border shadow-card p-8 text-center text-muted text-sm">
                 Nenhum MikroTik registrado ainda. Quando qualquer ônibus fizer o primeiro sync,
                 ele aparece aqui automaticamente.
             </div>
         @else
-            <div class="divide-y divide-border" id="bus-list">
-                @foreach($data as $item)
-                    @php
-                        $bus = $item['bus'];
-                        $status = $item['status'];
-                        $secs = $item['seconds_since_sync'];
-                        $colorMap = [
-                            'online'  => ['dot' => 'bg-green', 'text' => 'text-green', 'label' => 'ONLINE', 'badge' => 'bg-green-pale text-green border-green/30'],
-                            'lagging' => ['dot' => 'bg-gold', 'text' => 'text-gold', 'label' => 'ATRASADO', 'badge' => 'bg-gold-pale text-gold border-gold/30'],
-                            'offline' => ['dot' => 'bg-red', 'text' => 'text-red', 'label' => 'OFFLINE', 'badge' => 'bg-red-pale text-red border-red/30'],
-                            'unknown' => ['dot' => 'bg-muted', 'text' => 'text-muted', 'label' => 'NUNCA SINCRONIZOU', 'badge' => 'bg-surface text-muted border-border'],
-                        ];
-                        $c = $colorMap[$status];
+            @foreach($data as $item)
+                @php
+                    $bus = $item['bus'];
+                    $status = $item['status'];
+                    $secs = $item['seconds_since_sync'];
+                    $busHistory = $history[$bus->id] ?? [];
 
-                        if ($secs === null) {
-                            $syncText = 'nunca sincronizou';
-                        } elseif ($secs < 60) {
-                            $syncText = $secs . 's atrás';
-                        } elseif ($secs < 3600) {
-                            $syncText = floor($secs / 60) . 'min atrás';
-                        } else {
-                            $syncText = floor($secs / 3600) . 'h atrás';
-                        }
-                    @endphp
-                    <div class="px-5 py-4 flex items-center gap-4 hover:bg-surface/30 transition"
-                         data-serial="{{ $bus->mikrotik_serial }}">
-                        <div class="w-3 h-3 rounded-full {{ $c['dot'] }} flex-shrink-0" data-dot></div>
+                    $colorMap = [
+                        'online'  => ['dot' => 'bg-green', 'text' => 'text-green', 'label' => 'ONLINE', 'badge' => 'bg-green-pale text-green border-green/30', 'border' => 'border-green/30'],
+                        'lagging' => ['dot' => 'bg-gold', 'text' => 'text-gold', 'label' => 'ATRASADO', 'badge' => 'bg-gold-pale text-gold border-gold/30', 'border' => 'border-gold/30'],
+                        'offline' => ['dot' => 'bg-red', 'text' => 'text-red', 'label' => 'OFFLINE', 'badge' => 'bg-red-pale text-red border-red/30', 'border' => 'border-red/30'],
+                        'unknown' => ['dot' => 'bg-muted', 'text' => 'text-muted', 'label' => 'NUNCA SINCRONIZOU', 'badge' => 'bg-surface text-muted border-border', 'border' => 'border-border'],
+                    ];
+                    $c = $colorMap[$status];
+
+                    if ($secs === null) {
+                        $syncText = 'nunca sincronizou';
+                    } elseif ($secs < 60) {
+                        $syncText = $secs . 's atrás';
+                    } elseif ($secs < 3600) {
+                        $syncText = floor($secs / 60) . 'min atrás';
+                    } else {
+                        $syncText = floor($secs / 3600) . 'h ' . (floor(($secs % 3600) / 60)) . 'min atrás';
+                    }
+                @endphp
+
+                <div class="bg-white rounded-xl border {{ $c['border'] }} shadow-card overflow-hidden" data-serial="{{ $bus->mikrotik_serial }}">
+                    {{-- Cabeçalho do ônibus --}}
+                    <div class="px-5 py-4 flex items-center gap-4 cursor-pointer hover:bg-surface/30 transition"
+                         onclick="toggleHistory('history-{{ $bus->id }}')">
+                        <div class="w-3.5 h-3.5 rounded-full {{ $c['dot'] }} flex-shrink-0 shadow-sm" data-dot></div>
 
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <p class="font-bold text-ink text-sm truncate">{{ $bus->name }}</p>
                                 @if($bus->plate)
-                                    <span class="text-[10px] text-muted font-mono">{{ $bus->plate }}</span>
+                                    <span class="text-[10px] text-muted font-mono bg-surface px-1.5 py-0.5 rounded">{{ $bus->plate }}</span>
                                 @endif
                                 <span class="px-2 py-0.5 text-[9px] font-bold rounded border {{ $c['badge'] }}" data-badge>
                                     {{ $c['label'] }}
@@ -126,37 +135,193 @@
                             <p class="text-sm font-bold {{ $c['text'] }}" data-sync-text>{{ $syncText }}</p>
                         </div>
 
-                        <div class="text-right flex-shrink-0 w-20">
+                        <div class="text-right flex-shrink-0 w-16">
                             <p class="text-[10px] text-muted font-medium uppercase tracking-wider">Usuários</p>
                             <p class="text-sm font-bold text-ink" data-users>{{ $item['active_users'] }}</p>
                         </div>
+
+                        <div class="flex-shrink-0">
+                            <svg class="w-4 h-4 text-muted transition-transform" id="chevron-{{ $bus->id }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
                     </div>
-                @endforeach
-            </div>
+
+                    {{-- Histórico diário (colapsável) --}}
+                    <div id="history-{{ $bus->id }}" class="hidden border-t border-border">
+                        @if(empty($busHistory) || collect($busHistory)->every(fn($d) => $d['total_checks'] === 0))
+                            <div class="px-5 py-4 text-center text-muted text-xs">
+                                <svg class="w-5 h-5 mx-auto mb-1 text-muted/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Sem dados históricos ainda. O monitoramento grava snapshots a cada 5 minutos.
+                            </div>
+                        @else
+                            <div class="px-5 py-3">
+                                <p class="text-[10px] font-bold text-muted uppercase tracking-wider mb-3">
+                                    Uptime dos últimos {{ $days }} dias
+                                </p>
+
+                                {{-- Tabela de uptime diário --}}
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-xs">
+                                        <thead>
+                                            <tr class="text-[10px] text-muted uppercase tracking-wider">
+                                                <th class="text-left pb-2 font-medium">Dia</th>
+                                                <th class="text-center pb-2 font-medium">Uptime</th>
+                                                <th class="text-center pb-2 font-medium">Online</th>
+                                                <th class="text-center pb-2 font-medium">Offline</th>
+                                                <th class="text-left pb-2 font-medium pl-3" style="min-width:180px">Timeline</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-border/50">
+                                            @foreach(array_reverse($busHistory) as $day)
+                                                @php
+                                                    $isToday = $day['date'] === now()->format('Y-m-d');
+                                                    $uptimePct = $day['uptime_percent'];
+                                                    if ($uptimePct === null) {
+                                                        $barColor = 'bg-muted/20';
+                                                        $uptimeLabel = '—';
+                                                        $uptimeTextColor = 'text-muted';
+                                                    } elseif ($uptimePct >= 95) {
+                                                        $barColor = 'bg-green';
+                                                        $uptimeLabel = $uptimePct . '%';
+                                                        $uptimeTextColor = 'text-green';
+                                                    } elseif ($uptimePct >= 70) {
+                                                        $barColor = 'bg-gold';
+                                                        $uptimeLabel = $uptimePct . '%';
+                                                        $uptimeTextColor = 'text-gold';
+                                                    } else {
+                                                        $barColor = 'bg-red';
+                                                        $uptimeLabel = $uptimePct . '%';
+                                                        $uptimeTextColor = 'text-red';
+                                                    }
+                                                @endphp
+                                                <tr class="{{ $isToday ? 'bg-green-pale/30' : '' }}">
+                                                    <td class="py-2 pr-3">
+                                                        <span class="font-bold text-ink">{{ $day['date_label'] }}</span>
+                                                        <span class="text-muted ml-1">{{ $day['day_name'] }}</span>
+                                                        @if($isToday)
+                                                            <span class="ml-1 text-[8px] font-bold text-green bg-green-pale px-1 py-0.5 rounded">HOJE</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="py-2 text-center">
+                                                        <span class="font-bold {{ $uptimeTextColor }}">{{ $uptimeLabel }}</span>
+                                                    </td>
+                                                    <td class="py-2 text-center">
+                                                        @if($day['total_checks'] > 0)
+                                                            <span class="text-green font-medium">{{ $day['online_hours'] }}h</span>
+                                                        @else
+                                                            <span class="text-muted">—</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="py-2 text-center">
+                                                        @if($day['total_checks'] > 0)
+                                                            @php
+                                                                $offlineHours = round(($day['total_minutes'] - $day['online_minutes']) / 60, 1);
+                                                            @endphp
+                                                            <span class="{{ $offlineHours > 0 ? 'text-red font-medium' : 'text-muted' }}">
+                                                                {{ $offlineHours > 0 ? $offlineHours . 'h' : '0h' }}
+                                                            </span>
+                                                        @else
+                                                            <span class="text-muted">—</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="py-2 pl-3">
+                                                        @if($day['total_checks'] > 0)
+                                                            <div class="flex items-center gap-1">
+                                                                <div class="flex-1 h-4 bg-surface rounded-full overflow-hidden relative">
+                                                                    <div class="{{ $barColor }} h-full rounded-full transition-all"
+                                                                         style="width: {{ $uptimePct }}%"></div>
+                                                                </div>
+                                                                <span class="text-[10px] text-muted font-mono w-8 text-right">{{ $day['total_hours'] }}h</span>
+                                                            </div>
+                                                        @else
+                                                            <div class="h-4 bg-surface/50 rounded-full flex items-center justify-center">
+                                                                <span class="text-[9px] text-muted">sem dados</span>
+                                                            </div>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {{-- Resumo rápido --}}
+                                @php
+                                    $daysWithData = collect($busHistory)->filter(fn($d) => $d['total_checks'] > 0);
+                                    $avgUptime = $daysWithData->count() > 0
+                                        ? round($daysWithData->avg('uptime_percent'), 1)
+                                        : null;
+                                    $totalOfflineHours = $daysWithData->sum(fn($d) => ($d['total_minutes'] - $d['online_minutes']) / 60);
+                                @endphp
+                                @if($daysWithData->count() > 0)
+                                    <div class="mt-3 pt-3 border-t border-border/50 flex items-center gap-4 text-[11px]">
+                                        <span class="text-muted">
+                                            Média {{ $days }} dias:
+                                            <strong class="{{ $avgUptime >= 95 ? 'text-green' : ($avgUptime >= 70 ? 'text-gold' : 'text-red') }}">
+                                                {{ $avgUptime }}% uptime
+                                            </strong>
+                                        </span>
+                                        <span class="text-muted">·</span>
+                                        <span class="text-muted">
+                                            Total offline:
+                                            <strong class="{{ $totalOfflineHours > 2 ? 'text-red' : 'text-muted' }}">
+                                                {{ round($totalOfflineHours, 1) }}h no período
+                                            </strong>
+                                        </span>
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endforeach
         @endif
     </div>
 
     {{-- Legenda --}}
-    <div class="mt-4 bg-surface/50 rounded-xl border border-border p-4 text-xs text-muted">
-        <p class="font-bold text-ink mb-2">O que esses status significam:</p>
-        <ul class="space-y-1">
-            <li><span class="inline-block w-2 h-2 rounded-full bg-green align-middle mr-1"></span> <strong class="text-green">Online</strong> — sincronizou nos últimos 30s. Tudo normal.</li>
-            <li><span class="inline-block w-2 h-2 rounded-full bg-gold align-middle mr-1"></span> <strong class="text-gold">Atrasado</strong> — sem sync entre 30s e 5min. Pode ser Starlink instável.</li>
-            <li><span class="inline-block w-2 h-2 rounded-full bg-red align-middle mr-1"></span> <strong class="text-red">Offline</strong> — sem sync há mais de 5min. Ônibus desligado, Starlink caiu ou MikroTik travou. Usuários não conseguem pagar/conectar nesse ônibus.</li>
+    <div class="mt-6 bg-surface/50 rounded-xl border border-border p-4 text-xs text-muted">
+        <p class="font-bold text-ink mb-2">Como funciona o monitoramento:</p>
+        <ul class="space-y-1.5">
+            <li><span class="inline-block w-2 h-2 rounded-full bg-green align-middle mr-1.5"></span> <strong class="text-green">Online</strong> — sincronizou nos últimos 30s. Funcionando normal.</li>
+            <li><span class="inline-block w-2 h-2 rounded-full bg-gold align-middle mr-1.5"></span> <strong class="text-gold">Atrasado</strong> — sem sync entre 30s e 5min. Starlink pode estar instável.</li>
+            <li><span class="inline-block w-2 h-2 rounded-full bg-red align-middle mr-1.5"></span> <strong class="text-red">Offline</strong> — sem sync há mais de 5min. Ônibus desligado, Starlink caiu ou MikroTik travou.</li>
         </ul>
+        <p class="mt-3 pt-2 border-t border-border/50 text-[11px]">
+            <strong class="text-ink">Histórico:</strong> Snapshots gravados a cada 5 minutos. Clique em cada ônibus para ver o uptime diário.
+            Uptime ≥95% = <span class="text-green font-bold">verde</span>,
+            70-95% = <span class="text-gold font-bold">amarelo</span>,
+            &lt;70% = <span class="text-red font-bold">vermelho</span>.
+        </p>
     </div>
-
 </div>
 
 <script>
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
     let refreshTimer = null;
 
+    function toggleHistory(id) {
+        const el = document.getElementById(id);
+        const busId = id.replace('history-', '');
+        const chevron = document.getElementById('chevron-' + busId);
+        if (el.classList.contains('hidden')) {
+            el.classList.remove('hidden');
+            chevron.style.transform = 'rotate(180deg)';
+        } else {
+            el.classList.add('hidden');
+            chevron.style.transform = 'rotate(0deg)';
+        }
+    }
+
     function secondsToText(secs) {
         if (secs === null || secs === undefined) return 'nunca sincronizou';
         if (secs < 60) return secs + 's atrás';
         if (secs < 3600) return Math.floor(secs / 60) + 'min atrás';
-        return Math.floor(secs / 3600) + 'h atrás';
+        const h = Math.floor(secs / 3600);
+        const m = Math.floor((secs % 3600) / 60);
+        return h + 'h ' + m + 'min atrás';
     }
 
     function statusClasses(status) {
@@ -171,7 +336,7 @@
 
     async function refreshNow() {
         try {
-            const res = await fetch('{{ route('admin.mikrotik.health.json') }}', {
+            const res = await fetch('{{ route("admin.mikrotik.health.json") }}', {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 credentials: 'same-origin',
             });
@@ -191,7 +356,7 @@
                 const c = statusClasses(item.status);
 
                 const dot = row.querySelector('[data-dot]');
-                dot.className = 'w-3 h-3 rounded-full ' + c.dot + ' flex-shrink-0';
+                dot.className = 'w-3.5 h-3.5 rounded-full ' + c.dot + ' flex-shrink-0 shadow-sm';
 
                 const badge = row.querySelector('[data-badge]');
                 badge.className = 'px-2 py-0.5 text-[9px] font-bold rounded border ' + c.badge;
@@ -208,14 +373,12 @@
             document.getElementById('sum-lagging').textContent = lagging;
             document.getElementById('sum-offline').textContent = offline;
             document.getElementById('sum-users').textContent = totalUsers;
-            document.getElementById('last-check-time').textContent = new Date().toLocaleTimeString('pt-BR');
         } catch (e) {
-            console.error('Erro ao atualizar saúde dos MikroTiks:', e);
+            console.error('Erro ao atualizar saúde:', e);
         }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('last-check-time').textContent = new Date().toLocaleTimeString('pt-BR');
         refreshTimer = setInterval(refreshNow, 15000);
     });
 

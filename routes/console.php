@@ -29,3 +29,9 @@ Schedule::command('reviews:send-whatsapp')
     ->withoutOverlapping()
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/reviews-whatsapp-send.log'));
+
+// Scheduler: Gravar snapshot de saúde dos MikroTiks a cada 5 minutos
+Schedule::command('bus:record-health')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();
