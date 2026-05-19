@@ -285,18 +285,25 @@ PROMPT;
             $http = $http->withoutVerifying();
         }
 
-        $response = $http->post(config('services.together.api_url'), [
-                'model' => config('services.together.model'),
-                'messages' => $messages,
-                'max_tokens' => 400,
-                'temperature' => 0.4,
-                'response_format' => ['type' => 'json_object'],
-            ]);
+        $payload = [
+            'model' => config('services.together.model'),
+            'messages' => $messages,
+            'max_tokens' => 400,
+            'temperature' => 0.4,
+            'stream' => false,
+        ];
+
+        // DeepSeek suporta response_format json_object
+        $payload['response_format'] = ['type' => 'json_object'];
+
+        $response = $http->post(config('services.together.api_url'), $payload);
 
         if (!$response->successful()) {
-            Log::warning('🤖 Together API falhou', [
+            Log::warning('🤖 AI API falhou', [
                 'status' => $response->status(),
                 'body' => substr($response->body(), 0, 500),
+                'url' => config('services.together.api_url'),
+                'model' => config('services.together.model'),
             ]);
             return null;
         }
