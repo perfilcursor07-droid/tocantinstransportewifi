@@ -291,6 +291,7 @@ PROMPT;
             'max_tokens' => 500,
             'temperature' => 0.4,
             'stream' => false,
+            'thinking' => ['type' => 'disabled'],
         ];
 
         // Tentar com response_format primeiro
@@ -315,6 +316,13 @@ PROMPT;
         }
 
         $content = $response->json('choices.0.message.content');
+        
+        // DeepSeek pode retornar content vazio quando usa thinking mode
+        // Nesse caso o texto real fica em reasoning_content
+        if (!$content || trim($content) === '') {
+            $content = $response->json('choices.0.message.reasoning_content');
+        }
+        
         if (!$content) {
             Log::warning('🤖 AI API sem content', ['response' => substr($response->body(), 0, 500)]);
             return null;
