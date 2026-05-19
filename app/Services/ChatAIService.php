@@ -288,15 +288,21 @@ PROMPT;
         $payload = [
             'model' => config('services.together.model'),
             'messages' => $messages,
-            'max_tokens' => 400,
+            'max_tokens' => 500,
             'temperature' => 0.4,
             'stream' => false,
         ];
 
-        // DeepSeek suporta response_format json_object
-        $payload['response_format'] = ['type' => 'json_object'];
+        // Tentar com response_format primeiro
+        $response = $http->post(config('services.together.api_url'), array_merge($payload, [
+            'response_format' => ['type' => 'json_object'],
+        ]));
 
-        $response = $http->post(config('services.together.api_url'), $payload);
+        // Se falhou com response_format, tentar sem ele
+        if (!$response->successful()) {
+            Log::info('🤖 Tentando sem response_format', ['status' => $response->status()]);
+            $response = $http->post(config('services.together.api_url'), $payload);
+        }
 
         if (!$response->successful()) {
             Log::warning('🤖 AI API falhou', [
@@ -309,11 +315,15 @@ PROMPT;
         }
 
         $content = $response->json('choices.0.message.content');
-        if (!$content) return null;
+        if (!$content) {
+            Log::warning('🤖 AI API sem content', ['response' => substr($response->body(), 0, 500)]);
+            return null;
+        }
 
         // Remove possíveis cercas de código que o modelo insista em colocar
         $content = trim($content);
         $content = preg_replace('/^```(?:json)?\s*|\s*```$/m', '', $content);
+        $content = trim($content);
 
         $decoded = json_decode($content, true);
         if (!is_array($decoded)) {
