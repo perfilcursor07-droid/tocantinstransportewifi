@@ -42,13 +42,13 @@
         <form method="GET" action="{{ route('admin.reports') }}">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
                 <div>
-                    <label class="block text-[11px] font-semibold text-ink2 uppercase tracking-wider mb-1.5">Data Inicial</label>
-                    <input type="date" name="start_date" value="{{ $startDate }}"
+                    <label class="block text-[11px] font-semibold text-ink2 uppercase tracking-wider mb-1.5">Data e Hora Inicial</label>
+                    <input type="datetime-local" name="start_date" value="{{ $startDate }}"
                            class="w-full px-3 py-2 text-sm text-ink bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green/30 focus:border-green transition-all">
                 </div>
                 <div>
-                    <label class="block text-[11px] font-semibold text-ink2 uppercase tracking-wider mb-1.5">Data Final</label>
-                    <input type="date" name="end_date" value="{{ $endDate }}"
+                    <label class="block text-[11px] font-semibold text-ink2 uppercase tracking-wider mb-1.5">Data e Hora Final</label>
+                    <input type="datetime-local" name="end_date" value="{{ $endDate }}"
                            class="w-full px-3 py-2 text-sm text-ink bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green/30 focus:border-green transition-all">
                 </div>
                 <div>
@@ -155,7 +155,7 @@
     <div class="bg-white rounded-xl shadow-card border border-border mb-6 overflow-hidden">
         <div class="flex items-center justify-between border-b border-border px-5 py-3">
             <h3 class="text-sm font-bold text-ink">Receita por Ônibus</h3>
-            <span class="text-[11px] text-muted">{{ $startDate }} — {{ $endDate }}</span>
+            <span class="text-[11px] text-muted">{{ \Carbon\Carbon::parse($startDate)->format('d/m/Y H:i') }} — {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y H:i') }}</span>
         </div>
         <div class="p-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -193,7 +193,7 @@
         <div class="bg-white rounded-xl shadow-card border border-border p-5 hover:shadow-hover transition-all">
             <div class="flex justify-between items-center border-b border-border pb-3 mb-4">
                 <h3 class="text-sm font-bold text-ink">Receita por Dia</h3>
-                <span class="text-[11px] text-muted">{{ $startDate }} — {{ $endDate }}</span>
+                <span class="text-[11px] text-muted">{{ \Carbon\Carbon::parse($startDate)->format('d/m/Y H:i') }} — {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y H:i') }}</span>
             </div>
             <div class="relative h-64"><canvas id="revenueChart" class="w-full h-full"></canvas></div>
         </div>

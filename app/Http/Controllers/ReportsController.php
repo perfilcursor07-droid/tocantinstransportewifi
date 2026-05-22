@@ -13,28 +13,55 @@ class ReportsController extends Controller
 {
     public function index(Request $request)
     {
+        // Helper: normaliza data (aceita 'Y-m-d', 'Y-m-d\TH:i', 'Y-m-d H:i', 'Y-m-d H:i:s')
+        // Retorna sempre formato 'Y-m-d H:i:s' usando defaults se não vier hora
+        $parseDate = function (?string $value, string $defaultTime = '00:00:00') {
+            if (!$value) return null;
+            try {
+                // datetime-local manda 'Y-m-d\TH:i' -> Carbon::parse aceita
+                $carbon = Carbon::parse($value);
+                // Se a string original NÃO continha hora (formato puro Y-m-d), aplica o default
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+                    [$h, $m, $s] = explode(':', $defaultTime);
+                    $carbon->setTime((int)$h, (int)$m, (int)$s);
+                }
+                return $carbon;
+            } catch (\Throwable) {
+                return null;
+            }
+        };
+
         // Filtros padrão
-        $startDate = $request->get('start_date', Carbon::now()->startOfMonth()->format('Y-m-d'));
-        $endDate = $request->get('end_date', Carbon::now()->format('Y-m-d'));
+        $startCarbon = $parseDate($request->get('start_date'), '00:00:00') ?? Carbon::now()->startOfMonth();
+        $endCarbon   = $parseDate($request->get('end_date'),   '23:59:59') ?? Carbon::now()->endOfDay();
+
+        // Strings completas para uso nas queries (com hora)
+        $startDateTime = $startCarbon->format('Y-m-d H:i:s');
+        $endDateTime   = $endCarbon->format('Y-m-d H:i:s');
+
+        // Para os inputs do formulário (datetime-local exige 'Y-m-d\TH:i')
+        $startDate = $startCarbon->format('Y-m-d\TH:i');
+        $endDate   = $endCarbon->format('Y-m-d\TH:i');
+
         $paymentStatus = $request->get('payment_status', 'all');
         $userStatus = $request->get('user_status', 'all');
         $busFilter = $request->get('bus', 'all');
         $canViewUsersTab = auth()->user()?->role === 'admin';
         
         // Estatísticas gerais
-        $stats = $this->getGeneralStats($startDate, $endDate, $paymentStatus, $userStatus, $busFilter);
+        $stats = $this->getGeneralStats($startDateTime, $endDateTime, $paymentStatus, $userStatus, $busFilter);
         
         // Dados dos pagamentos
-        $payments = $this->getPaymentsData($startDate, $endDate, $paymentStatus, $busFilter);
+        $payments = $this->getPaymentsData($startDateTime, $endDateTime, $paymentStatus, $busFilter);
         
         // Dados dos usuários
-        $users = $canViewUsersTab ? $this->getUsersData($startDate, $endDate, $userStatus) : null;
+        $users = $canViewUsersTab ? $this->getUsersData($startDateTime, $endDateTime, $userStatus) : null;
         
         // Dados para gráficos
-        $charts = $this->getChartsData($startDate, $endDate);
+        $charts = $this->getChartsData($startDateTime, $endDateTime);
 
         // Receita por ônibus
-        $revenueByBus = $this->getRevenueByBus($startDate, $endDate);
+        $revenueByBus = $this->getRevenueByBus($startDateTime, $endDateTime);
 
         // Lista de ônibus para o filtro
         $busList = \App\Models\Bus::orderBy('name')->get();
@@ -55,9 +82,9 @@ class ReportsController extends Controller
         ));
     }
     
-    private function getGeneralStats($startDate, $endDate, $paymentStatus, $userStatus, $busFilter = 'all')
+    private function getGeneralStats($startDateTime, $endDateTime, $paymentStatus, $userStatus, $busFilter = 'all')
     {
-        $dateRange = [$startDate . ' 00:00:00', $endDate . ' 23:59:59'];
+        $dateRange = [$startDateTime, $endDateTime];
 
         // Helper: aplica filtro de ônibus a uma query de Payment
         $applyBus = function ($query) use ($busFilter) {
@@ -113,10 +140,10 @@ class ReportsController extends Controller
         ];
     }
     
-    private function getPaymentsData($startDate, $endDate, $paymentStatus, $busFilter = 'all')
+    private function getPaymentsData($startDateTime, $endDateTime, $paymentStatus, $busFilter = 'all')
     {
         $query = Payment::with(['user'])
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+            ->whereBetween('created_at', [$startDateTime, $endDateTime]);
         
         if ($paymentStatus !== 'all') {
             $query->where('status', $paymentStatus);
@@ -127,26 +154,28 @@ class ReportsController extends Controller
         }
         
         return $query->orderBy('created_at', 'desc')
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString();
     }
     
-    private function getUsersData($startDate, $endDate, $userStatus)
+    private function getUsersData($startDateTime, $endDateTime, $userStatus)
     {
-        $query = User::whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        $query = User::whereBetween('created_at', [$startDateTime, $endDateTime]);
         
         if ($userStatus !== 'all') {
             $query->where('status', $userStatus);
         }
         
         return $query->orderBy('created_at', 'desc')
-            ->paginate(50);
+            ->paginate(50)
+            ->withQueryString();
     }
     
-    private function getChartsData($startDate, $endDate)
+    private function getChartsData($startDateTime, $endDateTime)
     {
         // Receita por dia
         $revenueByDay = Payment::where('status', 'completed')
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->whereBetween('created_at', [$startDateTime, $endDateTime])
             ->select(
                 DB::raw('DATE(created_at) as date'),
                 DB::raw('SUM(amount) as total'),
@@ -157,13 +186,13 @@ class ReportsController extends Controller
             ->get();
         
         // Pagamentos por status
-        $paymentsByStatus = Payment::whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+        $paymentsByStatus = Payment::whereBetween('created_at', [$startDateTime, $endDateTime])
             ->select('status', DB::raw('count(*) as count'))
             ->groupBy('status')
             ->get();
         
         // Usuários por dia
-        $usersByDay = User::whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+        $usersByDay = User::whereBetween('created_at', [$startDateTime, $endDateTime])
             ->select(
                 DB::raw('DATE(created_at) as date'),
                 DB::raw('COUNT(*) as count')
@@ -193,9 +222,9 @@ class ReportsController extends Controller
     /**
      * Receita agrupada por ônibus (mikrotik_id)
      */
-    private function getRevenueByBus($startDate, $endDate)
+    private function getRevenueByBus($startDateTime, $endDateTime)
     {
-        $dateRange = [$startDate . ' 00:00:00', $endDate . ' 23:59:59'];
+        $dateRange = [$startDateTime, $endDateTime];
         $busNames = \App\Models\Bus::getSerialNameMap();
 
         $data = Payment::where('payments.status', 'completed')
@@ -219,19 +248,36 @@ class ReportsController extends Controller
     
     public function export(Request $request)
     {
+        // Mesma normalização do index
+        $parseDate = function (?string $value, string $defaultTime = '00:00:00') {
+            if (!$value) return null;
+            try {
+                $carbon = Carbon::parse($value);
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+                    [$h, $m, $s] = explode(':', $defaultTime);
+                    $carbon->setTime((int)$h, (int)$m, (int)$s);
+                }
+                return $carbon;
+            } catch (\Throwable) {
+                return null;
+            }
+        };
+
         $type = $request->get('type', 'payments');
         $format = $request->get('format', 'csv');
-        $startDate = $request->get('start_date', Carbon::now()->startOfMonth()->format('Y-m-d'));
-        $endDate = $request->get('end_date', Carbon::now()->format('Y-m-d'));
+        $startCarbon = $parseDate($request->get('start_date'), '00:00:00') ?? Carbon::now()->startOfMonth();
+        $endCarbon   = $parseDate($request->get('end_date'),   '23:59:59') ?? Carbon::now()->endOfDay();
+        $startDateTime = $startCarbon->format('Y-m-d H:i:s');
+        $endDateTime   = $endCarbon->format('Y-m-d H:i:s');
 
         if ($type === 'users' && auth()->user()?->role !== 'admin') {
             return back()->with('error', 'A aba e a exportação de usuários estão disponíveis apenas para administradores.');
         }
         
         if ($type === 'payments') {
-            return $this->exportPayments($startDate, $endDate, $format);
+            return $this->exportPayments($startDateTime, $endDateTime, $format, $startCarbon, $endCarbon);
         } elseif ($type === 'users') {
-            return $this->exportUsers($startDate, $endDate, $format);
+            return $this->exportUsers($startDateTime, $endDateTime, $format, $startCarbon, $endCarbon);
         }
         
         return back()->with('error', 'Tipo de exportação inválido');
@@ -343,14 +389,16 @@ class ReportsController extends Controller
         }
     }
     
-    private function exportPayments($startDate, $endDate, $format)
+    private function exportPayments($startDateTime, $endDateTime, $format, $startCarbon = null, $endCarbon = null)
     {
         $payments = Payment::with(['user'])
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->whereBetween('created_at', [$startDateTime, $endDateTime])
             ->orderBy('created_at', 'desc')
             ->get();
-        
-        $filename = 'pagamentos_' . $startDate . '_' . $endDate . '.' . $format;
+
+        $startSlug = ($startCarbon ?? Carbon::parse($startDateTime))->format('Y-m-d_Hi');
+        $endSlug   = ($endCarbon   ?? Carbon::parse($endDateTime))->format('Y-m-d_Hi');
+        $filename = 'pagamentos_' . $startSlug . '_a_' . $endSlug . '.' . $format;
         
         if ($format === 'csv') {
             $headers = [
@@ -387,13 +435,15 @@ class ReportsController extends Controller
         return back()->with('error', 'Formato de exportação não suportado');
     }
     
-    private function exportUsers($startDate, $endDate, $format)
+    private function exportUsers($startDateTime, $endDateTime, $format, $startCarbon = null, $endCarbon = null)
     {
-        $users = User::whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+        $users = User::whereBetween('created_at', [$startDateTime, $endDateTime])
             ->orderBy('created_at', 'desc')
             ->get();
-        
-        $filename = 'usuarios_' . $startDate . '_' . $endDate . '.' . $format;
+
+        $startSlug = ($startCarbon ?? Carbon::parse($startDateTime))->format('Y-m-d_Hi');
+        $endSlug   = ($endCarbon   ?? Carbon::parse($endDateTime))->format('Y-m-d_Hi');
+        $filename = 'usuarios_' . $startSlug . '_a_' . $endSlug . '.' . $format;
         
         if ($format === 'csv') {
             $headers = [

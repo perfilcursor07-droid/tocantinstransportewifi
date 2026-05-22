@@ -171,32 +171,34 @@ class ReportsManager {
         if (paymentStatusSelect) paymentStatusSelect.value = 'all';
         if (userStatusSelect) userStatusSelect.value = 'all';
 
+        const isDateTime = startDateInput?.type === 'datetime-local';
+        const fmtStart = (d) => isDateTime ? `${d.toISOString().split('T')[0]}T00:00` : d.toISOString().split('T')[0];
+        const fmtEnd   = (d) => isDateTime ? `${d.toISOString().split('T')[0]}T23:59` : d.toISOString().split('T')[0];
+
         switch (filterType) {
             case 'today':
-                const todayStr = today.toISOString().split('T')[0];
-                startDateInput.value = todayStr;
-                endDateInput.value = todayStr;
+                startDateInput.value = fmtStart(today);
+                endDateInput.value = fmtEnd(today);
                 break;
 
             case 'yesterday':
                 const yesterday = new Date(today);
                 yesterday.setDate(yesterday.getDate() - 1);
-                const yesterdayStr = yesterday.toISOString().split('T')[0];
-                startDateInput.value = yesterdayStr;
-                endDateInput.value = yesterdayStr;
+                startDateInput.value = fmtStart(yesterday);
+                endDateInput.value = fmtEnd(yesterday);
                 break;
 
             case 'week':
                 const startOfWeek = new Date(today);
                 startOfWeek.setDate(today.getDate() - today.getDay());
-                startDateInput.value = startOfWeek.toISOString().split('T')[0];
-                endDateInput.value = today.toISOString().split('T')[0];
+                startDateInput.value = fmtStart(startOfWeek);
+                endDateInput.value = fmtEnd(today);
                 break;
 
             case 'month':
                 const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-                startDateInput.value = startOfMonth.toISOString().split('T')[0];
-                endDateInput.value = today.toISOString().split('T')[0];
+                startDateInput.value = fmtStart(startOfMonth);
+                endDateInput.value = fmtEnd(today);
                 break;
 
             case 'paid':
@@ -239,11 +241,13 @@ class ReportsManager {
 
     formatDate(dateStr) {
         if (!dateStr) return '';
-        // Parse manual para evitar shift de fuso (new Date('2026-04-20') vira UTC midnight,
-        // que no fuso BR fica como 2026-04-19 21:00 e o formato sai 1 dia atrasado)
-        const parts = dateStr.split('-');
+        // Suporta tanto 'YYYY-MM-DD' quanto 'YYYY-MM-DDTHH:mm' (datetime-local)
+        const datePart = dateStr.split('T')[0];
+        const timePart = dateStr.includes('T') ? dateStr.split('T')[1] : null;
+        const parts = datePart.split('-');
         if (parts.length !== 3) return dateStr;
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        const formatted = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        return timePart ? `${formatted} ${timePart.substring(0, 5)}` : formatted;
     }
 
     showNotification(message, type = 'info') {
