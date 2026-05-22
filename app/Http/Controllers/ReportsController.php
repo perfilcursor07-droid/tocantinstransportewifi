@@ -354,13 +354,17 @@ class ReportsController extends Controller
         
         if ($format === 'csv') {
             $headers = [
-                'Content-Type' => 'text/csv',
+                'Content-Type' => 'text/csv; charset=UTF-8',
                 'Content-Disposition' => 'attachment; filename="' . $filename . '"',
             ];
             
             $callback = function() use ($payments) {
                 $file = fopen('php://output', 'w');
-                fputcsv($file, ['ID', 'Usuario', 'Email', 'Valor', 'Tipo', 'Status', 'Data Pagamento', 'Data Criacao']);
+                // BOM UTF-8 para Excel reconhecer acentos
+                fwrite($file, "\xEF\xBB\xBF");
+                // Excel-PT usa ; como separador. Forçamos isso e tambem dica sep=;
+                fwrite($file, "sep=;\n");
+                fputcsv($file, ['ID', 'Usuario', 'Email', 'Valor', 'Tipo', 'Status', 'Data Pagamento', 'Data Criacao'], ';');
                 
                 foreach ($payments as $payment) {
                     fputcsv($file, [
@@ -372,7 +376,7 @@ class ReportsController extends Controller
                         ucfirst($payment->status),
                         $payment->paid_at ? $payment->paid_at->format('d/m/Y H:i:s') : 'N/A',
                         $payment->created_at->format('d/m/Y H:i:s'),
-                    ]);
+                    ], ';');
                 }
                 fclose($file);
             };
@@ -393,13 +397,17 @@ class ReportsController extends Controller
         
         if ($format === 'csv') {
             $headers = [
-                'Content-Type' => 'text/csv',
+                'Content-Type' => 'text/csv; charset=UTF-8',
                 'Content-Disposition' => 'attachment; filename="' . $filename . '"',
             ];
             
             $callback = function() use ($users) {
                 $file = fopen('php://output', 'w');
-                fputcsv($file, ['ID', 'Nome', 'Email', 'Telefone', 'MAC Address', 'IP Address', 'Status', 'Conectado em', 'Expira em', 'Data Cadastro']);
+                // BOM UTF-8 para Excel reconhecer acentos
+                fwrite($file, "\xEF\xBB\xBF");
+                // Excel-PT usa ; como separador
+                fwrite($file, "sep=;\n");
+                fputcsv($file, ['ID', 'Nome', 'Email', 'Telefone', 'MAC Address', 'IP Address', 'Status', 'Conectado em', 'Expira em', 'Data Cadastro'], ';');
                 
                 foreach ($users as $user) {
                     fputcsv($file, [
@@ -413,7 +421,7 @@ class ReportsController extends Controller
                         $user->connected_at ? $user->connected_at->format('d/m/Y H:i:s') : 'N/A',
                         $user->expires_at ? $user->expires_at->format('d/m/Y H:i:s') : 'N/A',
                         $user->created_at->format('d/m/Y H:i:s'),
-                    ]);
+                    ], ';');
                 }
                 fclose($file);
             };

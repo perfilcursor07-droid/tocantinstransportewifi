@@ -238,8 +238,12 @@ class ReportsManager {
     }
 
     formatDate(dateStr) {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('pt-BR');
+        if (!dateStr) return '';
+        // Parse manual para evitar shift de fuso (new Date('2026-04-20') vira UTC midnight,
+        // que no fuso BR fica como 2026-04-19 21:00 e o formato sai 1 dia atrasado)
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return dateStr;
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
 
     showNotification(message, type = 'info') {
