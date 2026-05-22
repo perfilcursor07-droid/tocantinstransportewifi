@@ -17,60 +17,69 @@ class ServiceReviewController extends Controller
 
     public function index(Request $request)
     {
+        // Função base que aplica todos os filtros — reutilizada para listagem e estatísticas
+        $applyFilters = function ($query) use ($request) {
+            if ($request->filled('status')) {
+                match ($request->status) {
+                    'answered' => $query->whereNotNull('submitted_at'),
+                    'pending' => $query->whereNull('submitted_at')->where('whatsapp_status', 'sent'),
+                    'failed' => $query->where('whatsapp_status', 'failed'),
+                    'not_sent' => $query->whereIn('whatsapp_status', ['pending', 'skipped']),
+                    default => null,
+                };
+            }
+
+            if ($request->filled('rating')) {
+                $query->where('rating', (int) $request->rating);
+            }
+
+            if ($request->filled('phone')) {
+                $query->where('phone', 'like', '%' . $request->phone . '%');
+            }
+
+            if ($request->filled('date_from')) {
+                $query->whereDate('batch_date', '>=', $request->date_from);
+            }
+
+            if ($request->filled('date_to')) {
+                $query->whereDate('batch_date', '<=', $request->date_to);
+            }
+
+            if ($request->filled('answered_from')) {
+                $query->whereDate('submitted_at', '>=', $request->answered_from);
+            }
+
+            if ($request->filled('answered_to')) {
+                $query->whereDate('submitted_at', '<=', $request->answered_to);
+            }
+
+            return $query;
+        };
+
         $query = ServiceReview::with(['user', 'whatsappMessage']);
-
-        if ($request->filled('status')) {
-            match ($request->status) {
-                'answered' => $query->whereNotNull('submitted_at'),
-                'pending' => $query->whereNull('submitted_at')->where('whatsapp_status', 'sent'),
-                'failed' => $query->where('whatsapp_status', 'failed'),
-                'not_sent' => $query->whereIn('whatsapp_status', ['pending', 'skipped']),
-                default => null,
-            };
-        }
-
-        if ($request->filled('rating')) {
-            $query->where('rating', (int) $request->rating);
-        }
-
-        if ($request->filled('phone')) {
-            $query->where('phone', 'like', '%' . $request->phone . '%');
-        }
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('batch_date', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('batch_date', '<=', $request->date_to);
-        }
-
-        if ($request->filled('answered_from')) {
-            $query->whereDate('submitted_at', '>=', $request->answered_from);
-        }
-
-        if ($request->filled('answered_to')) {
-            $query->whereDate('submitted_at', '<=', $request->answered_to);
-        }
+        $applyFilters($query);
 
         $reviews = $query
             ->orderByDesc('batch_date')
             ->orderByDesc('created_at')
-            ->paginate(30);
+            ->paginate(30)
+            ->withQueryString();
 
+        // Estatísticas RESPEITAM os filtros aplicados
         $stats = [
-            'total_invites' => ServiceReview::count(),
-            'answered' => ServiceReview::whereNotNull('submitted_at')->count(),
-            'pending_answers' => ServiceReview::whereNull('submitted_at')->where('whatsapp_status', 'sent')->count(),
-            'low_ratings' => ServiceReview::whereNotNull('submitted_at')->where('rating', '<=', 3)->count(),
-            'sent' => ServiceReview::where('whatsapp_status', 'sent')->count(),
-            'failed' => ServiceReview::where('whatsapp_status', 'failed')->count(),
-            'average_rating' => round((float) ServiceReview::whereNotNull('rating')->avg('rating'), 1),
+            'total_invites' => $applyFilters(ServiceReview::query())->count(),
+            'answered' => $applyFilters(ServiceReview::query())->whereNotNull('submitted_at')->count(),
+            'pending_answers' => $applyFilters(ServiceReview::query())->whereNull('submitted_at')->where('whatsapp_status', 'sent')->count(),
+            'low_ratings' => $applyFilters(ServiceReview::query())->whereNotNull('submitted_at')->where('rating', '<=', 3)->count(),
+            'sent' => $applyFilters(ServiceReview::query())->where('whatsapp_status', 'sent')->count(),
+            'failed' => $applyFilters(ServiceReview::query())->where('whatsapp_status', 'failed')->count(),
+            'average_rating' => round((float) $applyFilters(ServiceReview::query())->whereNotNull('rating')->avg('rating'), 1),
         ];
 
+        // Distribuição também respeita filtros
         $distribution = collect(range(1, 5))
             ->mapWithKeys(fn (int $rating) => [
-                $rating => ServiceReview::where('rating', $rating)->count(),
+                $rating => $applyFilters(ServiceReview::query())->where('rating', $rating)->count(),
             ]);
 
         // Dados para grafico de avaliacoes dos ultimos 14 dias
@@ -95,7 +104,7 @@ class ServiceReviewController extends Controller
             $chartAvgRating[] = (float) ($dailyStats[$date]->avg_rating ?? 0);
         }
 
-        // Taxa de resposta
+        // Taxa de resposta (também respeita filtros)
         $responseRate = $stats['total_invites'] > 0
             ? round(($stats['answered'] / $stats['total_invites']) * 100, 1)
             : 0;
