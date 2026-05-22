@@ -119,7 +119,7 @@
         <div>
             <p class="px-2 mb-1 text-[9px] font-bold text-muted uppercase tracking-widest sidebar-label">Comunicação</p>
 
-            @if(Auth::user()->hasModule('chat'))
+            @if(Auth::user()->hasModule('chat') && Auth::user()->role === 'admin')
             @php $active = request()->routeIs('admin.chat*'); @endphp
             <a href="{{ route('admin.chat.index') }}" onclick="closeSidebarOnMobile()" title="Chat"
                class="sidebar-link relative flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-semibold transition-all
@@ -329,6 +329,7 @@
             dropdown.classList.add('hidden');
         }
     });
+    @if(Auth::user()->hasModule('chat') && Auth::user()->role === 'admin')
     function checkUnreadMessages() {
         fetch('{{ route("admin.chat.unread") }}')
             .then(r => r.json())
@@ -343,4 +344,5 @@
     }
     setInterval(checkUnreadMessages, 30000);
     checkUnreadMessages();
+    @endif
 </script>
