@@ -469,11 +469,12 @@ function openViewModal(data) {
     document.getElementById('viewModalContent').innerHTML = `
         <div class="flex items-center gap-3 pb-3 border-b border-border">
             <div class="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
-                <span class="text-sm font-bold text-muted">${(data.name || '?').substring(0,2).toUpperCase()}</span>
+                <span class="text-sm font-bold text-muted">${(data.name || data.phone || '?').substring(0,2).toUpperCase()}</span>
             </div>
             <div>
-                <p class="text-sm font-bold text-ink">${data.name || 'Passageiro sem nome'}</p>
-                <p class="text-[10px] text-muted">ID #${data.user_id || '-'} · Telefone: ${data.phone || '-'}</p>
+                <p class="text-sm font-bold text-ink">${data.name || data.phone || 'Passageiro sem nome'}</p>
+                <p class="text-[10px] text-muted">ID #${data.user_id || '-'}</p>
+                ${data.phone ? `<p class="text-sm font-bold text-blue mt-0.5">📱 ${data.phone}</p>` : ''}
             </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
