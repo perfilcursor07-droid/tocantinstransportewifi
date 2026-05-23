@@ -411,7 +411,7 @@
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $review->submitted_at?->format('d/m/Y H:i') ?: '-' }}</td>
                         <td class="px-4 py-3 text-center">
                             <div class="flex items-center justify-center gap-1">
-                                <button type="button" onclick="openViewModal({{ json_encode(['id'=>$review->id,'phone'=>$review->phone,'name'=>$review->user?->name,'user_id'=>$review->user_id,'batch_date'=>$review->batch_date?->format('d/m/Y'),'registration_at'=>$review->registration_at?->format('d/m/Y H:i'),'whatsapp_status'=>$sendLabel,'rating'=>$review->rating,'reason'=>$review->reason,'submitted_at'=>$review->submitted_at?->format('d/m/Y H:i'),'token'=>$review->token]) }})" class="p-1.5 text-blue hover:bg-blue-pale rounded-lg transition-colors" title="Visualizar">
+                                <button type="button" onclick="openViewModal({{ json_encode(['id'=>$review->id,'phone'=>$review->phone,'name'=>$review->user?->name,'user_id'=>$review->user_id,'batch_date'=>$review->batch_date?->format('d/m/Y'),'registration_at'=>$review->registration_at?->format('d/m/Y H:i'),'whatsapp_status'=>$sendLabel,'rating'=>$review->rating,'reason'=>$review->reason,'submitted_at'=>$review->submitted_at?->format('d/m/Y H:i'),'token'=>$review->token,'last_mikrotik_id'=>$review->user?->last_mikrotik_id]) }})" class="p-1.5 text-blue hover:bg-blue-pale rounded-lg transition-colors" title="Visualizar">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                 </button>
                                 @if(Auth::user()->role === 'admin')
@@ -456,9 +456,15 @@
 function modal(id, show) { const m = document.getElementById(id); if(show) { document.body.appendChild(m); m.classList.remove('hidden'); m.classList.add('flex'); document.body.style.overflow='hidden'; } else { m.classList.add('hidden'); m.classList.remove('flex'); document.body.style.overflow=''; } }
 
 function openViewModal(data) {
+    const busMap = {'HH50A914NK5':'3097','HH50A7TMT8M':'3099','HH60A2NSBE7':'5013','HH50AB8F056':'5021','HGD09YS6037':'5023','HGK09Q76FMP':'5031','HH50A2ER2JB':'5033','HGJ09X2F8FD':'5035'};
     const ratingStars = data.rating ? '★'.repeat(data.rating) + '☆'.repeat(5 - data.rating) : 'Sem nota';
     const ratingColor = data.rating >= 4 ? 'text-green' : (data.rating >= 3 ? 'text-gold' : 'text-red');
     const link = data.token ? '{{ url("avaliacao") }}/' + data.token : '#';
+    const mikrotikId = data.last_mikrotik_id || null;
+    const busNumber = mikrotikId ? (busMap[mikrotikId] || '?') : null;
+    const busHtml = mikrotikId
+        ? `<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-blue-pale border border-blue/20 text-xs"><span class="font-bold text-blue">🚌 Carro ${busNumber}</span><span class="text-muted">(${mikrotikId})</span></span>`
+        : '<span class="text-xs text-muted">Não identificado</span>';
 
     document.getElementById('viewModalContent').innerHTML = `
         <div class="flex items-center gap-3 pb-3 border-b border-border">
@@ -487,6 +493,10 @@ function openViewModal(data) {
                 <p class="text-[10px] text-muted font-bold uppercase tracking-wider">Respondido</p>
                 <p class="text-sm font-semibold text-ink">${data.submitted_at || 'Não respondeu'}</p>
             </div>
+        </div>
+        <div class="bg-surface rounded-xl p-3">
+            <p class="text-[10px] text-muted font-bold uppercase tracking-wider mb-1">Ônibus</p>
+            ${busHtml}
         </div>
         ${data.rating ? `
         <div class="bg-surface rounded-xl p-3 text-center">
