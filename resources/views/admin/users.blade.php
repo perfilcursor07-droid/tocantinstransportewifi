@@ -280,9 +280,27 @@ function resetUserFilters() {
 }
 
 function viewUser(userId) {
+    // Mapeamento MikroTik serial → número do carro
+    const busMap = {
+        'HH50A914NK5': '3097',
+        'HH50A7TMT8M': '3099',
+        'HH60A2NSBE7': '5013',
+        'HH50AB8F056': '5021',
+        'HGD09YS6037': '5023',
+        'HGK09Q76FMP': '5031',
+        'HH50A2ER2JB': '5033',
+        'HGJ09X2F8FD': '5035',
+    };
+
     fetch(`/admin/users/${userId}`)
         .then(response => response.json())
         .then(data => {
+            const mikrotikId = data.last_mikrotik_id || null;
+            const busNumber = mikrotikId ? (busMap[mikrotikId] || 'Desconhecido') : null;
+            const busDisplay = mikrotikId
+                ? `<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-blue-50 border border-blue-200"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8m-8 4h8m-4 4v4m-4-4h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span class="text-sm font-semibold text-blue-700">Carro ${busNumber}</span><span class="text-xs text-blue-500">(${mikrotikId})</span></span>`
+                : '<span class="text-sm text-gray-400">Não identificado</span>';
+
             document.getElementById('userModalContent').innerHTML = `
                 <div class="space-y-4">
                     <div class="grid grid-cols-2 gap-4">
@@ -310,6 +328,10 @@ function viewUser(userId) {
                             <label class="block text-sm font-medium text-gray-700">IP Address</label>
                             <p class="mt-1 text-sm text-gray-900">${data.ip_address || 'Nao registrado'}</p>
                         </div>
+                    </div>
+                    <div class="border-t pt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Último Ônibus Conectado</label>
+                        ${busDisplay}
                     </div>
                 </div>
             `;
