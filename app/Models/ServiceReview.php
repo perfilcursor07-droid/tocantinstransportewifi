@@ -12,6 +12,7 @@ class ServiceReview extends Model
         'whatsapp_message_id',
         'token',
         'phone',
+        'lid',
         'batch_date',
         'registration_at',
         'invited_at',

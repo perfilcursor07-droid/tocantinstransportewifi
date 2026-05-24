@@ -217,38 +217,39 @@ async function startConnection() {
                 // remoteJid pode ser:
                 //   "5563999999999@s.whatsapp.net" (formato direto - número real)
                 //   "247910444867688@lid" (formato LID - precisa pegar do senderPn)
-                // O senderPn (sender phone number) é o número real quando o JID é @lid
                 let phone = '';
+                let lid = '';
                 const remoteJid = msg.key.remoteJid || '';
                 
                 if (remoteJid.endsWith('@s.whatsapp.net')) {
                     phone = remoteJid.replace('@s.whatsapp.net', '');
                 } else if (remoteJid.endsWith('@lid')) {
-                    // Tentar pegar o número real do senderPn ou participantPn
-                    phone = (msg.key.senderPn || msg.key.participantPn || '').replace('@s.whatsapp.net', '');
+                    lid = remoteJid.replace('@lid', '');
                     
-                    // Se não conseguiu, pular essa mensagem
-                    if (!phone) {
-                        logger.warn(`[MSG IN] LID sem senderPn, ignorando: ${remoteJid}`);
-                        continue;
+                    // Tentar pegar o número real de vários campos possíveis
+                    const senderPn = msg.key.senderPn || msg.key.participantPn || msg.key.participant || '';
+                    if (senderPn) {
+                        phone = senderPn.replace('@s.whatsapp.net', '').replace('@lid', '');
                     }
+                    
+                    // Log debug para entender estrutura quando @lid
+                    logger.info(`[MSG IN DEBUG @lid] key=${JSON.stringify(msg.key)} pushName=${msg.pushName || ''}`);
                 } else {
-                    // Formato desconhecido, pular
-                    continue;
+                    continue; // Formato desconhecido
                 }
                 
                 // Limpar caracteres não-numéricos
-                phone = phone.replace(/[^\d]/g, '');
+                phone = (phone || '').replace(/[^\d]/g, '');
                 
-                if (!phone || phone.length < 10) {
-                    logger.warn(`[MSG IN] Telefone inválido, ignorando: ${phone}`);
-                    continue;
-                }
+                // Se ainda não temos telefone válido, mandar com lid (Laravel resolve por estado pendente)
+                const phoneToSend = (phone && phone.length >= 10) ? phone : '';
                 
-                logger.info(`[MSG IN] de ${phone}: ${text.substring(0, 80)}`);
+                logger.info(`[MSG IN] de ${phoneToSend || lid + '@lid'}: ${text.substring(0, 80)}`);
                 
                 await notifyLaravel('message_in', {
-                    phone: phone,
+                    phone: phoneToSend,
+                    lid: lid,
+                    pushName: msg.pushName || '',
                     message: text,
                     messageId: msg.key.id,
                     timestamp: msg.messageTimestamp ? Number(msg.messageTimestamp) : Math.floor(Date.now() / 1000),

@@ -21,17 +21,45 @@ class ServiceReviewBotService
      * Processa mensagem recebida via WhatsApp.
      * Retorna true se a mensagem foi tratada como resposta de avaliação.
      */
-    public function handleIncomingMessage(string $phone, string $message): bool
+    public function handleIncomingMessage(string $phone, string $message, ?string $lid = null, ?string $pushName = null): bool
     {
         $cleanPhone = preg_replace('/[^\d]/', '', $phone);
+        $cleanLid = preg_replace('/[^\d]/', '', (string) $lid);
         $message = trim($message);
 
-        if ($cleanPhone === '' || $message === '') {
+        if ($message === '') {
             return false;
         }
 
-        // Buscar review com bot_state ativo (mais recente)
-        $review = $this->findActiveReview($cleanPhone);
+        // Buscar review com bot_state ativo
+        $review = null;
+        if ($cleanPhone !== '') {
+            $review = $this->findActiveReview($cleanPhone);
+        }
+
+        // Fallback 1: tentar pelo LID (se já gravamos antes)
+        if (!$review && $cleanLid !== '') {
+            $review = ServiceReview::whereIn('bot_state', ['awaiting_rating', 'awaiting_reason'])
+                ->where('lid', $cleanLid)
+                ->orderByDesc('bot_last_interaction_at')
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        // Fallback 2: buscar review aguardando que foi enviada nas últimas 6h
+        // Quando o número não pode ser identificado (vem só @lid), tenta a mais recente
+        if (!$review && ($cleanLid !== '' || $cleanPhone === '')) {
+            $review = ServiceReview::whereIn('bot_state', ['awaiting_rating', 'awaiting_reason'])
+                ->where('bot_last_interaction_at', '>', now()->subHours(6))
+                ->orderByDesc('bot_last_interaction_at')
+                ->orderByDesc('id')
+                ->first();
+            
+            if ($review && $cleanLid !== '' && empty($review->lid)) {
+                // Associar LID à review pra próximas mensagens encontrarem direto
+                $review->update(['lid' => $cleanLid]);
+            }
+        }
 
         if (!$review) {
             return false;
@@ -47,6 +75,7 @@ class ServiceReviewBotService
             'review_id' => $review->id,
             'state' => $review->bot_state,
             'phone' => $cleanPhone,
+            'lid' => $cleanLid,
             'message' => mb_substr($message, 0, 100),
         ]);
 
