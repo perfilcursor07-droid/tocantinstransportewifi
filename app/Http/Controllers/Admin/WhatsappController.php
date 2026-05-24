@@ -438,6 +438,29 @@ class WhatsappController extends Controller
                     }
                 }
                 break;
+
+            case 'message_in':
+                $phone = $data['phone'] ?? '';
+                $messageText = $data['message'] ?? '';
+                
+                if ($phone !== '' && $messageText !== '') {
+                    try {
+                        $handled = app(\App\Services\ServiceReviewBotService::class)
+                            ->handleIncomingMessage($phone, $messageText);
+                        
+                        Log::info('📩 WhatsApp mensagem recebida', [
+                            'phone' => $phone,
+                            'handled_by_review_bot' => $handled,
+                            'message_preview' => mb_substr($messageText, 0, 80),
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::error('❌ Erro ao processar mensagem recebida', [
+                            'phone' => $phone,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+                break;
         }
 
         return response()->json(['success' => true]);

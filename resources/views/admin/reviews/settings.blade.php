@@ -70,7 +70,8 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Mensagem da pesquisa</label>
-                    <p class="text-xs text-gray-500 mb-2">Variaveis: <span class="font-mono">{nome}</span>, <span class="font-mono">{telefone}</span>, <span class="font-mono">{link}</span>, <span class="font-mono">{data_viagem}</span></p>
+                    <p class="text-xs text-gray-500 mb-2">Variaveis: <span class="font-mono">{nome}</span>, <span class="font-mono">{data_viagem}</span></p>
+                    <p class="text-xs text-amber-600 mb-2">⚠️ A pesquisa agora é interativa via bot. O usuário responde com a nota (1-5) direto no WhatsApp e, se for menor que 4, o bot pergunta o motivo.</p>
                     <textarea name="review_message_template" rows="8" class="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-tocantins-green focus:border-transparent font-mono text-sm" required>{{ old('review_message_template', $settings['review_message_template']) }}</textarea>
                     @error('review_message_template')
                         <p class="mt-2 text-sm text-red-600">{{ $message }}</p>

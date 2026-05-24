@@ -17,6 +17,8 @@ class ServiceReview extends Model
         'invited_at',
         'whatsapp_status',
         'whatsapp_error_message',
+        'bot_state',
+        'bot_last_interaction_at',
         'rating',
         'reason',
         'submitted_at',
@@ -31,6 +33,7 @@ class ServiceReview extends Model
             'registration_at' => 'datetime',
             'invited_at' => 'datetime',
             'submitted_at' => 'datetime',
+            'bot_last_interaction_at' => 'datetime',
             'rating' => 'integer',
         ];
     }

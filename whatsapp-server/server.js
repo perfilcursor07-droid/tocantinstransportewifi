@@ -183,6 +183,50 @@ async function startConnection() {
             }
         });
 
+        // Mensagens RECEBIDAS de usuários
+        sock.ev.on('messages.upsert', async ({ messages, type }) => {
+            if (type !== 'notify') return;
+            
+            for (const msg of messages) {
+                // Ignorar mensagens enviadas por nós
+                if (msg.key.fromMe) continue;
+                
+                // Ignorar mensagens de status / broadcast
+                if (msg.key.remoteJid === 'status@broadcast') continue;
+                
+                // Ignorar grupos
+                if (msg.key.remoteJid && msg.key.remoteJid.endsWith('@g.us')) continue;
+                
+                // Extrair texto da mensagem
+                let text = '';
+                if (msg.message?.conversation) {
+                    text = msg.message.conversation;
+                } else if (msg.message?.extendedTextMessage?.text) {
+                    text = msg.message.extendedTextMessage.text;
+                } else if (msg.message?.imageMessage?.caption) {
+                    text = msg.message.imageMessage.caption;
+                } else if (msg.message?.videoMessage?.caption) {
+                    text = msg.message.videoMessage.caption;
+                } else {
+                    continue; // Sem texto, ignorar
+                }
+                
+                if (!text || text.trim() === '') continue;
+                
+                // Extrair número (sem @s.whatsapp.net)
+                const phone = (msg.key.remoteJid || '').replace('@s.whatsapp.net', '');
+                
+                logger.info(`[MSG IN] de ${phone}: ${text.substring(0, 80)}`);
+                
+                await notifyLaravel('message_in', {
+                    phone: phone,
+                    message: text,
+                    messageId: msg.key.id,
+                    timestamp: msg.messageTimestamp ? Number(msg.messageTimestamp) : Math.floor(Date.now() / 1000),
+                });
+            }
+        });
+
     } catch (error) {
         logger.error('Erro ao conectar:', error);
         connectionStatus = 'error';

@@ -95,7 +95,7 @@ class WhatsappSetting extends Model
     {
         return static::get(
             'review_message_template',
-            "Ola, {nome}! Queremos saber sua opiniao sobre o atendimento e o servico oferecido durante a viagem.\n\nLeva menos de 20 segundos para responder:\n{link}\n\nSua nota vai de 1 a 5 estrelas. Se a nota for 1, 2 ou 3, voce podera contar o que aconteceu.\n\nData da viagem: {data_viagem}"
+            "Oi {nome}! 💚\n\nAqui é da *Tocantins Transporte*. Como foi sua viagem hoje?\n\nResponde só com um número de *1 a 5* ⭐\n\n5 = Excelente\n4 = Boa\n3 = Regular\n2 = Ruim\n1 = Péssima\n\nLeva 5 segundos e ajuda demais a gente! 🚌"
         );
     }
 

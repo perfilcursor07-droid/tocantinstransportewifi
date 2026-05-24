@@ -102,11 +102,20 @@ class ServiceReviewWhatsappService
             $displayName = trim((string) $recipientName) !== '' ? trim((string) $recipientName) : 'Passageiro';
         }
 
-        // Tentar enviar por WhatsApp
-        $result = $this->sendPreparedReview($review, $displayName);
+        // Resetar bot_state para permitir refazer o teste
+        $review->update([
+            'bot_state' => null,
+            'rating' => null,
+            'reason' => null,
+            'submitted_at' => null,
+        ]);
+
+        // Iniciar conversa com bot (em vez de mandar link)
+        $botService = app(\App\Services\ServiceReviewBotService::class);
+        $result = $botService->startReviewConversation($review, $displayName);
         $result['matched_user'] = $user;
 
-        // Enviar por email (independente do WhatsApp)
+        // Enviar por email (mantém com link, pois e-mail não tem fluxo conversacional)
         if ($email) {
             try {
                 $link = $this->resolveReviewLink($review);
@@ -152,71 +161,9 @@ class ServiceReviewWhatsappService
             ];
         }
 
-        $phone = WhatsappMessage::formatPhone($review->phone ?: $review->user?->phone);
-        $digits = preg_replace('/[^\d]/', '', (string) $phone);
-
-        if (strlen($digits) < 12) {
-            $review->update([
-                'whatsapp_status' => 'failed',
-                'whatsapp_error_message' => 'Telefone invalido para envio via WhatsApp.',
-            ]);
-
-            return [
-                'success' => false,
-                'error' => 'Telefone invalido para envio via WhatsApp.',
-                'review' => $review->fresh(),
-            ];
-        }
-
-        $message = $this->buildMessage($review, $recipientName);
-
-        $whatsappMessage = WhatsappMessage::create([
-            'user_id' => $review->user_id,
-            'phone' => $phone,
-            'message' => $message,
-            'status' => 'pending',
-        ]);
-
-        try {
-            $response = Http::timeout(30)->post($this->baileysServerUrl . '/send', [
-                'phone' => $phone,
-                'message' => $message,
-            ]);
-
-            if ($response->successful()) {
-                $data = $response->json();
-                $whatsappMessage->markAsSent($data['messageId'] ?? null);
-                $review->markWhatsappSent($whatsappMessage);
-
-                return [
-                    'success' => true,
-                    'review' => $review->fresh(),
-                    'whatsapp_message' => $whatsappMessage->fresh(),
-                    'link' => $this->resolveReviewLink($review),
-                ];
-            }
-
-            $errorMessage = $response->body();
-            $whatsappMessage->markAsFailed($errorMessage);
-            $review->markWhatsappFailed($errorMessage, $whatsappMessage);
-
-            return [
-                'success' => false,
-                'error' => $errorMessage,
-                'review' => $review->fresh(),
-                'whatsapp_message' => $whatsappMessage->fresh(),
-            ];
-        } catch (\Throwable $exception) {
-            $whatsappMessage->markAsFailed($exception->getMessage());
-            $review->markWhatsappFailed($exception->getMessage(), $whatsappMessage);
-
-            return [
-                'success' => false,
-                'error' => $exception->getMessage(),
-                'review' => $review->fresh(),
-                'whatsapp_message' => $whatsappMessage->fresh(),
-            ];
-        }
+        // Usar bot service para iniciar conversa interativa
+        return app(\App\Services\ServiceReviewBotService::class)
+            ->startReviewConversation($review, $recipientName);
     }
 
     public function resolveReviewLink(ServiceReview $review): string
