@@ -213,8 +213,37 @@ async function startConnection() {
                 
                 if (!text || text.trim() === '') continue;
                 
-                // Extrair número (sem @s.whatsapp.net)
-                const phone = (msg.key.remoteJid || '').replace('@s.whatsapp.net', '');
+                // Extrair número real do remetente
+                // remoteJid pode ser:
+                //   "5563999999999@s.whatsapp.net" (formato direto - número real)
+                //   "247910444867688@lid" (formato LID - precisa pegar do senderPn)
+                // O senderPn (sender phone number) é o número real quando o JID é @lid
+                let phone = '';
+                const remoteJid = msg.key.remoteJid || '';
+                
+                if (remoteJid.endsWith('@s.whatsapp.net')) {
+                    phone = remoteJid.replace('@s.whatsapp.net', '');
+                } else if (remoteJid.endsWith('@lid')) {
+                    // Tentar pegar o número real do senderPn ou participantPn
+                    phone = (msg.key.senderPn || msg.key.participantPn || '').replace('@s.whatsapp.net', '');
+                    
+                    // Se não conseguiu, pular essa mensagem
+                    if (!phone) {
+                        logger.warn(`[MSG IN] LID sem senderPn, ignorando: ${remoteJid}`);
+                        continue;
+                    }
+                } else {
+                    // Formato desconhecido, pular
+                    continue;
+                }
+                
+                // Limpar caracteres não-numéricos
+                phone = phone.replace(/[^\d]/g, '');
+                
+                if (!phone || phone.length < 10) {
+                    logger.warn(`[MSG IN] Telefone inválido, ignorando: ${phone}`);
+                    continue;
+                }
                 
                 logger.info(`[MSG IN] de ${phone}: ${text.substring(0, 80)}`);
                 
