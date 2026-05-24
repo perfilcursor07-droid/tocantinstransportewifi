@@ -19,11 +19,15 @@ class SettingsController extends Controller
             'session_duration_short' => SystemSetting::getValue('session_duration_short', '1'),
             'plan_short_enabled' => SystemSetting::getValue('plan_short_enabled', '1'),
             'plan_full_enabled' => SystemSetting::getValue('plan_full_enabled', '1'),
+            'plan_short_schedule_enabled' => SystemSetting::getValue('plan_short_schedule_enabled', '0'),
+            'plan_short_schedule_start' => SystemSetting::getValue('plan_short_schedule_start', '21:00'),
+            'plan_short_schedule_end' => SystemSetting::getValue('plan_short_schedule_end', '06:00'),
             'pagbank_account' => SystemSetting::getValue('pagbank_account', 'junior'),
             'pagbank_email' => SystemSetting::getValue('pagbank_email', 'juniormoreiragloboplay@gmail.com'),
             'pagbank_token' => SystemSetting::getValue('pagbank_token', 'c75a2308-ec9d-4825-94fd-bacba8a7248344f58a634d1b857348dba39f6a5b6c957b2a-2890-4da4-9866-af24b6eee984'),
             'video_discount_enabled' => SystemSetting::getValue('video_discount_enabled', '1'),
             'video_discount_amount' => SystemSetting::getValue('video_discount_amount', '1.00'),
+            'plan_short_currently_active' => \App\Helpers\SettingsHelper::isPlanShortCurrentlyActive(),
         ];
 
         return view('admin.settings.index', compact('settings'));
@@ -39,6 +43,9 @@ class SettingsController extends Controller
             'session_duration_short' => 'required|integer|min:1|max:168',
             'plan_short_enabled' => 'nullable|in:0,1',
             'plan_full_enabled' => 'nullable|in:0,1',
+            'plan_short_schedule_enabled' => 'nullable|in:0,1',
+            'plan_short_schedule_start' => 'nullable|date_format:H:i',
+            'plan_short_schedule_end' => 'nullable|date_format:H:i',
             'pagbank_account' => 'nullable|in:junior,erick',
             'pagbank_email' => 'nullable|email|max:255',
             'pagbank_token' => 'nullable|string|max:500',
@@ -53,6 +60,9 @@ class SettingsController extends Controller
         SystemSetting::setValue('session_duration_short', $request->session_duration_short);
         SystemSetting::setValue('plan_short_enabled', $request->input('plan_short_enabled', '0'));
         SystemSetting::setValue('plan_full_enabled', $request->input('plan_full_enabled', '0'));
+        SystemSetting::setValue('plan_short_schedule_enabled', $request->input('plan_short_schedule_enabled', '0'));
+        SystemSetting::setValue('plan_short_schedule_start', $request->input('plan_short_schedule_start', '21:00'));
+        SystemSetting::setValue('plan_short_schedule_end', $request->input('plan_short_schedule_end', '06:00'));
         SystemSetting::setValue('video_discount_enabled', $request->input('video_discount_enabled', '0'));
         SystemSetting::setValue('video_discount_amount', $request->video_discount_amount);
         

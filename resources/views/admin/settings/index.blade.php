@@ -41,7 +41,7 @@
                     <p class="text-sm text-gray-600 mb-4">Configure os preços dos dois planos disponíveis para os passageiros.</p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Plano Curto -->
-                        <div class="p-4 border-2 rounded-xl transition-all {{ $settings['plan_short_enabled'] ? 'border-gray-200' : 'border-gray-200 opacity-60' }}" id="plan-short-card">
+                        <div class="p-4 border-2 rounded-xl transition-all {{ $settings['plan_short_enabled'] || $settings['plan_short_schedule_enabled'] ? 'border-gray-200' : 'border-gray-200 opacity-60' }}" id="plan-short-card">
                             <div class="flex items-center justify-between mb-3">
                                 <label for="wifi_price" class="block text-sm font-bold text-gray-700">
                                     ⏱️ Plano por Hora
@@ -50,7 +50,7 @@
                                     <input type="hidden" name="plan_short_enabled" value="0">
                                     <input type="checkbox" name="plan_short_enabled" value="1" class="sr-only peer" id="plan_short_toggle"
                                         {{ $settings['plan_short_enabled'] ? 'checked' : '' }}
-                                        onchange="document.getElementById('plan-short-card').classList.toggle('opacity-60', !this.checked)">
+                                        onchange="document.getElementById('plan-short-card').classList.toggle('opacity-60', !this.checked && !document.getElementById('plan_short_schedule_toggle').checked)">
                                     <div class="w-9 h-5 bg-gray-300 peer-focus:ring-2 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
                                 </label>
                             </div>
@@ -79,6 +79,60 @@
                             @error('session_duration_short')
                                 <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                             @enderror
+
+                            <!-- Agendamento Automático -->
+                            <div class="mt-6 pt-4 border-t border-gray-200">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div>
+                                        <label for="plan_short_schedule_toggle" class="block text-sm font-bold text-gray-700 flex items-center gap-1.5">
+                                            <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                            Habilitar automaticamente em horário
+                                        </label>
+                                        <p class="text-[11px] text-gray-500 mt-0.5">Quando ativo, o plano por hora liga e desliga sozinho todos os dias</p>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="hidden" name="plan_short_schedule_enabled" value="0">
+                                        <input type="checkbox" name="plan_short_schedule_enabled" value="1" class="sr-only peer" id="plan_short_schedule_toggle"
+                                            {{ $settings['plan_short_schedule_enabled'] ? 'checked' : '' }}
+                                            onchange="document.getElementById('plan-short-schedule-fields').classList.toggle('hidden', !this.checked); document.getElementById('plan-short-card').classList.toggle('opacity-60', !this.checked && !document.getElementById('plan_short_toggle').checked)">
+                                        <div class="w-9 h-5 bg-gray-300 peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500"></div>
+                                    </label>
+                                </div>
+
+                                <div id="plan-short-schedule-fields" class="{{ $settings['plan_short_schedule_enabled'] ? '' : 'hidden' }}">
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-[11px] text-gray-500 font-medium mb-1">Horário de início</label>
+                                            <input type="time" name="plan_short_schedule_start"
+                                                value="{{ old('plan_short_schedule_start', $settings['plan_short_schedule_start']) }}"
+                                                class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm font-bold">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] text-gray-500 font-medium mb-1">Horário de fim</label>
+                                            <input type="time" name="plan_short_schedule_end"
+                                                value="{{ old('plan_short_schedule_end', $settings['plan_short_schedule_end']) }}"
+                                                class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm font-bold">
+                                        </div>
+                                    </div>
+
+                                    <!-- Status atual -->
+                                    @if($settings['plan_short_schedule_enabled'])
+                                    <div class="mt-3 p-3 rounded-lg {{ $settings['plan_short_currently_active'] ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200' }}">
+                                        <p class="text-xs flex items-center gap-1.5 {{ $settings['plan_short_currently_active'] ? 'text-green-700' : 'text-gray-500' }}">
+                                            <span class="w-2 h-2 rounded-full {{ $settings['plan_short_currently_active'] ? 'bg-green-500 animate-pulse' : 'bg-gray-400' }}"></span>
+                                            <strong>Status atual:</strong>
+                                            {{ $settings['plan_short_currently_active'] ? 'Plano ATIVO agora (dentro do horário)' : 'Plano INATIVO agora (fora do horário)' }}
+                                        </p>
+                                    </div>
+                                    @endif
+
+                                    <p class="mt-2 text-[10px] text-gray-400">
+                                        Suporta intervalos que cruzam meia-noite (ex: 21:00 → 06:00 = das 21h até 6h da manhã do dia seguinte)
+                                    </p>
+                                    @error('plan_short_schedule_start')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                                    @error('plan_short_schedule_end')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Plano Viagem Completa -->

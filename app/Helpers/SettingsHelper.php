@@ -158,6 +158,76 @@ class SettingsHelper
     }
 
     /**
+     * Verificar se o agendamento automático do plano por hora está habilitado
+     */
+    public static function isPlanShortScheduleEnabled(): bool
+    {
+        return (bool) SystemSetting::getValue('plan_short_schedule_enabled', '0');
+    }
+
+    /**
+     * Obter horário de início do agendamento do plano por hora (formato HH:MM)
+     */
+    public static function getPlanShortScheduleStart(): string
+    {
+        return (string) SystemSetting::getValue('plan_short_schedule_start', '21:00');
+    }
+
+    /**
+     * Obter horário de fim do agendamento do plano por hora (formato HH:MM)
+     */
+    public static function getPlanShortScheduleEnd(): string
+    {
+        return (string) SystemSetting::getValue('plan_short_schedule_end', '06:00');
+    }
+
+    /**
+     * Verifica se o plano por hora deve estar ativo agora.
+     * Considera o agendamento automático se estiver habilitado;
+     * caso contrário, usa apenas o toggle manual.
+     */
+    public static function isPlanShortCurrentlyActive(): bool
+    {
+        // Se agendamento ativo, decide pelo horário
+        if (self::isPlanShortScheduleEnabled()) {
+            return self::isWithinSchedule(
+                self::getPlanShortScheduleStart(),
+                self::getPlanShortScheduleEnd()
+            );
+        }
+
+        // Senão, usa o toggle manual
+        return (bool) SystemSetting::getValue('plan_short_enabled', '1');
+    }
+
+    /**
+     * Verifica se o horário atual está dentro de uma janela.
+     * Suporta janelas que cruzam meia-noite (ex: 21:00 → 06:00).
+     */
+    protected static function isWithinSchedule(string $start, string $end): bool
+    {
+        try {
+            $now = now();
+            [$sh, $sm] = array_pad(array_map('intval', explode(':', $start)), 2, 0);
+            [$eh, $em] = array_pad(array_map('intval', explode(':', $end)), 2, 0);
+
+            $startToday = $now->copy()->setTime($sh, $sm, 0);
+            $endToday = $now->copy()->setTime($eh, $em, 0);
+
+            // Janela cruza meia-noite (ex: 21:00 → 06:00)
+            if ($startToday->gte($endToday)) {
+                // Está depois do start ou antes do end?
+                return $now->gte($startToday) || $now->lt($endToday);
+            }
+
+            // Janela normal (ex: 14:00 → 18:00)
+            return $now->between($startToday, $endToday);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Limpar cache de configurações
      */
     public static function clearCache(): void
