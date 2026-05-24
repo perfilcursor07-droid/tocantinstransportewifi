@@ -248,6 +248,48 @@
                 </div>
             </div>
 
+            <!-- Card: Lembrete de Pagamento Pendente -->
+            <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+                <div class="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
+                    <h2 class="text-xl font-bold text-white flex items-center">
+                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Recuperação de Vendas — Lembrete WhatsApp
+                    </h2>
+                </div>
+                <div class="p-6">
+                    <p class="text-sm text-gray-600 mb-4">Para clientes que geraram QR Code PIX mas não pagaram, o sistema envia automaticamente uma mensagem WhatsApp depois de 15 minutos com o link do portal e libera 3 minutos de internet pra ele finalizar o pagamento.</p>
+                    
+                    <div class="flex items-center justify-between mb-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
+                        <div>
+                            <label for="unpaid_reminder_toggle" class="block text-sm font-bold text-gray-700">
+                                💸 Habilitar lembrete de pagamento pendente
+                            </label>
+                            <p class="text-xs text-gray-500 mt-1">Ativa o envio automático após 15 minutos do PIX gerado e não pago</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="hidden" name="unpaid_reminder_enabled" value="0">
+                            <input type="checkbox" name="unpaid_reminder_enabled" value="1" class="sr-only peer" id="unpaid_reminder_toggle"
+                                {{ $settings['unpaid_reminder_enabled'] ? 'checked' : '' }}>
+                            <div class="w-11 h-6 bg-gray-300 peer-focus:ring-2 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                        </label>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                        <p class="text-xs font-bold text-gray-700 mb-2">Como funciona:</p>
+                        <ul class="text-xs text-gray-600 space-y-1.5 list-disc list-inside">
+                            <li>Cliente gera o PIX no portal mas não paga</li>
+                            <li>Após <strong>15 minutos</strong>, o sistema verifica e identifica esse pagamento pendente</li>
+                            <li>Libera <strong>3 minutos de internet</strong> pra ele conseguir abrir o WhatsApp e o portal</li>
+                            <li>Envia mensagem com link para finalizar o pagamento</li>
+                            <li>Mensagem é enviada <strong>1 vez por dia</strong> por telefone (não floda o cliente)</li>
+                            <li>Após pagar, libera 12 horas como sempre</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
             <!-- Card: Gateway PIX -->
             <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
                 <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">

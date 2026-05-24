@@ -28,6 +28,7 @@ class SettingsController extends Controller
             'video_discount_enabled' => SystemSetting::getValue('video_discount_enabled', '1'),
             'video_discount_amount' => SystemSetting::getValue('video_discount_amount', '1.00'),
             'plan_short_currently_active' => \App\Helpers\SettingsHelper::isPlanShortCurrentlyActive(),
+            'unpaid_reminder_enabled' => SystemSetting::getValue('unpaid_reminder_enabled', '1'),
         ];
 
         return view('admin.settings.index', compact('settings'));
@@ -51,6 +52,7 @@ class SettingsController extends Controller
             'pagbank_token' => 'nullable|string|max:500',
             'video_discount_enabled' => 'nullable|in:0,1',
             'video_discount_amount' => 'required|numeric|min:0.01|max:99.99',
+            'unpaid_reminder_enabled' => 'nullable|in:0,1',
         ]);
 
         SystemSetting::setValue('wifi_price', $request->wifi_price);
@@ -65,6 +67,7 @@ class SettingsController extends Controller
         SystemSetting::setValue('plan_short_schedule_end', $request->input('plan_short_schedule_end', '06:00'));
         SystemSetting::setValue('video_discount_enabled', $request->input('video_discount_enabled', '0'));
         SystemSetting::setValue('video_discount_amount', $request->video_discount_amount);
+        SystemSetting::setValue('unpaid_reminder_enabled', $request->input('unpaid_reminder_enabled', '0'));
         
         // Salvar conta e credenciais PagBank
         if ($request->filled('pagbank_account')) {

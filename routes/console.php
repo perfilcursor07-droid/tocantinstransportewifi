@@ -35,3 +35,10 @@ Schedule::command('bus:record-health')
     ->everyFiveMinutes()
     ->withoutOverlapping()
     ->runInBackground();
+
+// Scheduler: Lembrar clientes que geraram PIX e não pagaram após 15 minutos
+Schedule::command('payments:send-unpaid-reminders')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/unpaid-reminders.log'));

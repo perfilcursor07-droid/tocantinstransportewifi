@@ -18,6 +18,7 @@ class Payment extends Model
         'gateway_payment_id',
         'payment_data',
         'paid_at',
+        'unpaid_reminder_sent_at',
     ];
 
     protected function casts(): array
@@ -25,6 +26,7 @@ class Payment extends Model
         return [
             'payment_data' => 'array',
             'paid_at' => 'datetime',
+            'unpaid_reminder_sent_at' => 'datetime',
             'amount' => 'decimal:2',
         ];
     }
