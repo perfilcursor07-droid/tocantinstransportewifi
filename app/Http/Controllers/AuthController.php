@@ -54,6 +54,12 @@ class AuthController extends Controller
         // Fazer login
         Auth::login($user, $request->filled('remember'));
 
+        // Registrar último login (admins/gestores)
+        $user->forceFill([
+            'last_login_at' => now(),
+            'last_login_ip' => $request->ip(),
+        ])->save();
+
         // Regenerar sessão por segurança
         $request->session()->regenerate();
 

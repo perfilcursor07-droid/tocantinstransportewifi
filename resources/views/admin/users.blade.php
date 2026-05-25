@@ -33,6 +33,7 @@
         </div>
     @endif
 
+    {{-- Cards de estatísticas --}}
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
         <div class="bg-white rounded-xl border border-gray-200 p-4">
             <div class="flex items-center gap-3">
@@ -80,46 +81,112 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-xl border shadow-sm mb-6 p-4">
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div class="relative">
-                    <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    <input type="text" id="searchUsers" placeholder="Buscar por nome, email ou telefone..." class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <select id="statusFilter" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Todos os Status</option>
-                    <option value="connected">Conectados</option>
-                    <option value="offline">Offline</option>
-                    <option value="pending">Pendente</option>
-                    <option value="active">Ativo</option>
-                </select>
-                <select id="roleFilter" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Todos os Tipos</option>
-                    <option value="user">Usuario</option>
-                    <option value="manager">Gerente</option>
-                    <option value="admin">Administrador</option>
-                </select>
-            </div>
-            <div class="flex gap-2">
-                <button type="button" onclick="resetUserFilters()" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    Limpar
-                </button>
-            </div>
+    {{-- Abas por Nível de Acesso --}}
+    @php
+        $tabs = [
+            'all'     => ['label' => 'Todos',          'icon' => 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', 'color' => 'blue'],
+            'user'    => ['label' => 'Usuarios',       'icon' => 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', 'color' => 'gray'],
+            'manager' => ['label' => 'Gestores',       'icon' => 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z', 'color' => 'purple'],
+            'admin'   => ['label' => 'Administradores','icon' => 'M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.745 3.745 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z', 'color' => 'red'],
+        ];
+        $colorMap = [
+            'blue'   => ['active' => 'bg-blue-600 text-white shadow-sm',    'inactive' => 'text-gray-600 hover:bg-gray-100', 'badge' => 'bg-blue-100 text-blue-700'],
+            'gray'   => ['active' => 'bg-gray-700 text-white shadow-sm',    'inactive' => 'text-gray-600 hover:bg-gray-100', 'badge' => 'bg-gray-200 text-gray-700'],
+            'purple' => ['active' => 'bg-purple-600 text-white shadow-sm',  'inactive' => 'text-gray-600 hover:bg-gray-100', 'badge' => 'bg-purple-100 text-purple-700'],
+            'red'    => ['active' => 'bg-red-600 text-white shadow-sm',     'inactive' => 'text-gray-600 hover:bg-gray-100', 'badge' => 'bg-red-100 text-red-700'],
+        ];
+    @endphp
+    <div class="bg-white rounded-xl border shadow-sm mb-4 p-2">
+        <div class="flex flex-wrap gap-1">
+            @foreach($tabs as $key => $tab)
+                @php
+                    $isActive = ($role ?? 'all') === $key;
+                    $cls = $colorMap[$tab['color']];
+                    $params = request()->except('role', 'page');
+                    $params['role'] = $key;
+                @endphp
+                <a href="{{ route('admin.users') . '?' . http_build_query($params) }}"
+                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition {{ $isActive ? $cls['active'] : $cls['inactive'] }}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $tab['icon'] }}"/></svg>
+                    <span>{{ $tab['label'] }}</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold {{ $isActive ? 'bg-white/25 text-white' : $cls['badge'] }}">
+                        {{ $roleCounts[$key] ?? 0 }}
+                    </span>
+                </a>
+            @endforeach
         </div>
     </div>
 
+    {{-- Filtros (server-side) --}}
+    <div class="bg-white rounded-xl border shadow-sm mb-6 p-4">
+        <form method="GET" action="{{ route('admin.users') }}" class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            {{-- Manter o filtro de tipo selecionado --}}
+            <input type="hidden" name="role" value="{{ $role ?? 'all' }}">
+
+            <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="relative">
+                    <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input type="text" name="search" value="{{ request('search') }}"
+                           placeholder="Buscar por nome, email ou telefone..."
+                           class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <select name="status" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Todos os Status</option>
+                    <option value="connected" {{ request('status') === 'connected' ? 'selected' : '' }}>Conectados</option>
+                    <option value="offline" {{ request('status') === 'offline' ? 'selected' : '' }}>Offline</option>
+                    <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pendente</option>
+                    <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Ativo</option>
+                </select>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    Buscar
+                </button>
+                <a href="{{ route('admin.users', ['role' => $role ?? 'all']) }}"
+                   class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    Limpar
+                </a>
+            </div>
+        </form>
+
+        @if(request()->hasAny(['search', 'status']) && (request('search') || request('status')))
+        <div class="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2 text-xs">
+            <span class="font-semibold text-gray-500">Filtros aplicados:</span>
+            @if(request('search'))
+            <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg border border-blue-200">
+                Busca: "{{ request('search') }}"
+            </span>
+            @endif
+            @if(request('status'))
+            <span class="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200">
+                Status: {{ ucfirst(request('status')) }}
+            </span>
+            @endif
+            <span class="ml-auto text-gray-500">{{ $users->total() }} resultado(s)</span>
+        </div>
+        @endif
+    </div>
+
+    {{-- Lista --}}
     <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b bg-gray-50">
             <div class="flex items-center justify-between">
-                <h3 class="text-gray-800 font-semibold">Lista de Usuarios</h3>
+                <h3 class="text-gray-800 font-semibold">
+                    @switch($role ?? 'all')
+                        @case('user')      Usuarios @break
+                        @case('manager')   Gestores @break
+                        @case('admin')     Administradores @break
+                        @default           Lista de Usuarios
+                    @endswitch
+                </h3>
                 <span class="px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700">{{ $users->total() }} registros</span>
             </div>
         </div>
 
         <div class="overflow-x-auto">
-            <table class="w-full" id="usersTable">
+            <table class="w-full">
                 <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
                     <tr>
                         <th class="px-4 py-3 text-left">Usuario</th>
@@ -127,6 +194,7 @@
                         <th class="px-4 py-3 text-left">Dispositivo</th>
                         <th class="px-4 py-3 text-left">Status</th>
                         <th class="px-4 py-3 text-left">Tipo</th>
+                        <th class="px-4 py-3 text-left">Último login</th>
                         <th class="px-4 py-3 text-left">Cadastro</th>
                         <th class="px-4 py-3 text-center">Acoes</th>
                     </tr>
@@ -147,7 +215,15 @@
                             'manager' => ['label' => 'Gerente', 'color' => 'bg-purple-100 text-purple-700'],
                             'user' => ['label' => 'Usuario', 'color' => 'bg-blue-100 text-blue-700'],
                         ];
-                        $role = $roleConfig[$user->role] ?? ['label' => 'Indefinido', 'color' => 'bg-gray-100 text-gray-600'];
+                        $userRole = $roleConfig[$user->role] ?? ['label' => 'Usuario', 'color' => 'bg-blue-100 text-blue-700'];
+
+                        // Último login: prioriza last_login_at; cai para connected_at se vazio
+                        $lastLogin = $user->last_login_at ?? $user->connected_at;
+                        if ($lastLogin) {
+                            $lastLoginDate = $lastLogin->format('d/m/Y');
+                            $lastLoginTime = $lastLogin->format('H:i');
+                            $lastLoginRelative = $lastLogin->diffForHumans(['short' => true]);
+                        }
                     @endphp
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-4 py-3">
@@ -176,7 +252,15 @@
                             </span>
                         </td>
                         <td class="px-4 py-3">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $role['color'] }}">{{ $role['label'] }}</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $userRole['color'] }}">{{ $userRole['label'] }}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            @if($lastLogin)
+                                <p class="text-sm text-gray-700 font-medium">{{ $lastLoginDate }} <span class="text-gray-400">·</span> {{ $lastLoginTime }}</p>
+                                <p class="text-xs text-gray-400">{{ $lastLoginRelative }}@if(!$user->last_login_at && $user->connected_at) <span class="italic">(conexão)</span>@endif</p>
+                            @else
+                                <span class="text-xs text-gray-400 italic">Nunca</span>
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-xs text-gray-500">
                             {{ $user->created_at ? $user->created_at->format('d/m/Y H:i') : 'N/A' }}
@@ -202,13 +286,13 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-10 text-center">
+                        <td colspan="8" class="px-4 py-10 text-center">
                             <div class="flex flex-col items-center">
                                 <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                                     <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-5-4m-6 6H6v-2a4 4 0 014-4m2-6a4 4 0 11-8 0 4 4 0 018 0m6 6a4 4 0 100-8 4 4 0 000 8z"/></svg>
                                 </div>
                                 <p class="text-gray-500 text-sm font-medium">Nenhum usuario encontrado</p>
-                                <p class="text-gray-400 text-xs mt-1">Nao ha usuarios cadastrados no sistema ainda</p>
+                                <p class="text-gray-400 text-xs mt-1">Tente ajustar os filtros ou a busca</p>
                             </div>
                         </td>
                     </tr>
@@ -244,41 +328,6 @@
 
 @push('scripts')
 <script>
-document.getElementById('searchUsers').addEventListener('input', filterUsers);
-document.getElementById('statusFilter').addEventListener('change', filterUsers);
-document.getElementById('roleFilter').addEventListener('change', filterUsers);
-
-function filterUsers() {
-    const searchTerm = document.getElementById('searchUsers').value.toLowerCase();
-    const statusFilter = document.getElementById('statusFilter').value;
-    const roleFilter = document.getElementById('roleFilter').value;
-    const rows = document.querySelectorAll('#usersTable tbody tr');
-
-    rows.forEach(row => {
-        if (row.children.length === 1) return;
-
-        const userData = {
-            name: row.children[0].textContent.toLowerCase(),
-            email: row.children[1].textContent.toLowerCase(),
-            status: row.children[3].textContent.toLowerCase(),
-            role: row.children[4].textContent.toLowerCase()
-        };
-
-        const matchesSearch = !searchTerm || userData.name.includes(searchTerm) || userData.email.includes(searchTerm);
-        const matchesStatus = !statusFilter || userData.status.includes(statusFilter);
-        const matchesRole = !roleFilter || userData.role.includes(roleFilter);
-
-        row.style.display = (matchesSearch && matchesStatus && matchesRole) ? '' : 'none';
-    });
-}
-
-function resetUserFilters() {
-    document.getElementById('searchUsers').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.getElementById('roleFilter').value = '';
-    filterUsers();
-}
-
 function viewUser(userId) {
     // Mapeamento MikroTik serial → número do carro
     const busMap = {
@@ -292,6 +341,14 @@ function viewUser(userId) {
         'HGJ09X2F8FD': '5035',
     };
 
+    const formatDateTime = (iso) => {
+        if (!iso) return null;
+        try {
+            const d = new Date(iso);
+            return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch (e) { return iso; }
+    };
+
     fetch(`/admin/users/${userId}`)
         .then(response => response.json())
         .then(data => {
@@ -300,6 +357,8 @@ function viewUser(userId) {
             const busDisplay = mikrotikId
                 ? `<span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-blue-50 border border-blue-200"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8m-8 4h8m-4 4v4m-4-4h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span class="text-sm font-semibold text-blue-700">Carro ${busNumber}</span><span class="text-xs text-blue-500">(${mikrotikId})</span></span>`
                 : '<span class="text-sm text-gray-400">Não identificado</span>';
+
+            const lastLogin = formatDateTime(data.last_login_at) || formatDateTime(data.connected_at) || 'Nunca';
 
             document.getElementById('userModalContent').innerHTML = `
                 <div class="space-y-4">
@@ -327,6 +386,14 @@ function viewUser(userId) {
                         <div>
                             <label class="block text-sm font-medium text-gray-700">IP Address</label>
                             <p class="mt-1 text-sm text-gray-900">${data.ip_address || 'Nao registrado'}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Último Login</label>
+                            <p class="mt-1 text-sm text-gray-900">${lastLogin}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">IP do Login</label>
+                            <p class="mt-1 text-sm text-gray-900">${data.last_login_ip || 'N/A'}</p>
                         </div>
                     </div>
                     <div class="border-t pt-4">

@@ -540,23 +540,63 @@ class AdminController extends Controller
     /**
      * Gerenciar usuários
      */
-    public function users()
+    public function users(Request $request)
     {
-        $users = User::with('payments')
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
-        
-        // Estatísticas para a página
+        $query = User::with('payments');
+
+        // Busca: nome, email, telefone
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+
+        // Filtro: status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filtro: tipo de acesso (tabs)
+        // Aceita: 'all' (default), 'user', 'manager', 'admin'
+        $role = $request->get('role', 'all');
+        if ($role === 'user') {
+            // Considera "usuário comum" tudo que NÃO é admin/manager (inclui null)
+            $query->where(function ($q) {
+                $q->whereNull('role')
+                  ->orWhereNotIn('role', ['admin', 'manager']);
+            });
+        } elseif (in_array($role, ['admin', 'manager'], true)) {
+            $query->where('role', $role);
+        }
+
+        $users = $query->orderBy('created_at', 'desc')
+            ->paginate(20)
+            ->withQueryString();
+
+        // Estatísticas para a página (sempre da base toda)
         $stats = [
             'total_users' => User::count(),
             'connected_users' => User::where('status', 'connected')->count(),
             'today_registrations' => User::whereDate('created_at', today())->count(),
-            'users_with_payments' => User::whereHas('payments', function($q) { 
-                $q->where('status', 'completed'); 
-            })->count()
+            'users_with_payments' => User::whereHas('payments', function ($q) {
+                $q->where('status', 'completed');
+            })->count(),
         ];
-        
-        return view('admin.users', compact('users', 'stats'));
+
+        // Contagem por nível de acesso para mostrar nas abas
+        $roleCounts = [
+            'all' => $stats['total_users'],
+            'user' => User::where(function ($q) {
+                $q->whereNull('role')->orWhereNotIn('role', ['admin', 'manager']);
+            })->count(),
+            'manager' => User::where('role', 'manager')->count(),
+            'admin' => User::where('role', 'admin')->count(),
+        ];
+
+        return view('admin.users', compact('users', 'stats', 'roleCounts', 'role'));
     }
 
     /**
