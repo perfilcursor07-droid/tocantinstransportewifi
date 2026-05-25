@@ -16,12 +16,13 @@ Artisan::command('debug:qrcode {--test-payment : Criar um pagamento de teste}', 
     return $command->handle();
 })->purpose('Debug da geração de QR Code PIX');
 
-// Scheduler: Envio automático de mensagens WhatsApp a cada 5 minutos
-Schedule::command('whatsapp:send-pending')
+// Scheduler: Lembrar clientes que geraram PIX e não pagaram após 15 minutos
+// (substitui o antigo whatsapp:send-pending — agora libera 3 min de bypass + mensagem melhor)
+Schedule::command('payments:send-unpaid-reminders')
     ->everyFiveMinutes()
     ->withoutOverlapping()
     ->runInBackground()
-    ->appendOutputTo(storage_path('logs/whatsapp-auto-send.log'));
+    ->appendOutputTo(storage_path('logs/unpaid-reminders.log'));
 
 // Scheduler: Envio do link de avaliacao diariamente as 07:00
 Schedule::command('reviews:send-whatsapp')
@@ -35,10 +36,3 @@ Schedule::command('bus:record-health')
     ->everyFiveMinutes()
     ->withoutOverlapping()
     ->runInBackground();
-
-// Scheduler: Lembrar clientes que geraram PIX e não pagaram após 15 minutos
-Schedule::command('payments:send-unpaid-reminders')
-    ->everyFiveMinutes()
-    ->withoutOverlapping()
-    ->runInBackground()
-    ->appendOutputTo(storage_path('logs/unpaid-reminders.log'));

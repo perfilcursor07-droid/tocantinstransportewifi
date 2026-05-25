@@ -38,21 +38,12 @@ class SendWhatsappPendingMessages extends Command
      */
     public function handle()
     {
-        // Verificar se envio automático está habilitado
-        if (!$this->option('force') && !WhatsappSetting::isAutoSendEnabled()) {
-            $this->info('Envio automático está desabilitado. Use --force para forçar.');
-            return 0;
-        }
-
-        // Verificar se WhatsApp está conectado
-        if (!WhatsappSetting::isConnected()) {
-            $this->warn('WhatsApp não está conectado.');
-            Log::warning('WhatsApp: Tentativa de envio automático, mas não está conectado.');
-            return 1;
-        }
-
-        $pendingMinutes = WhatsappSetting::getPendingMinutes();
-        $messageTemplate = WhatsappSetting::getMessageTemplate();
+        // ⚠️ DEPRECATED: substituído por payments:send-unpaid-reminders
+        // (que tem mensagem melhor + libera 3min de bypass).
+        // Retorna sem fazer nada para evitar enviar a mensagem antiga.
+        $this->warn('Comando deprecated. Use payments:send-unpaid-reminders.');
+        Log::info('⚠️ whatsapp:send-pending foi chamado mas está deprecated — use payments:send-unpaid-reminders');
+        return 0;
 
         $this->info("Buscando pagamentos pendentes há mais de {$pendingMinutes} minutos...");
 
