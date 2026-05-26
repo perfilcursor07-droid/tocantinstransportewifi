@@ -340,6 +340,22 @@
                     </button>
                 </section>
 
+                <!-- Já paguei mas sem internet? (recuperação rápida) -->
+                <section class="bg-white rounded-xl border border-amber-200 shadow-card animate-slide-up-delay">
+                    <button type="button" onclick="openRecoveryModal()" class="flex items-center justify-between p-4 w-full group">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center border border-amber-200">
+                                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <div class="text-left">
+                                <p class="text-sm font-bold text-ink">Já paguei mas sem internet?</p>
+                                <p class="text-[11px] text-muted">Recuperar com seu telefone</p>
+                            </div>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </section>
+
                 <!-- Voucher do motorista -->
                 <section class="bg-white rounded-xl border border-border shadow-card animate-slide-up-delay">
                     <a href="{{ route('voucher.activate') }}{{ request()->has('mac') ? '?source=mikrotik&mac=' . request('mac') . '&ip=' . request('ip') : '' }}" class="flex items-center justify-between p-4 group">
@@ -699,6 +715,167 @@
     })();
     </script>
     @endif
+
+    <!-- Modal de Recuperação por Telefone -->
+    <div id="recovery-modal" class="fixed inset-0 bg-black/60 z-[55] hidden backdrop-blur-sm">
+        <div class="flex items-center justify-center h-full p-4">
+            <div class="bg-white rounded-2xl w-full max-w-sm animate-slide-up shadow-2xl overflow-hidden">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-4 text-center">
+                    <p class="text-white font-extrabold text-base">Recuperar acesso</p>
+                    <p class="text-amber-50 text-xs mt-1">Já pagou mas não conseguiu conectar?</p>
+                </div>
+
+                <div class="p-5">
+                    <div id="recovery-form-area">
+                        <p class="text-sm text-gray-600 mb-4 text-center">
+                            Informe o telefone que você usou para pagar. Vamos liberar seu acesso automaticamente.
+                        </p>
+
+                        <input type="tel" id="recovery-phone" placeholder="(63) 9 8101-3050" maxlength="16"
+                            class="w-full border-2 border-gray-300 rounded-xl px-4 py-3.5 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all text-base text-center font-medium">
+
+                        <div id="recovery-error" class="hidden mt-3 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-xs"></div>
+
+                        <button id="recovery-submit-btn" onclick="submitRecovery()" class="mt-4 w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-3.5 rounded-xl shadow-md text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            RECUPERAR ACESSO
+                        </button>
+
+                        <button onclick="closeRecoveryModal()" class="mt-2 w-full text-gray-500 text-xs py-2 hover:text-gray-700">
+                            Cancelar
+                        </button>
+                    </div>
+
+                    <!-- Tela de sucesso (escondida) -->
+                    <div id="recovery-success-area" class="hidden text-center py-2">
+                        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                        <p class="text-base font-extrabold text-green-700 mb-1">Acesso liberado!</p>
+                        <p class="text-sm text-gray-600 mb-4" id="recovery-success-msg">Sua internet será liberada em até 30 segundos.</p>
+                        
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 text-left">
+                            <p class="text-xs font-bold text-blue-800 mb-2">Se ainda não funcionar, faça isso:</p>
+                            <ol class="text-xs text-blue-700 space-y-1 list-decimal list-inside">
+                                <li>Desconecte do WiFi</li>
+                                <li>Desligue o WiFi do celular</li>
+                                <li>Ligue o WiFi de novo e reconecte</li>
+                            </ol>
+                        </div>
+
+                        <button onclick="closeRecoveryModal()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm shadow-md">
+                            FECHAR
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        window.openRecoveryModal = function() {
+            const modal = document.getElementById('recovery-modal');
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            
+            // Reset
+            document.getElementById('recovery-form-area').classList.remove('hidden');
+            document.getElementById('recovery-success-area').classList.add('hidden');
+            document.getElementById('recovery-error').classList.add('hidden');
+            document.getElementById('recovery-phone').value = '';
+            
+            setTimeout(() => document.getElementById('recovery-phone').focus(), 100);
+        };
+
+        window.closeRecoveryModal = function() {
+            document.getElementById('recovery-modal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        };
+
+        // Máscara de telefone
+        const phoneInput = document.getElementById('recovery-phone');
+        if (phoneInput) {
+            phoneInput.addEventListener('input', function(e) {
+                let v = e.target.value.replace(/\D/g, '');
+                if (v.length > 11) v = v.substring(0, 11);
+                if (v.length > 10) {
+                    v = '(' + v.substring(0, 2) + ') ' + v.substring(2, 3) + ' ' + v.substring(3, 7) + '-' + v.substring(7);
+                } else if (v.length > 6) {
+                    v = '(' + v.substring(0, 2) + ') ' + v.substring(2, 6) + '-' + v.substring(6);
+                } else if (v.length > 2) {
+                    v = '(' + v.substring(0, 2) + ') ' + v.substring(2);
+                }
+                e.target.value = v;
+            });
+            phoneInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') submitRecovery();
+            });
+        }
+
+        window.submitRecovery = function() {
+            const input = document.getElementById('recovery-phone');
+            const errorEl = document.getElementById('recovery-error');
+            const btn = document.getElementById('recovery-submit-btn');
+            const phone = (input.value || '').replace(/\D/g, '');
+
+            errorEl.classList.add('hidden');
+
+            if (phone.length < 10) {
+                errorEl.textContent = 'Informe um telefone válido com DDD.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            // Pegar MAC e IP atuais (do portal.js)
+            const macAddress = (window.wifiPortal && window.wifiPortal.deviceMac) || '';
+            const ipAddress = (window.wifiPortal && window.wifiPortal.deviceIp) || '';
+
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="animate-pulse">⏳ VERIFICANDO...</span>';
+            btn.disabled = true;
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+            fetch('/api/reativar-acesso', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ phone, mac_address: macAddress, ip_address: ipAddress }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('recovery-form-area').classList.add('hidden');
+                    document.getElementById('recovery-success-area').classList.remove('hidden');
+                    if (data.message) {
+                        document.getElementById('recovery-success-msg').textContent = data.message;
+                    }
+                } else {
+                    errorEl.textContent = data.message || 'Não foi possível recuperar o acesso. Verifique o telefone.';
+                    errorEl.classList.remove('hidden');
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+            })
+            .catch(() => {
+                errorEl.textContent = 'Erro de conexão. Tente novamente.';
+                errorEl.classList.remove('hidden');
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            });
+        };
+
+        // Fechar clicando fora
+        document.getElementById('recovery-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeRecoveryModal();
+        });
+    })();
+    </script>
 
     <!-- Registration Modal -->
     <div id="registration-modal" class="fixed inset-0 bg-black/50 z-50 hidden backdrop-blur-sm">

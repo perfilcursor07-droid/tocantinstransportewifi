@@ -21,7 +21,7 @@ class ServiceReviewBotService
      * Processa mensagem recebida via WhatsApp.
      * Retorna true se a mensagem foi tratada como resposta de avaliação.
      */
-    public function handleIncomingMessage(string $phone, string $message, ?string $lid = null, ?string $pushName = null): bool
+    public function handleIncomingMessage(string $phone, string $message, ?string $lid = null, ?string $pushName = null, ?int $timestamp = null): bool
     {
         $cleanPhone = preg_replace('/[^\d]/', '', $phone);
         $cleanLid = preg_replace('/[^\d]/', '', (string) $lid);
@@ -31,13 +31,19 @@ class ServiceReviewBotService
             return false;
         }
 
-        // Buscar review com bot_state ativo
+        // 🛡️ Ignorar mensagens muito curtas ou que claramente não são respostas
+        // (mas permitir "1", "2", "3", "4", "5" e palavras curtas válidas)
+        if (mb_strlen($message) > 500) {
+            return false;
+        }
+
+        // Buscar review com bot_state ativo PELO TELEFONE (estrito)
         $review = null;
         if ($cleanPhone !== '') {
             $review = $this->findActiveReview($cleanPhone);
         }
 
-        // Fallback 1: tentar pelo LID (se já gravamos antes)
+        // Fallback: tentar pelo LID se já gravamos antes
         if (!$review && $cleanLid !== '') {
             $review = ServiceReview::whereIn('bot_state', ['awaiting_rating', 'awaiting_reason'])
                 ->where('lid', $cleanLid)
@@ -46,23 +52,51 @@ class ServiceReviewBotService
                 ->first();
         }
 
-        // Fallback 2: buscar review aguardando que foi enviada nas últimas 6h
-        // Quando o número não pode ser identificado (vem só @lid), tenta a mais recente
-        if (!$review && ($cleanLid !== '' || $cleanPhone === '')) {
-            $review = ServiceReview::whereIn('bot_state', ['awaiting_rating', 'awaiting_reason'])
-                ->where('bot_last_interaction_at', '>', now()->subHours(6))
-                ->orderByDesc('bot_last_interaction_at')
-                ->orderByDesc('id')
-                ->first();
-            
-            if ($review && $cleanLid !== '' && empty($review->lid)) {
-                // Associar LID à review pra próximas mensagens encontrarem direto
-                $review->update(['lid' => $cleanLid]);
-            }
-        }
+        // 🛡️ REMOVIDO o "Fallback 2" agressivo que pegava qualquer review pendente
+        // Era o que causava o bug de "o usuário não respondeu mas o bot achou que sim"
+        // Se não conseguimos identificar o telefone/LID, NÃO processamos.
 
         if (!$review) {
             return false;
+        }
+
+        // 🛡️ Se review já foi finalizado, NÃO processar de novo
+        if ($review->submitted_at !== null || $review->bot_state === 'completed') {
+            Log::warning('🛡️ ServiceReviewBot: review já finalizado, ignorando mensagem', [
+                'review_id' => $review->id,
+                'state' => $review->bot_state,
+                'submitted_at' => $review->submitted_at?->toIso8601String(),
+            ]);
+            return false;
+        }
+
+        // 🛡️ VALIDAÇÃO ADICIONAL: o telefone do review tem que bater com o telefone da mensagem
+        // (ou pelo menos os últimos 9 dígitos)
+        if ($cleanPhone !== '' && $review->phone) {
+            $reviewPhone = preg_replace('/[^\d]/', '', $review->phone);
+            $last9Match = substr($cleanPhone, -9) === substr($reviewPhone, -9);
+            if (!$last9Match) {
+                Log::warning('🛡️ ServiceReviewBot: telefone da mensagem não bate com o do review', [
+                    'review_id' => $review->id,
+                    'review_phone' => $reviewPhone,
+                    'message_phone' => $cleanPhone,
+                ]);
+                return false;
+            }
+        }
+
+        // 🛡️ Se temos timestamp da mensagem, validar que é POSTERIOR ao envio do review
+        // (evita processar mensagens antigas que o Baileys pode mandar em sync histórico)
+        if ($timestamp && $review->invited_at) {
+            $messageTime = \Carbon\Carbon::createFromTimestamp($timestamp);
+            if ($messageTime->lt($review->invited_at->copy()->subMinutes(1))) {
+                Log::warning('🛡️ ServiceReviewBot: mensagem com timestamp ANTERIOR ao envio do review — ignorando', [
+                    'review_id' => $review->id,
+                    'invited_at' => $review->invited_at->toIso8601String(),
+                    'message_time' => $messageTime->toIso8601String(),
+                ]);
+                return false;
+            }
         }
 
         // Considera abandono após 6 horas sem resposta
@@ -77,6 +111,7 @@ class ServiceReviewBotService
             'phone' => $cleanPhone,
             'lid' => $cleanLid,
             'message' => mb_substr($message, 0, 100),
+            'timestamp' => $timestamp,
         ]);
 
         return match ($review->bot_state) {

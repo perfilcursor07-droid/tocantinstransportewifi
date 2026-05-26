@@ -444,16 +444,18 @@ class WhatsappController extends Controller
                 $messageText = $data['message'] ?? '';
                 $lid = $data['lid'] ?? null;
                 $pushName = $data['pushName'] ?? null;
+                $timestamp = isset($data['timestamp']) ? (int) $data['timestamp'] : null;
                 
                 if ($messageText !== '') {
                     try {
                         $handled = app(\App\Services\ServiceReviewBotService::class)
-                            ->handleIncomingMessage($phone, $messageText, $lid, $pushName);
+                            ->handleIncomingMessage($phone, $messageText, $lid, $pushName, $timestamp);
                         
                         Log::info('📩 WhatsApp mensagem recebida', [
                             'phone' => $phone,
                             'lid' => $lid,
                             'pushName' => $pushName,
+                            'timestamp' => $timestamp,
                             'handled_by_review_bot' => $handled,
                             'message_preview' => mb_substr($messageText, 0, 80),
                         ]);

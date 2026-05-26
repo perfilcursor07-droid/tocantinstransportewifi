@@ -185,6 +185,7 @@ async function startConnection() {
 
         // Mensagens RECEBIDAS de usuários
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
+            // 🛡️ Só processar mensagens "notify" (em tempo real, não histórico/sync)
             if (type !== 'notify') return;
             
             for (const msg of messages) {
@@ -196,6 +197,22 @@ async function startConnection() {
                 
                 // Ignorar grupos
                 if (msg.key.remoteJid && msg.key.remoteJid.endsWith('@g.us')) continue;
+                
+                // 🛡️ Ignorar reações (emojis em outras mensagens)
+                if (msg.message?.reactionMessage) continue;
+                
+                // 🛡️ Ignorar mensagens de protocolo/edição/sistema
+                if (msg.message?.protocolMessage) continue;
+                if (msg.message?.senderKeyDistributionMessage) continue;
+                
+                // 🛡️ Ignorar mensagens muito antigas (mais de 5 minutos)
+                // Isso evita processar mensagens vindas em sync histórico ao reconectar
+                const msgTimestamp = msg.messageTimestamp ? Number(msg.messageTimestamp) : 0;
+                const nowSec = Math.floor(Date.now() / 1000);
+                if (msgTimestamp && (nowSec - msgTimestamp) > 300) {
+                    logger.info(`[MSG IN] Ignorando mensagem antiga (${nowSec - msgTimestamp}s atrás)`);
+                    continue;
+                }
                 
                 // Extrair texto da mensagem
                 let text = '';
@@ -214,9 +231,6 @@ async function startConnection() {
                 if (!text || text.trim() === '') continue;
                 
                 // Extrair número real do remetente
-                // remoteJid pode ser:
-                //   "5563999999999@s.whatsapp.net" (formato direto - número real)
-                //   "247910444867688@lid" (formato LID - precisa pegar do senderPn)
                 let phone = '';
                 let lid = '';
                 const remoteJid = msg.key.remoteJid || '';
@@ -226,22 +240,17 @@ async function startConnection() {
                 } else if (remoteJid.endsWith('@lid')) {
                     lid = remoteJid.replace('@lid', '');
                     
-                    // Tentar pegar o número real de vários campos possíveis
                     const senderPn = msg.key.senderPn || msg.key.participantPn || msg.key.participant || '';
                     if (senderPn) {
                         phone = senderPn.replace('@s.whatsapp.net', '').replace('@lid', '');
                     }
                     
-                    // Log debug para entender estrutura quando @lid
                     logger.info(`[MSG IN DEBUG @lid] key=${JSON.stringify(msg.key)} pushName=${msg.pushName || ''}`);
                 } else {
-                    continue; // Formato desconhecido
+                    continue;
                 }
                 
-                // Limpar caracteres não-numéricos
                 phone = (phone || '').replace(/[^\d]/g, '');
-                
-                // Se ainda não temos telefone válido, mandar com lid (Laravel resolve por estado pendente)
                 const phoneToSend = (phone && phone.length >= 10) ? phone : '';
                 
                 logger.info(`[MSG IN] de ${phoneToSend || lid + '@lid'}: ${text.substring(0, 80)}`);
@@ -252,7 +261,7 @@ async function startConnection() {
                     pushName: msg.pushName || '',
                     message: text,
                     messageId: msg.key.id,
-                    timestamp: msg.messageTimestamp ? Number(msg.messageTimestamp) : Math.floor(Date.now() / 1000),
+                    timestamp: msgTimestamp || nowSec,
                 });
             }
         });

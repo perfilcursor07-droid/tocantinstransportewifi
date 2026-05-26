@@ -494,20 +494,30 @@ class PaymentController extends Controller
             if (!\App\Models\WhatsappSetting::isConnected()) return;
 
             $phone = \App\Models\WhatsappMessage::formatPhone($user->phone);
-            $nome = $user->name ?? 'Cliente';
+            $nome = $user->name ? trim(explode(' ', $user->name)[0]) : 'Cliente';
             $horasTexto = $hours == (int) $hours ? (int) $hours . ' horas' : $hours . ' horas';
             $amount = number_format((float) $payment->amount, 2, ',', '.');
 
             $reativarUrl = url('/reativar');
 
             $message = "✅ *Pagamento confirmado!*\n\n"
-                     . "Olá {$nome}, recebemos seu PIX de R\$ {$amount}.\n\n"
+                     . "Oi {$nome}! Recebemos seu PIX de *R\$ {$amount}*.\n\n"
                      . "📶 Sua internet está liberada por *{$horasTexto}*.\n"
                      . "Aproveite ao máximo! 🚌💨\n\n"
-                     . "💬 Qualquer dúvida sobre pagamento ou problema com o serviço, pode mandar mensagem por aqui neste WhatsApp!\n\n"
-                     . "⚠️ *Pagou e não tem acesso?*\n"
-                     . "Clique no link abaixo para reativar sua internet:\n"
-                     . "{$reativarUrl}\n\n"
+                     . "━━━━━━━━━━━━━━\n"
+                     . "⚠️ *NÃO CONECTOU EM 30 SEGUNDOS?*\n"
+                     . "━━━━━━━━━━━━━━\n\n"
+                     . "Faça este passo a passo:\n\n"
+                     . "1️⃣ *Desconecte do WiFi* (segura no nome 'TocantinsTransporteWiFi' → 'Esquecer rede')\n\n"
+                     . "2️⃣ *Reconecte ao WiFi* na mesma rede\n\n"
+                     . "3️⃣ Abra o navegador e acesse: *{$reativarUrl}*\n\n"
+                     . "4️⃣ Informe seu telefone e clique em *RECUPERAR ACESSO*\n\n"
+                     . "━━━━━━━━━━━━━━\n\n"
+                     . "💡 *Dica importante (iPhone/Android novos):*\n"
+                     . "Alguns celulares geram um identificador novo a cada conexão. Se acontecer:\n\n"
+                     . "📱 *iPhone:* Ajustes → Wi-Fi → toque no (i) ao lado da rede → desative *Endereço Privado*\n\n"
+                     . "📱 *Android:* Configurações → Wi-Fi → segura na rede → Avançado → mude para *MAC do dispositivo*\n\n"
+                     . "💬 Qualquer problema, é só responder aqui!\n\n"
                      . "Obrigado por viajar com a Tocantins Transporte! 🙏";
 
             $msg = \App\Models\WhatsappMessage::create([
@@ -2042,6 +2052,23 @@ class PaymentController extends Controller
 
         try {
             $cleanPhone = preg_replace('/[^\d]/', '', $request->phone);
+            $clientIp = HotspotIdentity::resolveClientIp($request);
+            $currentMac = HotspotIdentity::resolveRealMac($request->input('mac_address'), $clientIp);
+
+            // 🛡️ PROTEÇÃO 1: Rate limit por IP — máximo 5 tentativas por hora
+            $ipKey = 'recovery_attempts_ip_' . md5($clientIp ?: $request->ip());
+            $attempts = (int) Cache::get($ipKey, 0);
+            if ($attempts >= 5) {
+                Log::warning('⚠️ Recovery: rate limit por IP atingido', [
+                    'ip' => $clientIp,
+                    'attempts' => $attempts,
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Muitas tentativas. Aguarde 1 hora ou faça um novo pagamento.',
+                ], 429);
+            }
+            Cache::put($ipKey, $attempts + 1, now()->addHour());
 
             // Buscar usuário pelo telefone (múltiplas estratégias)
             $user = User::where('phone', $cleanPhone)
@@ -2049,14 +2076,12 @@ class PaymentController extends Controller
                 ->first();
 
             if (!$user) {
-                // Tentar com prefixo 55
                 $user = User::where('phone', '55' . $cleanPhone)
                     ->orderBy('updated_at', 'desc')
                     ->first();
             }
 
             if (!$user) {
-                // Busca parcial (últimos dígitos)
                 $user = User::where('phone', 'LIKE', '%' . substr($cleanPhone, -9))
                     ->orderBy('updated_at', 'desc')
                     ->first();
@@ -2068,6 +2093,14 @@ class PaymentController extends Controller
                     'message' => 'Nenhum cadastro encontrado com este telefone. Verifique o número ou faça um novo pagamento.',
                 ], 404);
             }
+
+            // 🛡️ PROTEÇÃO 2: Rate limit por TELEFONE — máximo 3 mudanças de MAC por dia
+            // Evita que alguém com o telefone de outro fique trocando MAC sem parar
+            $phoneKey = 'recovery_mac_changes_' . preg_replace('/[^\d]/', '', $user->phone);
+            $macChanges = (int) Cache::get($phoneKey, 0);
+
+            // 🛡️ PROTEÇÃO 3: Verificar se MAC atual já é o do usuário (não conta como mudança)
+            $isSameMac = $currentMac && strtoupper(str_replace('-', ':', $currentMac)) === strtoupper(str_replace('-', ':', $user->mac_address ?? ''));
 
             // Buscar pagamento recente completado
             $payment = Payment::where('user_id', $user->id)
@@ -2084,11 +2117,67 @@ class PaymentController extends Controller
                 ], 404);
             }
 
-            // NÃO atualizar MAC aqui — a reativação é feita de qualquer dispositivo
-            // Se trocarmos o MAC, o dispositivo que pagou perderia o acesso
+            // 🛡️ PROTEÇÃO 4: Se MAC novo é diferente E já mudou 3 vezes hoje, bloquear
+            $shouldUpdateMac = $currentMac && !$isSameMac && HotspotIdentity::shouldReplaceMac($user->mac_address, $currentMac);
+            
+            if ($shouldUpdateMac && $macChanges >= 3) {
+                Log::warning('⚠️ Recovery: limite de mudanças de MAC atingido', [
+                    'user_id' => $user->id,
+                    'phone' => $cleanPhone,
+                    'mac_changes_today' => $macChanges,
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Limite de tentativas excedido para este telefone hoje. Procure o motorista ou tente amanhã.',
+                ], 429);
+            }
 
-            // Se o status já é connected e expires_at é futuro, apenas confirmar
+            // 🛡️ PROTEÇÃO 5: Verificar tempo desde última troca
+            // Se trocou há menos de 30 segundos, suspeitar de uso indevido
+            $lastChangeKey = 'recovery_last_mac_change_' . $user->id;
+            $lastChange = Cache::get($lastChangeKey);
+            if ($shouldUpdateMac && $lastChange && now()->diffInSeconds($lastChange) < 30) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aguarde 30 segundos antes de tentar de novo.',
+                ], 429);
+            }
+
+            // Atualizar MAC se diferente (só se passou pelas proteções)
+            if ($shouldUpdateMac) {
+                User::where('mac_address', $currentMac)
+                    ->where('id', '!=', $user->id)
+                    ->update(['mac_address' => null]);
+
+                HotspotIdentity::markOrphanedMac($user->mac_address);
+
+                $oldMac = $user->mac_address;
+                $user->update([
+                    'mac_address' => $currentMac,
+                    'ip_address' => $clientIp,
+                ]);
+
+                // Incrementar contador de mudanças do dia
+                Cache::put($phoneKey, $macChanges + 1, now()->endOfDay());
+                Cache::put($lastChangeKey, now(), now()->addMinutes(5));
+
+                Log::info('🔄 MAC atualizado via recuperação por telefone', [
+                    'user_id' => $user->id,
+                    'phone' => $cleanPhone,
+                    'old_mac' => $oldMac,
+                    'new_mac' => $currentMac,
+                    'mac_changes_today' => $macChanges + 1,
+                    'ip' => $clientIp,
+                ]);
+
+                // 📱 Notificar o DONO REAL da conta sobre a alteração
+                $this->notifyMacChangeToOwner($user, $oldMac, $currentMac, $clientIp);
+            }
+
+            // Se status já está connected e ainda não expirou, só confirmar e re-sync
             if (in_array($user->status, ['connected', 'active']) && $user->expires_at && $user->expires_at > now()) {
+                Cache::forget('mikrotik_sync_lists_all');
+                
                 return response()->json([
                     'success' => true,
                     'message' => 'Seu acesso já está ativo! Aguarde até 30 segundos para liberar. Tente desconectar e reconectar o WiFi.',
@@ -2103,7 +2192,6 @@ class PaymentController extends Controller
             $paidAt = $payment->paid_at ? \Carbon\Carbon::parse($payment->paid_at) : now();
             $expiresAt = $paidAt->copy()->addHours($sessionDuration);
 
-            // Se já expirou baseado no pagamento, não reativar
             if ($expiresAt <= now()) {
                 return response()->json([
                     'success' => false,
@@ -2117,6 +2205,8 @@ class PaymentController extends Controller
                 'connected_at' => now(),
                 'expires_at' => $expiresAt,
             ]);
+            
+            Cache::forget('mikrotik_sync_lists_all');
 
             Log::info('🔄 ACESSO REATIVADO VIA PORTAL', [
                 'user_id' => $user->id,
@@ -2124,6 +2214,7 @@ class PaymentController extends Controller
                 'phone' => $cleanPhone,
                 'payment_id' => $payment->id,
                 'expires_at' => $expiresAt->toISOString(),
+                'ip' => $clientIp,
             ]);
 
             return response()->json([
@@ -2136,6 +2227,59 @@ class PaymentController extends Controller
         } catch (\Exception $e) {
             Log::error('❌ Erro ao reativar acesso', ['error' => $e->getMessage()]);
             return response()->json(['success' => false, 'message' => 'Erro interno. Tente novamente.'], 500);
+        }
+    }
+
+    /**
+     * Notifica o dono real da conta quando o MAC dele é alterado por outro dispositivo.
+     * Permite que ele saiba se outra pessoa usou o telefone dele indevidamente.
+     */
+    private function notifyMacChangeToOwner(User $user, ?string $oldMac, string $newMac, ?string $ip): void
+    {
+        try {
+            if (!$user->phone || strlen($user->phone) < 10) return;
+            if (!\App\Models\WhatsappSetting::isConnected()) return;
+
+            // Não notificar se o MAC antigo era nulo/mock (primeira associação)
+            if (!$oldMac || str_starts_with(strtoupper($oldMac), '02:') || str_starts_with(strtoupper($oldMac), '00:00:00')) {
+                return;
+            }
+
+            $phone = \App\Models\WhatsappMessage::formatPhone($user->phone);
+            $nome = $user->name ? trim(explode(' ', $user->name)[0]) : 'Cliente';
+            $hora = now()->format('H:i');
+
+            $message = "🔔 *Aviso de segurança*\n\n"
+                     . "Oi {$nome}! Seu acesso ao WiFi Tocantins foi *reassociado a outro dispositivo* às {$hora}.\n\n"
+                     . "Se foi você (trocou de celular ou reiniciou o aparelho), tudo certo, ignore essa mensagem. ✅\n\n"
+                     . "❌ *Se NÃO foi você*, alguém pode ter usado seu telefone indevidamente. Responda *NÃO FUI EU* aqui que vamos verificar.\n\n"
+                     . "Tocantins Transporte WiFi";
+
+            $msg = \App\Models\WhatsappMessage::create([
+                'user_id' => $user->id,
+                'phone' => $phone,
+                'message' => $message,
+                'status' => 'pending',
+            ]);
+
+            $baileysUrl = env('BAILEYS_SERVER_URL', 'http://localhost:3001');
+            $resp = \Illuminate\Support\Facades\Http::timeout(10)->post($baileysUrl . '/send', [
+                'phone' => $phone,
+                'message' => $message,
+            ]);
+
+            if ($resp->successful()) {
+                $msg->markAsSent($resp->json('messageId'));
+            } else {
+                $msg->markAsFailed($resp->body());
+            }
+
+            Log::info('🔔 Notificação de mudança de MAC enviada ao dono', [
+                'user_id' => $user->id,
+                'phone' => $phone,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Erro ao notificar mudança de MAC', ['error' => $e->getMessage()]);
         }
     }
 
