@@ -70,16 +70,19 @@ class ServiceReviewBotService
             return false;
         }
 
-        // 🛡️ VALIDAÇÃO ADICIONAL: o telefone do review tem que bater com o telefone da mensagem
-        // (ou pelo menos os últimos 9 dígitos)
+        // 🛡️ VALIDAÇÃO: o telefone do review tem que bater com o telefone da mensagem
+        // (últimos 8 dígitos — ignora código país e dígito 9 variável)
         if ($cleanPhone !== '' && $review->phone) {
             $reviewPhone = preg_replace('/[^\d]/', '', $review->phone);
-            $last9Match = substr($cleanPhone, -9) === substr($reviewPhone, -9);
-            if (!$last9Match) {
+            $last8Incoming = substr($cleanPhone, -8);
+            $last8Review = substr($reviewPhone, -8);
+            if ($last8Incoming !== $last8Review) {
                 Log::warning('🛡️ ServiceReviewBot: telefone da mensagem não bate com o do review', [
                     'review_id' => $review->id,
                     'review_phone' => $reviewPhone,
                     'message_phone' => $cleanPhone,
+                    'last8_incoming' => $last8Incoming,
+                    'last8_review' => $last8Review,
                 ]);
                 return false;
             }
@@ -126,27 +129,35 @@ class ServiceReviewBotService
      */
     protected function findActiveReview(string $cleanPhone): ?ServiceReview
     {
+        // Strip código de país se presente
+        $withoutCountry = $cleanPhone;
+        if (str_starts_with($cleanPhone, '55') && strlen($cleanPhone) >= 12) {
+            $withoutCountry = substr($cleanPhone, 2); // Remove 55
+        }
+
         // Tentar com o telefone exato primeiro, depois variações
         $candidates = [
-            $cleanPhone,
-            ltrim($cleanPhone, '5'),
-            '55' . $cleanPhone,
+            $cleanPhone,             // 556281015484
+            $withoutCountry,         // 6281015484
+            '55' . $withoutCountry,  // 556281015484
+            '55' . '9' . substr($withoutCountry, 2), // 55 + 9 + 81015484 (se DDD sem 9)
+            substr($withoutCountry, 0, 2) . '9' . substr($withoutCountry, 2), // DDD + 9 + resto
         ];
 
-        // Adiciona últimos 9 dígitos para variações
-        if (strlen($cleanPhone) >= 9) {
-            $candidates[] = substr($cleanPhone, -9);
-            $candidates[] = substr($cleanPhone, -10);
-            $candidates[] = substr($cleanPhone, -11);
-        }
+        // Últimos 8 dígitos (ignora código país + DDD + possível dígito 9 extra)
+        // Isso cobre o caso "62981015484" (banco) vs "556281015484" (incoming)
+        $last8 = strlen($cleanPhone) >= 8 ? substr($cleanPhone, -8) : '';
 
         $candidates = array_values(array_unique(array_filter($candidates)));
 
         return ServiceReview::whereIn('bot_state', ['awaiting_rating', 'awaiting_reason'])
-            ->where(function ($q) use ($candidates) {
+            ->where(function ($q) use ($candidates, $last8) {
                 foreach ($candidates as $c) {
-                    $q->orWhere('phone', $c)
-                        ->orWhere('phone', 'LIKE', '%' . substr($c, -9));
+                    $q->orWhere('phone', $c);
+                }
+                // Busca pelos últimos 8 dígitos (mais flexível que 9)
+                if ($last8) {
+                    $q->orWhere('phone', 'LIKE', '%' . $last8);
                 }
             })
             ->orderByDesc('bot_last_interaction_at')
