@@ -280,10 +280,11 @@ class ServiceReviewBotService
      */
     public function startReviewConversation(ServiceReview $review, ?string $recipientName = null): array
     {
-        if (!WhatsappSetting::isConnected()) {
+        // 🧩 Avaliação usa o número SEPARADO (sessão "review"), nunca o número de PIX.
+        if (!WhatsappSetting::isReviewConnected()) {
             return [
                 'success' => false,
-                'error' => 'WhatsApp não está conectado.',
+                'error' => 'WhatsApp de avaliação não está conectado.',
             ];
         }
 
@@ -314,6 +315,7 @@ class ServiceReviewBotService
             $response = Http::timeout(30)->post($this->baileysServerUrl . '/send', [
                 'phone' => $phone,
                 'message' => $message,
+                'session' => 'review', // 🧩 disparo de avaliação sai pelo número separado
             ]);
 
             if ($response->successful()) {
@@ -395,6 +397,7 @@ class ServiceReviewBotService
             $response = Http::timeout(15)->post($this->baileysServerUrl . '/send', [
                 'phone' => $formatted,
                 'message' => $message,
+                'session' => 'review', // 🧩 conversa de avaliação sai pelo número separado
             ]);
 
             return $response->successful();

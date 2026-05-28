@@ -152,10 +152,11 @@ class ServiceReviewWhatsappService
 
     public function sendPreparedReview(ServiceReview $review, ?string $recipientName = null): array
     {
-        if (! WhatsappSetting::isConnected()) {
+        // 🧩 Avaliação usa o número SEPARADO (sessão "review"), não o número de PIX.
+        if (! WhatsappSetting::isReviewConnected()) {
             return [
                 'success' => false,
-                'error' => 'WhatsApp nao esta conectado.',
+                'error' => 'WhatsApp de avaliacao nao esta conectado.',
                 'review' => $review,
                 'link' => $this->resolveReviewLink($review),
             ];

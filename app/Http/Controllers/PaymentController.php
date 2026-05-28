@@ -393,6 +393,8 @@ class PaymentController extends Controller
             $resp1 = $this->whatsappHttpClient()->post($baileysUrl . '/send', [
                 'phone' => $phone,
                 'message' => $message1,
+                'priority' => true,   // transacional: envia na hora, sem "digitando"
+                'skipCheck' => true,  // número já conhecido: não sondar (mais rápido e seguro)
             ]);
 
             if ($resp1->successful()) {
@@ -417,6 +419,8 @@ class PaymentController extends Controller
             $resp2 = $this->whatsappHttpClient()->post($baileysUrl . '/send', [
                 'phone' => $phone,
                 'message' => $pixCode,
+                'priority' => true,
+                'skipCheck' => true,
             ]);
 
             if ($resp2->successful()) {
@@ -532,6 +536,8 @@ class PaymentController extends Controller
             $resp = \Illuminate\Support\Facades\Http::timeout(10)->post($baileysUrl . '/send', [
                 'phone' => $phone,
                 'message' => $message,
+                'priority' => true,
+                'skipCheck' => true,
             ]);
 
             if ($resp->successful()) {

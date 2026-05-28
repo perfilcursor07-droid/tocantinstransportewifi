@@ -217,6 +217,184 @@ class WhatsappController extends Controller
         }
     }
 
+    // ==================================================================
+    // 🧩 SESSÃO DE AVALIAÇÃO (número SEPARADO) — espelha os métodos acima,
+    // mas conversa com a sessão "review" do servidor Baileys e grava as
+    // chaves review_* no banco. Um ban aqui NÃO afeta o número de PIX.
+    // ==================================================================
+
+    /**
+     * Obter QR Code para conectar o número de AVALIAÇÃO.
+     */
+    public function getReviewQrCode()
+    {
+        try {
+            $response = Http::timeout(30)->get($this->baileysServerUrl . '/qrcode', ['session' => 'review']);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                if (isset($data['qrcode'])) {
+                    WhatsappSetting::setQrCodeFor('review', $data['qrcode']);
+                    WhatsappSetting::updateConnectionStatusFor('review', 'waiting_scan');
+                }
+
+                return response()->json($data);
+            }
+
+            return response()->json(['error' => 'Erro ao obter QR Code'], 500);
+        } catch (\Exception $e) {
+            Log::error('Erro ao obter QR Code (review): ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Servidor WhatsApp não está rodando. Execute: node whatsapp-server/server.js',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verificar status da conexão do número de AVALIAÇÃO.
+     */
+    public function checkReviewStatus()
+    {
+        try {
+            $response = Http::timeout(10)->get($this->baileysServerUrl . '/status', ['session' => 'review']);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                WhatsappSetting::updateConnectionStatusFor(
+                    'review',
+                    $data['status'] ?? 'disconnected',
+                    $data['phone'] ?? null
+                );
+
+                return response()->json($data);
+            }
+
+            WhatsappSetting::updateConnectionStatusFor('review', 'disconnected');
+            return response()->json(['status' => 'disconnected']);
+        } catch (\Exception $e) {
+            WhatsappSetting::updateConnectionStatusFor('review', 'disconnected');
+            return response()->json([
+                'status' => 'disconnected',
+                'error' => 'Servidor não disponível'
+            ]);
+        }
+    }
+
+    /**
+     * Desconectar o número de AVALIAÇÃO.
+     */
+    public function disconnectReview()
+    {
+        try {
+            Http::timeout(10)->post($this->baileysServerUrl . '/disconnect', ['session' => 'review']);
+
+            WhatsappSetting::updateConnectionStatusFor('review', 'disconnected');
+            WhatsappSetting::setQrCodeFor('review', null);
+
+            return response()->json(['success' => true, 'message' => 'Número de avaliação desconectado com sucesso']);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Erro ao desconectar'], 500);
+        }
+    }
+
+    /**
+     * Página para escanear o QR Code do número de AVALIAÇÃO (sessão separada).
+     * Página autocontida — não depende do layout do admin.
+     */
+    public function reviewConnect()
+    {
+        $qrUrl = route('admin.whatsapp.review.qrcode');
+        $statusUrl = route('admin.whatsapp.review.status');
+        $disconnectUrl = route('admin.whatsapp.review.disconnect');
+        $csrf = csrf_token();
+
+        $html = <<<HTML
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{$csrf}">
+<title>Conectar WhatsApp de Avaliação</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#0f172a;color:#e2e8f0;margin:0;padding:24px;display:flex;justify-content:center}
+  .card{background:#1e293b;border:1px solid #334155;border-radius:16px;max-width:420px;width:100%;padding:24px;text-align:center}
+  h1{font-size:18px;margin:0 0 4px}
+  p.sub{color:#94a3b8;font-size:13px;margin:0 0 20px}
+  .qr{background:#fff;border-radius:12px;padding:16px;display:inline-block;min-height:240px;min-width:240px;display:flex;align-items:center;justify-content:center}
+  .qr img{width:240px;height:240px}
+  .status{margin-top:18px;font-size:14px;font-weight:bold}
+  .ok{color:#22c55e}.warn{color:#f59e0b}.err{color:#ef4444}
+  .badge{display:inline-block;background:#0ea5e9;color:#fff;border-radius:999px;padding:4px 12px;font-size:12px;margin-bottom:16px}
+  button{margin-top:18px;background:#ef4444;color:#fff;border:0;border-radius:8px;padding:10px 18px;font-size:13px;cursor:pointer}
+  .hint{margin-top:16px;font-size:12px;color:#64748b;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="badge">📊 Número de AVALIAÇÃO</div>
+  <h1>Conectar segundo número</h1>
+  <p class="sub">Este número envia SÓ as mensagens de avaliação. Use um chip DIFERENTE do número de PIX.</p>
+  <div class="qr" id="qrBox"><span style="color:#000">Carregando…</span></div>
+  <div class="status warn" id="status">Aguardando QR Code…</div>
+  <button id="btnDisconnect" style="display:none">Desconectar este número</button>
+  <div class="hint">No celular do número de avaliação: WhatsApp → Aparelhos conectados → Conectar um aparelho → escaneie o QR acima.</div>
+</div>
+<script>
+const QR_URL='{$qrUrl}', STATUS_URL='{$statusUrl}', DISCONNECT_URL='{$disconnectUrl}';
+const token=document.querySelector('meta[name=csrf-token]').content;
+const qrBox=document.getElementById('qrBox'), statusEl=document.getElementById('status'), btn=document.getElementById('btnDisconnect');
+let connected=false;
+
+function setStatus(text,cls){statusEl.textContent=text;statusEl.className='status '+cls;}
+
+async function loadQr(){
+  if(connected)return;
+  try{
+    const r=await fetch(QR_URL,{headers:{'Accept':'application/json'}});
+    const d=await r.json();
+    if(d.status==='connected'){onConnected(d.phone);return;}
+    if(d.qrcode){qrBox.innerHTML='<img src="'+d.qrcode+'" alt="QR">';setStatus('Escaneie o QR Code com o WhatsApp do número de avaliação','warn');}
+    else if(d.error){setStatus(d.error,'err');}
+  }catch(e){setStatus('Servidor WhatsApp offline. Inicie: node whatsapp-server/server.js','err');}
+}
+
+async function checkStatus(){
+  try{
+    const r=await fetch(STATUS_URL,{headers:{'Accept':'application/json'}});
+    const d=await r.json();
+    if(d.status==='connected'){onConnected(d.phone);}
+    else if(connected){connected=false;btn.style.display='none';loadQr();}
+  }catch(e){}
+}
+
+function onConnected(phone){
+  connected=true;
+  qrBox.innerHTML='<span style="color:#000;font-size:40px">✅</span>';
+  setStatus('Conectado'+(phone?(' — '+phone):''),'ok');
+  btn.style.display='inline-block';
+}
+
+btn.addEventListener('click',async()=>{
+  if(!confirm('Desconectar o número de avaliação?'))return;
+  await fetch(DISCONNECT_URL,{method:'POST',headers:{'X-CSRF-TOKEN':token,'Accept':'application/json'}});
+  connected=false;btn.style.display='none';qrBox.innerHTML='<span style="color:#000">Carregando…</span>';loadQr();
+});
+
+loadQr();
+setInterval(()=>{connected?checkStatus():loadQr();},4000);
+setInterval(checkStatus,4000);
+</script>
+</body>
+</html>
+HTML;
+
+        return response($html);
+    }
+
     /**
      * Enviar mensagem para um número específico
      */
@@ -404,20 +582,24 @@ class WhatsappController extends Controller
     {
         $type = $request->input('type');
         $data = $request->input('data');
+        // 🧩 Sessão de origem: "main" (PIX/transacional) ou "review" (avaliação).
+        // Sem o campo (servidor antigo) assume "main" para manter compatibilidade.
+        $session = $request->input('session', 'main');
 
-        Log::info('WhatsApp Webhook', ['type' => $type, 'data' => $data]);
+        Log::info('WhatsApp Webhook', ['type' => $type, 'session' => $session, 'data' => $data]);
 
         switch ($type) {
             case 'connection':
-                WhatsappSetting::updateConnectionStatus(
+                WhatsappSetting::updateConnectionStatusFor(
+                    $session,
                     $data['status'] ?? 'disconnected',
                     $data['phone'] ?? null
                 );
                 break;
 
             case 'qr':
-                WhatsappSetting::set('last_qr_code', $data['qrcode'] ?? null);
-                WhatsappSetting::set('connection_status', 'waiting_scan');
+                WhatsappSetting::setQrCodeFor($session, $data['qrcode'] ?? null);
+                WhatsappSetting::updateConnectionStatusFor($session, 'waiting_scan');
                 break;
 
             case 'message_status':
@@ -452,6 +634,7 @@ class WhatsappController extends Controller
                             ->handleIncomingMessage($phone, $messageText, $lid, $pushName, $timestamp);
                         
                         Log::info('📩 WhatsApp mensagem recebida', [
+                            'session' => $session,
                             'phone' => $phone,
                             'lid' => $lid,
                             'pushName' => $pushName,

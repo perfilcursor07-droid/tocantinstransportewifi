@@ -114,11 +114,84 @@ class WhatsappSetting extends Model
     {
         static::set('connection_status', $status);
         static::set('is_connected', $status === 'connected' ? 'true' : 'false');
-        
+
         if ($phone) {
             static::set('connected_phone', $phone);
         } elseif ($status !== 'connected') {
             static::set('connected_phone', null);
         }
+    }
+
+    // ==================================================================
+    // 🧩 MULTI-SESSÃO — número SEPARADO só para disparo de avaliação.
+    // A sessão "main" (PIX/confirmação/suporte) continua usando as chaves
+    // acima sem prefixo. A sessão "review" usa as chaves review_*.
+    // ==================================================================
+
+    /**
+     * Prefixo de chave por sessão. "main" = chaves antigas (compat).
+     */
+    protected static function sessionKey(string $session, string $key): string
+    {
+        return $session === 'review' ? 'review_' . $key : $key;
+    }
+
+    /**
+     * Atualizar status de conexão de uma sessão específica (main|review).
+     */
+    public static function updateConnectionStatusFor(string $session, $status, $phone = null)
+    {
+        if ($session !== 'review') {
+            return static::updateConnectionStatus($status, $phone);
+        }
+
+        static::set('review_connection_status', $status);
+        static::set('review_is_connected', $status === 'connected' ? 'true' : 'false');
+
+        if ($phone) {
+            static::set('review_connected_phone', $phone);
+        } elseif ($status !== 'connected') {
+            static::set('review_connected_phone', null);
+        }
+    }
+
+    /**
+     * Guardar QR Code de uma sessão específica (main|review).
+     */
+    public static function setQrCodeFor(string $session, $qrCode)
+    {
+        static::set(static::sessionKey($session, 'last_qr_code'), $qrCode);
+    }
+
+    /**
+     * Verificar se o número de AVALIAÇÃO está conectado.
+     */
+    public static function isReviewConnected()
+    {
+        return static::get('review_is_connected') === 'true';
+    }
+
+    /**
+     * Status da conexão do número de avaliação.
+     */
+    public static function getReviewConnectionStatus()
+    {
+        return static::get('review_connection_status', 'disconnected');
+    }
+
+    /**
+     * Telefone conectado na sessão de avaliação.
+     */
+    public static function getReviewConnectedPhone()
+    {
+        return static::get('review_connected_phone');
+    }
+
+    /**
+     * QR Code da sessão de avaliação.
+     */
+    public static function getReviewQrCode()
+    {
+        return static::get('review_last_qr_code');
     }
 }

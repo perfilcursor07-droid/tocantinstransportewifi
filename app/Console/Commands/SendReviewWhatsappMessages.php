@@ -16,7 +16,10 @@ class SendReviewWhatsappMessages extends Command
                             {--date= : Data de referencia do lote no formato YYYY-MM-DD}
                             {--force : Forcar envio mesmo se o toggle estiver desabilitado}
                             {--batch=8 : Quantidade de mensagens por lote}
-                            {--pause=30 : Pausa em minutos entre lotes}';
+                            {--pause=30 : Pausa em minutos entre lotes}
+                            {--max=200 : Teto de mensagens WhatsApp neste run (anti-ban)}
+                            {--prefer-email : Para quem TEM email, enviar so por email (poupa o numero do WhatsApp)}
+                            {--day-and-night : Ignorar a janela de horario comercial (08h-20h)}';
 
     protected $description = 'Envia links de avaliacao via WhatsApp e Email para passageiros (envio pausado para evitar ban)';
 
@@ -24,7 +27,8 @@ class SendReviewWhatsappMessages extends Command
     {
         $whatsappEnabled = WhatsappSetting::isReviewAutoSendEnabled();
         $emailEnabled = WhatsappSetting::get('review_email_enabled', 'true') === 'true';
-        $whatsappConnected = WhatsappSetting::isConnected();
+        // 🧩 Avaliação usa o número SEPARADO (sessão "review"), não o número de PIX.
+        $whatsappConnected = WhatsappSetting::isReviewConnected();
 
         if (! $this->option('force') && ! $whatsappEnabled && ! $emailEnabled) {
             $this->info('Envio de avaliacao esta desabilitado (WhatsApp e Email). Use --force para ignorar.');
@@ -34,6 +38,20 @@ class SendReviewWhatsappMessages extends Command
         if ($whatsappEnabled && ! $whatsappConnected) {
             $this->warn('WhatsApp habilitado mas nao esta conectado. Enviando apenas por email.');
         }
+
+        // 🛡️ ANTI-BAN: só dispara WhatsApp em horario comercial (08h-20h).
+        // Disparo de madrugada gera bloqueio/denuncia e queima o numero.
+        $hour = (int) now()->format('H');
+        $withinBusinessHours = $this->option('day-and-night') || ($hour >= 8 && $hour < 20);
+        if ($whatsappEnabled && $whatsappConnected && ! $withinBusinessHours) {
+            $this->warn("Fora do horario comercial ({$hour}h). WhatsApp pausado; enviando apenas por email. Use --day-and-night para forcar.");
+        }
+
+        // 🛡️ ANTI-BAN (opcional): com --prefer-email, quem TEM email recebe so por email
+        // (canal sem risco de ban) e o WhatsApp fica so para quem nao tem email.
+        // Por padrao (sem a flag), envia WhatsApp para todos, como antes.
+        $preferEmail = (bool) $this->option('prefer-email');
+        $maxWhatsapp = max(0, (int) $this->option('max'));
 
         if (! $whatsappEnabled) {
             $this->info('WhatsApp desabilitado nas configuracoes.');
@@ -102,9 +120,20 @@ class SendReviewWhatsappMessages extends Command
                 continue;
             }
 
-            // Enviar por WhatsApp (se habilitado, conectado e ainda não enviou)
+            // 🛡️ ANTI-BAN: decidir se este usuário deve receber WhatsApp.
+            // Regra: só envia WhatsApp se (a) está dentro do horário comercial,
+            // (b) ainda não atingiu o teto do run, e (c) o usuário NÃO tem email
+            //     (quem tem email recebe pelo canal seguro) — salvo --whatsapp-with-email.
+            $hasEmail = $emailEnabled && ! empty($user->email);
+            $allowWhatsapp = $whatsappEnabled
+                && $whatsappConnected
+                && $withinBusinessHours
+                && $sent < $maxWhatsapp
+                && (! $preferEmail || ! $hasEmail);
+
+            // Enviar por WhatsApp (se permitido e ainda não enviou)
             $whatsappOk = false;
-            if ($whatsappEnabled && $whatsappConnected && $review->whatsapp_status !== 'sent') {
+            if ($allowWhatsapp && $review->whatsapp_status !== 'sent') {
                 $result = $reviewWhatsappService->sendPreparedReview($review, $user->name ?: 'Passageiro');
                 if ($result['success']) {
                     $sent++;

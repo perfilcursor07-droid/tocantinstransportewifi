@@ -163,6 +163,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
             Route::get('/qrcode', [WhatsappController::class, 'getQrCode'])->name('qrcode');
             Route::get('/status', [WhatsappController::class, 'checkStatus'])->name('status');
             Route::post('/disconnect', [WhatsappController::class, 'disconnect'])->name('disconnect');
+            // 🧩 Número SEPARADO de avaliação (sessão "review")
+            Route::get('/review/connect', [WhatsappController::class, 'reviewConnect'])->name('review.connect');
+            Route::get('/review/qrcode', [WhatsappController::class, 'getReviewQrCode'])->name('review.qrcode');
+            Route::get('/review/status', [WhatsappController::class, 'checkReviewStatus'])->name('review.status');
+            Route::post('/review/disconnect', [WhatsappController::class, 'disconnectReview'])->name('review.disconnect');
             Route::post('/send', [WhatsappController::class, 'sendMessage'])->name('send');
             Route::post('/send-pending', [WhatsappController::class, 'sendToPendingPayments'])->name('send-pending');
             Route::post('/resend/{id}', [WhatsappController::class, 'resendMessage'])->name('resend');
