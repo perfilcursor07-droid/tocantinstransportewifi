@@ -15,6 +15,18 @@
         <div class="flex flex-wrap gap-2">
             <a href="{{ route('admin.reviews.index') }}" class="px-4 py-2 rounded-xl text-sm font-medium {{ request()->routeIs('admin.reviews.index') ? 'bg-emerald-600 text-white shadow' : 'text-gray-600 hover:bg-gray-100' }}">Lista</a>
             <a href="{{ route('admin.reviews.settings') }}" class="px-4 py-2 rounded-xl text-sm font-medium {{ request()->routeIs('admin.reviews.settings*') ? 'bg-emerald-600 text-white shadow' : 'text-gray-600 hover:bg-gray-100' }}">Configuracoes</a>
+            {{-- 🧩 Numero SEPARADO so para disparo de avaliacao (nao usar o numero do PIX) --}}
+            <a href="{{ route('admin.whatsapp.review.connect') }}" target="_blank" rel="noopener"
+               class="px-4 py-2 rounded-xl text-sm font-medium text-white shadow inline-flex items-center gap-2
+                      {{ \App\Models\WhatsappSetting::isReviewConnected() ? 'bg-emerald-600' : 'bg-amber-500 hover:bg-amber-600' }}">
+                <span>📱</span>
+                <span>WhatsApp Avaliacao</span>
+                @if(\App\Models\WhatsappSetting::isReviewConnected())
+                    <span class="text-[11px] bg-white/20 px-2 py-0.5 rounded-full">Conectado</span>
+                @else
+                    <span class="text-[11px] bg-white/20 px-2 py-0.5 rounded-full">Conectar</span>
+                @endif
+            </a>
         </div>
     </div>
 
