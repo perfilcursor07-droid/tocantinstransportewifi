@@ -47,6 +47,7 @@ return [
         'enabled' => env('NTFY_ENABLED', false),
         'server_url' => env('NTFY_SERVER_URL', 'https://ntfy.sh'),
         'topic' => env('NTFY_TOPIC', ''),
+        'topic_starlink' => env('NTFY_TOPIC_STARLINK', ''),
     ],
 
     /*
