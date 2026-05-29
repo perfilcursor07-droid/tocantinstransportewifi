@@ -15,6 +15,7 @@ class BusHealthLog extends Model
         'seconds_since_sync',
         'public_ip',
         'active_users',
+        'latency_ms',
         'recorded_at',
     ];
 

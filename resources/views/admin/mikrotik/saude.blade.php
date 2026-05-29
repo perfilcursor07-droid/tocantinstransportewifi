@@ -135,6 +135,34 @@
                             <p class="text-sm font-bold {{ $c['text'] }}" data-sync-text>{{ $syncText }}</p>
                         </div>
 
+                        <div class="text-right flex-shrink-0 w-20">
+                            <p class="text-[10px] text-muted font-medium uppercase tracking-wider">Latência</p>
+                            @php
+                                $latency = $item['latency_ms'] ?? null;
+                                if ($latency === null) {
+                                    $latencyLabel = '—';
+                                    $latencyColor = 'text-muted';
+                                    $latencyQuality = '';
+                                } elseif ($latency <= 100) {
+                                    $latencyLabel = $latency . 'ms';
+                                    $latencyColor = 'text-green';
+                                    $latencyQuality = 'Rápida';
+                                } elseif ($latency <= 300) {
+                                    $latencyLabel = $latency . 'ms';
+                                    $latencyColor = 'text-gold';
+                                    $latencyQuality = 'Média';
+                                } else {
+                                    $latencyLabel = $latency . 'ms';
+                                    $latencyColor = 'text-red';
+                                    $latencyQuality = 'Lenta';
+                                }
+                            @endphp
+                            <p class="text-sm font-bold {{ $latencyColor }}" data-latency>{{ $latencyLabel }}</p>
+                            @if($latencyQuality)
+                                <p class="text-[9px] {{ $latencyColor }}">{{ $latencyQuality }}</p>
+                            @endif
+                        </div>
+
                         <div class="text-right flex-shrink-0 w-16">
                             <p class="text-[10px] text-muted font-medium uppercase tracking-wider">Usuários</p>
                             <p class="text-sm font-bold text-ink" data-users>{{ $item['active_users'] }}</p>
@@ -236,6 +264,32 @@
                                                                 </div>
                                                                 <span class="text-[10px] text-muted font-mono w-8 text-right">{{ $day['total_hours'] }}h</span>
                                                             </div>
+                                                            @if(!empty($day['events']))
+                                                                <div class="mt-1.5 space-y-0.5">
+                                                                    @foreach($day['events'] as $event)
+                                                                        @if($event['type'] === 'went_offline')
+                                                                            <div class="flex items-center gap-1 text-[10px]">
+                                                                                <span class="w-1.5 h-1.5 rounded-full bg-red flex-shrink-0"></span>
+                                                                                <span class="text-red font-medium">Caiu às {{ $event['at'] }}</span>
+                                                                            </div>
+                                                                        @elseif($event['type'] === 'came_online')
+                                                                            <div class="flex items-center gap-1 text-[10px]">
+                                                                                <span class="w-1.5 h-1.5 rounded-full bg-green flex-shrink-0"></span>
+                                                                                <span class="text-green font-medium">Voltou às {{ $event['at'] }}</span>
+                                                                                @if($event['offline_duration_min'])
+                                                                                    <span class="text-muted">({{ $event['offline_duration_min'] >= 60 ? floor($event['offline_duration_min'] / 60) . 'h' . ($event['offline_duration_min'] % 60 > 0 ? str_pad($event['offline_duration_min'] % 60, 2, '0', STR_PAD_LEFT) . 'min' : '') : $event['offline_duration_min'] . 'min' }} fora)</span>
+                                                                                @endif
+                                                                            </div>
+                                                                        @elseif($event['type'] === 'still_offline')
+                                                                            <div class="flex items-center gap-1 text-[10px]">
+                                                                                <span class="w-1.5 h-1.5 rounded-full bg-red animate-pulse flex-shrink-0"></span>
+                                                                                <span class="text-red font-medium">Offline desde {{ $event['since'] }}</span>
+                                                                                <span class="text-muted">({{ $event['duration_min'] >= 60 ? floor($event['duration_min'] / 60) . 'h' . ($event['duration_min'] % 60 > 0 ? str_pad($event['duration_min'] % 60, 2, '0', STR_PAD_LEFT) . 'min' : '') : $event['duration_min'] . 'min' }})</span>
+                                                                            </div>
+                                                                        @endif
+                                                                    @endforeach
+                                                                </div>
+                                                            @endif
                                                         @else
                                                             <div class="h-4 bg-surface/50 rounded-full flex items-center justify-center">
                                                                 <span class="text-[9px] text-muted">sem dados</span>
@@ -294,6 +348,13 @@
             Uptime ≥95% = <span class="text-green font-bold">verde</span>,
             70-95% = <span class="text-gold font-bold">amarelo</span>,
             &lt;70% = <span class="text-red font-bold">vermelho</span>.
+        </p>
+        <p class="mt-2 text-[11px]">
+            <strong class="text-ink">Latência:</strong> Medida via TCP ping ao IP público do MikroTik a cada 5min.
+            ≤100ms = <span class="text-green font-bold">Rápida</span>,
+            100-300ms = <span class="text-gold font-bold">Média</span>,
+            &gt;300ms = <span class="text-red font-bold">Lenta</span>.
+            Se o ônibus estiver offline, não mede.
         </p>
     </div>
 </div>
@@ -365,6 +426,25 @@
                 const syncText = row.querySelector('[data-sync-text]');
                 syncText.className = 'text-sm font-bold ' + c.text;
                 syncText.textContent = secondsToText(item.seconds_since_sync);
+
+                // Atualizar latência
+                const latencyEl = row.querySelector('[data-latency]');
+                if (latencyEl) {
+                    const ms = item.latency_ms;
+                    if (ms === null || ms === undefined) {
+                        latencyEl.className = 'text-sm font-bold text-muted';
+                        latencyEl.textContent = '—';
+                    } else if (ms <= 100) {
+                        latencyEl.className = 'text-sm font-bold text-green';
+                        latencyEl.textContent = ms + 'ms';
+                    } else if (ms <= 300) {
+                        latencyEl.className = 'text-sm font-bold text-gold';
+                        latencyEl.textContent = ms + 'ms';
+                    } else {
+                        latencyEl.className = 'text-sm font-bold text-red';
+                        latencyEl.textContent = ms + 'ms';
+                    }
+                }
 
                 row.querySelector('[data-users]').textContent = item.active_users;
             });

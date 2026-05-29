@@ -48,11 +48,18 @@ class MikrotikRemoteController extends Controller
                 ->where('expires_at', '>', now())
                 ->count();
 
+            // Última latência medida (pegar o log mais recente com latência)
+            $lastLatency = BusHealthLog::where('bus_id', $bus->id)
+                ->whereNotNull('latency_ms')
+                ->orderByDesc('recorded_at')
+                ->value('latency_ms');
+
             return [
                 'bus' => $bus,
                 'status' => $status,
                 'seconds_since_sync' => $seconds,
                 'active_users' => $activeUsers,
+                'latency_ms' => $lastLatency,
             ];
         });
 
@@ -80,7 +87,7 @@ class MikrotikRemoteController extends Controller
 
             for ($i = 0; $i < $days; $i++) {
                 $date = now()->subDays($days - 1 - $i)->format('Y-m-d');
-                $dayLogs = $busLogs->filter(fn($log) => $log->recorded_at->format('Y-m-d') === $date);
+                $dayLogs = $busLogs->filter(fn($log) => $log->recorded_at->format('Y-m-d') === $date)->sortBy('recorded_at')->values();
 
                 $totalChecks = $dayLogs->count();
                 $onlineChecks = $dayLogs->whereIn('status', ['online', 'lagging'])->count();
@@ -89,6 +96,50 @@ class MikrotikRemoteController extends Controller
                 $onlineMinutes = $onlineChecks * 5;
                 $totalMinutes = $totalChecks * 5;
                 $uptimePercent = $totalChecks > 0 ? round(($onlineChecks / $totalChecks) * 100, 1) : null;
+
+                // Detectar eventos de queda e retorno (transições)
+                $events = [];
+                $prevStatus = null;
+                $offlineStart = null;
+
+                foreach ($dayLogs as $log) {
+                    $isOnline = in_array($log->status, ['online', 'lagging']);
+                    $wasOnline = $prevStatus === null ? $isOnline : in_array($prevStatus, ['online', 'lagging']);
+
+                    if ($wasOnline && !$isOnline) {
+                        // Transição: ficou offline
+                        $offlineStart = $log->recorded_at;
+                        $events[] = [
+                            'type' => 'went_offline',
+                            'at' => $log->recorded_at->format('H:i'),
+                            'timestamp' => $log->recorded_at->toIso8601String(),
+                        ];
+                    } elseif (!$wasOnline && $isOnline && $prevStatus !== null) {
+                        // Transição: voltou online
+                        $duration = $offlineStart ? $offlineStart->diffInMinutes($log->recorded_at) : null;
+                        $events[] = [
+                            'type' => 'came_online',
+                            'at' => $log->recorded_at->format('H:i'),
+                            'timestamp' => $log->recorded_at->toIso8601String(),
+                            'offline_duration_min' => $duration,
+                        ];
+                        $offlineStart = null;
+                    }
+
+                    $prevStatus = $log->status;
+                }
+
+                // Se terminou o dia offline (ou está offline agora no dia de hoje)
+                if ($prevStatus && !in_array($prevStatus, ['online', 'lagging']) && $offlineStart) {
+                    $isToday = $date === now()->format('Y-m-d');
+                    $endTime = $isToday ? now() : Carbon::parse($date)->endOfDay();
+                    $duration = $offlineStart->diffInMinutes($endTime);
+                    $events[] = [
+                        'type' => 'still_offline',
+                        'since' => $offlineStart->format('H:i'),
+                        'duration_min' => $duration,
+                    ];
+                }
 
                 $dailyData[] = [
                     'date' => $date,
@@ -102,6 +153,7 @@ class MikrotikRemoteController extends Controller
                     'uptime_percent' => $uptimePercent,
                     'online_hours' => round($onlineMinutes / 60, 1),
                     'total_hours' => round($totalMinutes / 60, 1),
+                    'events' => $events,
                 ];
             }
 
@@ -130,6 +182,11 @@ class MikrotikRemoteController extends Controller
                 ->where('expires_at', '>', now())
                 ->count();
 
+            $lastLatency = BusHealthLog::where('bus_id', $bus->id)
+                ->whereNotNull('latency_ms')
+                ->orderByDesc('recorded_at')
+                ->value('latency_ms');
+
             return [
                 'serial' => $bus->mikrotik_serial,
                 'name' => $bus->name,
@@ -141,6 +198,7 @@ class MikrotikRemoteController extends Controller
                 'last_city' => $bus->last_city,
                 'last_state' => $bus->last_state,
                 'active_users' => $activeUsers,
+                'latency_ms' => $lastLatency,
             ];
         });
 

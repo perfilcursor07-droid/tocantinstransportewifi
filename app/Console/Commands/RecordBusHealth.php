@@ -36,12 +36,19 @@ class RecordBusHealth extends Command
                 ->where('expires_at', '>', now())
                 ->count();
 
+            // Medir latência via TCP ping pro IP público do MikroTik (porta 80 ou 8291)
+            $latencyMs = null;
+            if ($bus->last_public_ip && in_array($status, ['online', 'lagging'])) {
+                $latencyMs = $this->measureLatency($bus->last_public_ip);
+            }
+
             BusHealthLog::create([
                 'bus_id' => $bus->id,
                 'status' => $status,
                 'seconds_since_sync' => $seconds,
                 'public_ip' => $bus->last_public_ip,
                 'active_users' => $activeUsers,
+                'latency_ms' => $latencyMs,
                 'recorded_at' => now(),
             ]);
         }
@@ -52,5 +59,41 @@ class RecordBusHealth extends Command
         $this->info("Saúde gravada para {$buses->count()} MikroTiks.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Mede latência via TCP connect ao IP do MikroTik.
+     * Tenta porta 8291 (Winbox), fallback porta 80.
+     * Retorna latência em ms ou null se falhar.
+     */
+    private function measureLatency(string $ip): ?int
+    {
+        // Tentar porta 8291 (Winbox - sempre aberta num MikroTik)
+        $latency = $this->tcpPing($ip, 8291, 3);
+
+        if ($latency === null) {
+            // Fallback: porta 80
+            $latency = $this->tcpPing($ip, 80, 3);
+        }
+
+        return $latency;
+    }
+
+    /**
+     * TCP connect ping: mede o tempo para abrir uma conexão TCP.
+     * Timeout em segundos.
+     */
+    private function tcpPing(string $ip, int $port, int $timeout): ?int
+    {
+        $start = hrtime(true);
+        $socket = @fsockopen($ip, $port, $errno, $errstr, $timeout);
+
+        if ($socket) {
+            $elapsed = (hrtime(true) - $start) / 1_000_000; // nanosegundos → ms
+            fclose($socket);
+            return (int) round($elapsed);
+        }
+
+        return null;
     }
 }
