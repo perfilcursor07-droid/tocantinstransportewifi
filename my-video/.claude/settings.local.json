@@ -12,7 +12,9 @@
       "Bash(npx remotion *)",
       "Bash(NODE_OPTIONS=\"--max-old-space-size=4096\" npx remotion still WifiTocantinsTutorial --frame=0 --scale=0.25 --output=\"preview-frame0.jpeg\")",
       "Bash(docker exec *)",
-      "Bash(docker compose *)"
+      "Bash(docker compose *)",
+      "Bash(grep -i \"BAILEYS_SERVER_URL\" .env)",
+      "Bash(grep -i \"PORT\" .env)"
     ]
   }
 }

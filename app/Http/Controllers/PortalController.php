@@ -73,7 +73,18 @@ class PortalController extends Controller
         ] : $this->getClientInfo($request);
         
         $priceInfo = \App\Helpers\SettingsHelper::getPriceInfo();
-        
+
+        // Detectar se o usuário está REALMENTE no WiFi do ônibus.
+        // Usa os MESMOS sinais que já funcionam no fluxo (não muda a detecção):
+        //  1. Parâmetros na URL vindos do MikroTik (mac, captive, source, etc.)
+        //  2. Sessão já verificada como contexto MikroTik
+        //  3. IP da faixa do hotspot
+        //  4. Usuário existente vinculado (cookie/pagamento)
+        $onHotspot = $existingUser !== null
+            || $request->session()->get('mikrotik_context_verified', false)
+            || $request->hasAny(['mac', 'mikrotik_mac', 'client_mac', 'from_mikrotik', 'from_splash', 'dst', 'source', 'captive', 'from_login', 'from_router'])
+            || $this->ipMatchesHotspotSubnets($clientIp);
+
         return view('portal.index', [
             'client_info' => $clientInfo,
             'company_name' => config('app.company_name', 'WiFi Tocantins Express'),
@@ -91,6 +102,7 @@ class PortalController extends Controller
             'video_discount_enabled' => \App\Helpers\SettingsHelper::isVideoDiscountEnabled(),
             'video_discount_amount' => \App\Helpers\SettingsHelper::getVideoDiscountAmount(),
             'connected_user' => $existingUser,
+            'on_hotspot' => $onHotspot,
         ]);
     }
     

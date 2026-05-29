@@ -93,51 +93,36 @@
     <!-- No-WiFi Warning Overlay -->
     <div id="no-wifi-warning" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden">
         <div class="flex items-center justify-center h-full p-4">
-            <div class="bg-white rounded-2xl p-6 w-full max-w-sm animate-slide-up shadow-2xl text-center">
-                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-white rounded-2xl p-5 w-full max-w-sm animate-slide-up shadow-2xl text-center">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M6 18L18 6"/>
                     </svg>
                 </div>
-                <h3 class="text-lg font-bold text-gray-900 mb-2">Conecte-se ao WiFi primeiro</h3>
-                <p class="text-sm text-gray-600 mb-4">
-                    Você está acessando pelo <strong>navegador</strong> sem estar conectado ao <strong>WiFi do ônibus</strong>. Para pagar e usar a internet, siga os passos abaixo:
-                </p>
-                <div class="bg-gray-50 rounded-xl p-4 mb-5 text-left">
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Como conectar:</p>
-                    <div class="space-y-2.5">
-                        <div class="flex items-start gap-3">
-                            <span class="flex-shrink-0 w-6 h-6 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold">1</span>
-                            <p class="text-sm text-gray-700"><strong>Desative os Dados Móveis</strong> (4G/5G) do celular</p>
-                        </div>
-                        <div class="flex items-start gap-3">
-                            <span class="flex-shrink-0 w-6 h-6 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold">2</span>
-                            <p class="text-sm text-gray-700">Conecte ao WiFi <strong>"TocantinsTransporteWiFi"</strong></p>
-                        </div>
-                        <div class="flex items-start gap-3">
-                            <span class="flex-shrink-0 w-6 h-6 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold">3</span>
-                            <p class="text-sm text-gray-700">Aguarde a <strong>tela de login</strong> aparecer automaticamente</p>
-                        </div>
-                        <div class="flex items-start gap-3">
-                            <span class="flex-shrink-0 w-6 h-6 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold">4</span>
-                            <p class="text-sm text-gray-700">Clique em <strong>"ACESSAR INTERNET AGORA"</strong> e faça o pagamento PIX</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5">
-                    <p class="text-xs text-amber-800">
-                        <strong>Importante:</strong> Se você pagar sem estar no WiFi do ônibus, o acesso <strong>não será liberado</strong> porque não conseguimos identificar seu dispositivo.
+                <h3 class="text-base font-bold text-gray-900 mb-1">Conecte ao WiFi do ônibus</h3>
+                <p class="text-xs text-gray-500 mb-4">Desative os dados móveis e conecte na rede <strong>"TocantinsTransporteWiFi"</strong></p>
+
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-2.5 mb-4">
+                    <p class="text-[11px] text-amber-800">
+                        ⚠️ Sem o WiFi do ônibus, o pagamento <strong>não libera</strong> o acesso.
                     </p>
                 </div>
-                <button id="no-wifi-retry-btn" onclick="retryWifiCheck()" class="connect-button w-full text-white font-bold py-3.5 rounded-xl shadow-md text-sm mb-3">
-                    JÁ CONECTEI NO WIFI, VERIFICAR
+
+                <button id="no-wifi-retry-btn" onclick="retryWifiCheck()" class="connect-button w-full text-white font-bold py-3 rounded-xl shadow-md text-sm mb-2">
+                    JÁ CONECTEI, VERIFICAR
                 </button>
-                <p class="text-[11px] text-gray-400 mt-2">A tela de pagamento só aparece quando você estiver no WiFi do ônibus</p>
+                <p class="text-[10px] text-gray-400">O pagamento só funciona pelo WiFi do ônibus</p>
             </div>
         </div>
     </div>
 
     <script>
+    // 🎯 OPÇÃO B: O backend decide se o usuário está no WiFi do ônibus.
+    // $on_hotspot vem do PortalController usando os mesmos sinais confiáveis
+    // (URL do MikroTik, sessão verificada, IP do hotspot, usuário vinculado).
+    // O JS só faz a verificação extra quando o usuário clica "Já conectei".
+    window._ON_HOTSPOT = {{ ($on_hotspot ?? false) ? 'true' : 'false' }};
+
     function hasMikrotikContext() {
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.has('mac') || urlParams.has('mikrotik_mac') || urlParams.has('client_mac') ||
@@ -166,26 +151,25 @@
                 .then(() => { responded = true; hideNoWifiWarning(); window.location.href = 'http://10.5.50.1'; })
                 .catch(() => {
                     btn.innerHTML = 'WIFI NÃO DETECTADO!'; btn.classList.remove('connect-button'); btn.classList.add('bg-red-500');
-                    setTimeout(() => { btn.innerHTML = 'JÁ CONECTEI NO WIFI, VERIFICAR'; btn.classList.add('connect-button'); btn.classList.remove('bg-red-500'); btn.disabled = false; }, 2500);
+                    setTimeout(() => { btn.innerHTML = 'JÁ CONECTEI, VERIFICAR'; btn.classList.add('connect-button'); btn.classList.remove('bg-red-500'); btn.disabled = false; }, 2500);
                 });
         };
         img.src = 'http://10.5.50.1/favicon.ico?t=' + Date.now();
         setTimeout(function() {
             if (!responded) {
                 btn.innerHTML = 'WIFI NÃO DETECTADO!'; btn.classList.remove('connect-button'); btn.classList.add('bg-red-500');
-                setTimeout(() => { btn.innerHTML = 'JÁ CONECTEI NO WIFI, VERIFICAR'; btn.classList.add('connect-button'); btn.classList.remove('bg-red-500'); btn.disabled = false; }, 2500);
+                setTimeout(() => { btn.innerHTML = 'JÁ CONECTEI, VERIFICAR'; btn.classList.add('connect-button'); btn.classList.remove('bg-red-500'); btn.disabled = false; }, 2500);
             }
         }, 4000);
     }
     document.addEventListener('DOMContentLoaded', function() {
-        if (hasMikrotikContext()) { window._noWifiBlocked = false; return; }
-        const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-        if (conn && conn.type === 'cellular') { showNoWifiWarning(); return; }
-        let gatewayReached = false;
-        fetch('http://10.5.50.1', { mode: 'no-cors', cache: 'no-cache' })
-            .then(() => { gatewayReached = true; window.location.href = 'http://10.5.50.1'; })
-            .catch(() => { if (!gatewayReached) showNoWifiWarning(); });
-        setTimeout(function() { if (!gatewayReached) showNoWifiWarning(); }, 4000);
+        // Se o backend já confirmou que está no WiFi do ônibus, não mostra aviso.
+        if (window._ON_HOTSPOT || hasMikrotikContext()) {
+            window._noWifiBlocked = false;
+            return;
+        }
+        // Backend não detectou hotspot → mostrar aviso direto (sem fetch lento/falso positivo)
+        showNoWifiWarning();
     });
     </script>
 
