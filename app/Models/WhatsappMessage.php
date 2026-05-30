@@ -98,17 +98,23 @@ class WhatsappMessage extends Model
     {
         // Remove tudo que não é número
         $phone = preg_replace('/[^0-9]/', '', $phone);
-        
-        // Se já tem 55 no início, retorna
-        if (strlen($phone) >= 12 && substr($phone, 0, 2) === '55') {
+
+        // Já está no formato internacional completo (55 + DDD + 9 dígitos = 13)
+        // ou 55 + DDD + 8 dígitos = 12
+        if (strlen($phone) === 13 && substr($phone, 0, 2) === '55') {
             return $phone;
         }
-        
-        // Adiciona 55 se não tiver
-        if (strlen($phone) == 11 || strlen($phone) == 10) {
+        if (strlen($phone) === 12 && substr($phone, 0, 2) === '55') {
+            return $phone;
+        }
+
+        // Número local com DDD: 11 dígitos (DDD + 9 + 8) ou 10 (DDD + 8)
+        // Adiciona o código do país 55
+        if (strlen($phone) === 11 || strlen($phone) === 10) {
             return '55' . $phone;
         }
-        
+
+        // Fallback: retorna como está
         return $phone;
     }
 }

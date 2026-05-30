@@ -16,20 +16,21 @@ use Illuminate\Support\Facades\Log;
  * Lembrete automático para clientes que geraram QR Code PIX mas não pagaram.
  *
  * Fluxo:
- * 1. Busca pagamentos pendentes há 15+ minutos sem lembrete enviado
+ * 1. Busca pagamentos pendentes há 5+ minutos sem lembrete enviado
  * 2. Para cada um, libera 3 minutos de bypass no MikroTik (pra ele conseguir
  *    abrir o WhatsApp e o portal)
- * 3. Envia mensagem WhatsApp com link do portal pra ele finalizar o pagamento
+ * 3. Envia 2 mensagens WhatsApp: (a) aviso de pagamento não identificado +
+ *    (b) o código PIX copia-e-cola separado
  * 4. Marca payment.unpaid_reminder_sent_at pra não enviar de novo
  *
- * Esse comando NÃO afeta o fluxo de pagamento normal — só age depois de 15min
+ * Esse comando NÃO afeta o fluxo de pagamento normal — só age depois de 5min
  * que o usuário gerou o QR Code e não pagou.
  */
 class SendUnpaidPaymentReminders extends Command
 {
     protected $signature = 'payments:send-unpaid-reminders';
 
-    protected $description = 'Envia lembretes WhatsApp para clientes que geraram PIX e não pagaram após 15 minutos';
+    protected $description = 'Envia lembretes WhatsApp para clientes que geraram PIX e não pagaram após 5 minutos';
 
     public function handle(): int
     {
@@ -47,13 +48,13 @@ class SendUnpaidPaymentReminders extends Command
 
         // Buscar pagamentos:
         // - Status pendente
-        // - Criado há mais de 15 minutos
+        // - Criado há mais de 5 minutos
         // - Criado há menos de 6 horas (não enviar pra QRs muito antigos)
         // - Sem lembrete enviado ainda
         $payments = Payment::with('user')
             ->where('status', 'pending')
             ->whereNull('unpaid_reminder_sent_at')
-            ->where('created_at', '<=', now()->subMinutes(15))
+            ->where('created_at', '<=', now()->subMinutes(5))
             ->where('created_at', '>=', now()->subHours(6))
             ->orderBy('created_at')
             ->limit(50) // Processar em lote pra não travar
@@ -110,10 +111,15 @@ class SendUnpaidPaymentReminders extends Command
             // 1. Libera 3 minutos de bypass para o cara abrir o WhatsApp/portal
             $this->grantTempBypass($user, $payment);
 
-            // 2. Envia mensagem
-            if ($this->sendReminderMessage($user, $payment)) {
+            // 2. Envia mensagem (2 partes: aviso + código PIX)
+            $ok = $this->sendReminderMessage($user, $payment);
+
+            // 🛡️ SEMPRE marca como enviado, mesmo se falhar — evita reenvio infinito
+            // pro mesmo número (ex: número inválido tentando a cada 5 min).
+            $this->markReminderSent($payment);
+
+            if ($ok) {
                 Cache::put($cacheKey, true, now()->addHours(24));
-                $this->markReminderSent($payment);
                 $sent++;
             } else {
                 $failed++;
@@ -183,43 +189,74 @@ class SendUnpaidPaymentReminders extends Command
     }
 
     /**
-     * Envia a mensagem de lembrete via WhatsApp
+     * Envia o lembrete via WhatsApp em 2 mensagens separadas:
+     *  1) Aviso de pagamento não identificado + instrução
+     *  2) O código PIX (copia e cola) sozinho, fácil de copiar
      */
     protected function sendReminderMessage(User $user, Payment $payment): bool
     {
         try {
             $phone = WhatsappMessage::formatPhone($user->phone);
             $name = $user->name ? trim(explode(' ', $user->name)[0]) : null;
-            $portalUrl = config('app.url', 'https://www.tocantinstransportewifi.com.br');
             $amount = number_format((float) $payment->amount, 2, ',', '.');
+            $pixCode = $payment->pix_emv_string;
+
+            // Sem código PIX não dá pra ajudar — pula
+            if (!$pixCode) {
+                Log::warning('⚠️ Lembrete sem código PIX disponível', ['payment_id' => $payment->id]);
+                return false;
+            }
 
             $greeting = $name ? "Oi {$name}!" : 'Oi!';
 
-            $message = "{$greeting} 👋\n\n"
-                . "Vi aqui que você gerou um PIX de *R\$ {$amount}* há pouco mas o pagamento ainda não caiu. "
-                . "Sem stress, vou te ajudar! 🚌\n\n"
-                . "🟢 *Liberei sua internet por 3 minutos* pra você conseguir terminar o pagamento agora.\n\n"
-                . "👉 Acessa: *{$portalUrl}*\n"
-                . "Clica em ACESSAR INTERNET AGORA e finaliza o PIX. Assim que pagar, libero direto por 12 horas.\n\n"
+            // ----- MENSAGEM 1: aviso -----
+            $message1 = "{$greeting} 👋\n\n"
+                . "Vi aqui que você gerou um PIX de *R\$ {$amount}* mas o pagamento *ainda não foi identificado*.\n\n"
+                . "🟢 *Liberei sua internet por 3 minutos* pra você conseguir finalizar o pagamento agora.\n\n"
+                . "👇 *Copie o código PIX na próxima mensagem* e cole no app do seu banco. Assim que pagar, sua internet é liberada por 12 horas automaticamente.\n\n"
                 . "Qualquer dúvida, é só responder por aqui que eu te ajudo. 💚";
 
-            $whatsappMessage = WhatsappMessage::create([
+            $baileysUrl = env('BAILEYS_SERVER_URL', 'http://localhost:3001');
+
+            $msg1 = WhatsappMessage::create([
                 'user_id' => $user->id,
                 'payment_id' => $payment->id,
                 'phone' => $phone,
-                'message' => $message,
+                'message' => $message1,
                 'status' => 'pending',
             ]);
 
-            $baileysUrl = env('BAILEYS_SERVER_URL', 'http://localhost:3001');
-            $response = Http::timeout(15)->post($baileysUrl . '/send', [
+            $resp1 = Http::timeout(15)->post($baileysUrl . '/send', [
                 'phone' => $phone,
-                'message' => $message,
+                'message' => $message1,
             ]);
 
-            if ($response->successful()) {
-                $whatsappMessage->markAsSent($response->json('messageId'));
-                Log::info('📱 Lembrete de pagamento pendente enviado', [
+            if (!$resp1->successful()) {
+                $msg1->markAsFailed($resp1->body());
+                return false;
+            }
+            $msg1->markAsSent($resp1->json('messageId'));
+
+            // Pequena pausa pra manter a ordem das mensagens
+            sleep(2);
+
+            // ----- MENSAGEM 2: só o código PIX (fácil de copiar) -----
+            $msg2 = WhatsappMessage::create([
+                'user_id' => $user->id,
+                'payment_id' => $payment->id,
+                'phone' => $phone,
+                'message' => $pixCode,
+                'status' => 'pending',
+            ]);
+
+            $resp2 = Http::timeout(15)->post($baileysUrl . '/send', [
+                'phone' => $phone,
+                'message' => $pixCode,
+            ]);
+
+            if ($resp2->successful()) {
+                $msg2->markAsSent($resp2->json('messageId'));
+                Log::info('📱 Lembrete de pagamento pendente enviado (2 msgs)', [
                     'payment_id' => $payment->id,
                     'user_id' => $user->id,
                     'phone' => $phone,
@@ -227,7 +264,8 @@ class SendUnpaidPaymentReminders extends Command
                 return true;
             }
 
-            $whatsappMessage->markAsFailed($response->body());
+            $msg2->markAsFailed($resp2->body());
+            // A msg 1 já foi, mas o código falhou — considera falha parcial
             return false;
         } catch (\Throwable $e) {
             Log::error('❌ Erro ao enviar lembrete WhatsApp', [

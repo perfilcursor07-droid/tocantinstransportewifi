@@ -323,8 +323,10 @@ class PaymentController extends Controller
                 'transaction_id' => $payment->transaction_id,
             ]);
 
-            // 📱 ENVIAR PIX VIA WHATSAPP (não bloqueia a resposta)
-            $this->sendPixViaWhatsapp($user, $payment, $response);
+            // 📱 NÃO enviar PIX por WhatsApp na geração do QR Code.
+            // O envio acontece apenas no lembrete (após 5 min sem pagar),
+            // via comando payments:send-unpaid-reminders, evitando spam de
+            // mensagens toda vez que o usuário gera um QR Code.
 
             // 📧 EMAIL será enviado quando o usuário copiar o código (via JS)
 
