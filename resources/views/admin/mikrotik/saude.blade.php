@@ -105,73 +105,65 @@
 
                 <div class="bg-white rounded-xl border {{ $c['border'] }} shadow-card overflow-hidden" data-serial="{{ $bus->mikrotik_serial }}">
                     {{-- Cabeçalho do ônibus --}}
-                    <div class="px-5 py-4 flex items-center gap-4 cursor-pointer hover:bg-surface/30 transition"
+                    <div class="px-4 py-3 sm:px-5 sm:py-4 cursor-pointer hover:bg-surface/30 transition"
                          onclick="toggleHistory('history-{{ $bus->id }}')">
-                        <div class="w-3.5 h-3.5 rounded-full {{ $c['dot'] }} flex-shrink-0 shadow-sm" data-dot></div>
-
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <p class="font-bold text-ink text-sm truncate">{{ $bus->name }}</p>
-                                @if($bus->plate)
-                                    <span class="text-[10px] text-muted font-mono bg-surface px-1.5 py-0.5 rounded">{{ $bus->plate }}</span>
-                                @endif
-                                <span class="px-2 py-0.5 text-[9px] font-bold rounded border {{ $c['badge'] }}" data-badge>
-                                    {{ $c['label'] }}
-                                </span>
-                            </div>
-                            <div class="flex items-center gap-3 mt-1 text-[11px] text-muted flex-wrap">
-                                <span class="font-mono">{{ $bus->mikrotik_serial }}</span>
-                                @if($bus->last_public_ip)
-                                    <span>· IP {{ $bus->last_public_ip }}</span>
-                                @endif
-                                @if($bus->last_city || $bus->last_state)
-                                    <span>· {{ trim(($bus->last_city ?? '') . ' ' . ($bus->last_state ?? '')) }}</span>
-                                @endif
-                            </div>
+                        
+                        {{-- Linha 1: Nome + Status badge --}}
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <div class="w-3 h-3 rounded-full {{ $c['dot'] }} flex-shrink-0 shadow-sm" data-dot></div>
+                            <p class="font-bold text-ink text-sm truncate">{{ $bus->name }}</p>
+                            @if($bus->plate)
+                                <span class="text-[10px] text-muted font-mono bg-surface px-1.5 py-0.5 rounded hidden sm:inline">{{ $bus->plate }}</span>
+                            @endif
+                            <span class="px-2 py-0.5 text-[9px] font-bold rounded border {{ $c['badge'] }}" data-badge>
+                                {{ $c['label'] }}
+                            </span>
+                            <svg class="w-4 h-4 text-muted transition-transform ml-auto flex-shrink-0" id="chevron-{{ $bus->id }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
                         </div>
 
-                        <div class="text-right flex-shrink-0">
-                            <p class="text-[10px] text-muted font-medium uppercase tracking-wider">Último sync</p>
-                            <p class="text-sm font-bold {{ $c['text'] }}" data-sync-text>{{ $syncText }}</p>
-                        </div>
-
-                        <div class="text-right flex-shrink-0 w-20">
-                            <p class="text-[10px] text-muted font-medium uppercase tracking-wider">Latência</p>
-                            @php
-                                $latency = $item['latency_ms'] ?? null;
-                                if ($latency === null) {
-                                    $latencyLabel = '—';
-                                    $latencyColor = 'text-muted';
-                                    $latencyQuality = '';
-                                } elseif ($latency <= 100) {
-                                    $latencyLabel = $latency . 'ms';
-                                    $latencyColor = 'text-green';
-                                    $latencyQuality = 'Rápida';
-                                } elseif ($latency <= 300) {
-                                    $latencyLabel = $latency . 'ms';
-                                    $latencyColor = 'text-gold';
-                                    $latencyQuality = 'Média';
-                                } else {
-                                    $latencyLabel = $latency . 'ms';
-                                    $latencyColor = 'text-red';
-                                    $latencyQuality = 'Lenta';
-                                }
-                            @endphp
-                            <p class="text-sm font-bold {{ $latencyColor }}" data-latency>{{ $latencyLabel }}</p>
-                            @if($latencyQuality)
-                                <p class="text-[9px] {{ $latencyColor }}">{{ $latencyQuality }}</p>
+                        {{-- Linha 2: Serial + IP + Localização --}}
+                        <div class="flex items-center gap-2 text-[11px] text-muted mb-2 flex-wrap">
+                            <span class="font-mono">{{ $bus->mikrotik_serial }}</span>
+                            @if($bus->last_public_ip)
+                                <span>· IP {{ $bus->last_public_ip }}</span>
+                            @endif
+                            @if($bus->last_city || $bus->last_state)
+                                <span>· {{ trim(($bus->last_city ?? '') . ' ' . ($bus->last_state ?? '')) }}</span>
                             @endif
                         </div>
 
-                        <div class="text-right flex-shrink-0 w-16">
-                            <p class="text-[10px] text-muted font-medium uppercase tracking-wider">Usuários</p>
-                            <p class="text-sm font-bold text-ink" data-users>{{ $item['active_users'] }}</p>
-                        </div>
-
-                        <div class="flex-shrink-0">
-                            <svg class="w-4 h-4 text-muted transition-transform" id="chevron-{{ $bus->id }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                            </svg>
+                        {{-- Linha 3: Métricas em grid responsivo --}}
+                        <div class="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-6">
+                            <div>
+                                <p class="text-[9px] text-muted font-medium uppercase tracking-wider">Último sync</p>
+                                <p class="text-xs sm:text-sm font-bold {{ $c['text'] }}" data-sync-text>{{ $syncText }}</p>
+                            </div>
+                            <div>
+                                <p class="text-[9px] text-muted font-medium uppercase tracking-wider">Latência</p>
+                                @php
+                                    $latency = $item['latency_ms'] ?? null;
+                                    if ($latency === null) {
+                                        $latencyLabel = '—';
+                                        $latencyColor = 'text-muted';
+                                    } elseif ($latency <= 100) {
+                                        $latencyLabel = $latency . 'ms';
+                                        $latencyColor = 'text-green';
+                                    } elseif ($latency <= 300) {
+                                        $latencyLabel = $latency . 'ms';
+                                        $latencyColor = 'text-gold';
+                                    } else {
+                                        $latencyLabel = $latency . 'ms';
+                                        $latencyColor = 'text-red';
+                                    }
+                                @endphp
+                                <p class="text-xs sm:text-sm font-bold {{ $latencyColor }}" data-latency>{{ $latencyLabel }}</p>
+                            </div>
+                            <div>
+                                <p class="text-[9px] text-muted font-medium uppercase tracking-wider">Usuários</p>
+                                <p class="text-xs sm:text-sm font-bold text-ink" data-users>{{ $item['active_users'] }}</p>
+                            </div>
                         </div>
                     </div>
 
@@ -185,14 +177,14 @@
                                 Sem dados históricos ainda. O monitoramento grava snapshots a cada 5 minutos.
                             </div>
                         @else
-                            <div class="px-5 py-3">
+                            <div class="px-4 py-3 sm:px-5">
                                 <p class="text-[10px] font-bold text-muted uppercase tracking-wider mb-3">
                                     Uptime dos últimos {{ $days }} dias
                                 </p>
 
                                 {{-- Tabela de uptime diário --}}
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-xs">
+                                <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                                    <table class="w-full text-xs min-w-[400px]">
                                         <thead>
                                             <tr class="text-[10px] text-muted uppercase tracking-wider">
                                                 <th class="text-left pb-2 font-medium">Dia</th>

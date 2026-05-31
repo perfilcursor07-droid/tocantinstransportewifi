@@ -3,7 +3,7 @@
 @section('title', 'Chamados de Atendimento')
 
 @section('content')
-<div class="max-w-6xl mx-auto px-4 py-6">
+<div class="max-w-8xl mx-auto px-4 py-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
         <div>
             <h1 class="text-2xl font-bold text-gray-800">🔧 Chamados de Atendimento</h1>
@@ -71,6 +71,9 @@
                 </div>
 
                 <div class="flex flex-col gap-1 flex-shrink-0">
+                    <a href="{{ route('admin.tickets.edit', $ticket) }}" class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition text-center">
+                        ✏️ Editar
+                    </a>
                     @if($ticket->status === 'open')
                         <form method="POST" action="{{ route('admin.tickets.close', $ticket) }}" onsubmit="return openCloseModal(event, {{ $ticket->id }})">
                             @csrf

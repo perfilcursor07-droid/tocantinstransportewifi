@@ -138,6 +138,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
         Route::get('/', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'index'])->name('index');
         Route::get('/novo', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'store'])->name('store');
+        Route::get('/{ticket}/editar', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'edit'])->name('edit');
+        Route::put('/{ticket}', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'update'])->name('update');
         Route::post('/{ticket}/fechar', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'close'])->name('close');
         Route::post('/{ticket}/reabrir', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'reopen'])->name('reopen');
         Route::delete('/{ticket}', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'destroy'])->name('destroy');

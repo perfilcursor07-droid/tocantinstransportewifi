@@ -54,6 +54,35 @@ class ServiceTicketController extends Controller
         return redirect()->route('admin.tickets.index')->with('success', 'Chamado criado com sucesso!');
     }
 
+    public function edit(ServiceTicket $ticket)
+    {
+        $busMap = ServiceTicket::busMap();
+        return view('admin.tickets.edit', compact('ticket', 'busMap'));
+    }
+
+    public function update(Request $request, ServiceTicket $ticket)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'required|string|max:5000',
+            'mikrotik_id' => 'nullable|string|max:30',
+            'scheduled_date' => 'nullable|date',
+        ]);
+
+        $busMap = ServiceTicket::busMap();
+        $busNumber = $validated['mikrotik_id'] ? ($busMap[$validated['mikrotik_id']] ?? null) : null;
+
+        $ticket->update([
+            'title' => $validated['title'],
+            'description' => $validated['description'],
+            'mikrotik_id' => $validated['mikrotik_id'] ?: null,
+            'bus_number' => $busNumber,
+            'scheduled_date' => $validated['scheduled_date'] ?: null,
+        ]);
+
+        return redirect()->route('admin.tickets.index')->with('success', 'Chamado atualizado!');
+    }
+
     public function close(Request $request, ServiceTicket $ticket)
     {
         $request->validate([
