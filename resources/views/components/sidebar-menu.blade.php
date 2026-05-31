@@ -192,6 +192,24 @@
                 <span class="sidebar-label truncate">MikroTik</span>
             </a>
 
+            @php
+                $active = request()->routeIs('admin.tickets*');
+                $openTickets = \App\Models\ServiceTicket::openCount();
+            @endphp
+            <a href="{{ route('admin.tickets.index') }}" onclick="closeSidebarOnMobile()" title="Chamados"
+               class="sidebar-link flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-semibold transition-all mt-0.5
+                      {{ $active ? 'bg-amber-500 text-white shadow-card' : 'text-ink2 hover:bg-surface hover:text-ink' }}">
+                <span class="w-7 h-7 flex items-center justify-center rounded-lg flex-shrink-0 {{ $active ? 'bg-white/20' : 'bg-surface' }}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                </span>
+                <span class="sidebar-label truncate">Chamados</span>
+                @if($openTickets > 0)
+                    <span class="ml-auto w-5 h-5 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold animate-pulse sidebar-label">{{ $openTickets }}</span>
+                @endif
+            </a>
+
             @php $active = request()->routeIs('admin.settings*'); @endphp
             <a href="{{ route('admin.settings.index') }}" onclick="closeSidebarOnMobile()" title="Configurações"
                class="sidebar-link flex items-center gap-3 px-2.5 py-2 rounded-xl text-sm font-semibold transition-all mt-0.5

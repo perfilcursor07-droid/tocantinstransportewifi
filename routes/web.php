@@ -132,6 +132,16 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
         Route::get('/configuracoes', [AdminServiceReviewController::class, 'settings'])->name('settings');
         Route::get('/relatorio-pdf', [AdminServiceReviewController::class, 'exportPdf'])->name('pdf');
     });
+
+    // Chamados de Atendimento
+    Route::prefix('chamados')->name('tickets.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'index'])->name('index');
+        Route::get('/novo', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'store'])->name('store');
+        Route::post('/{ticket}/fechar', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'close'])->name('close');
+        Route::post('/{ticket}/reabrir', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'reopen'])->name('reopen');
+        Route::delete('/{ticket}', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'destroy'])->name('destroy');
+    });
     
     // Rotas APENAS para Administradores
     Route::middleware(['admin.only'])->group(function () {
