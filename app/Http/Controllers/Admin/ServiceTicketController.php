@@ -10,6 +10,7 @@ class ServiceTicketController extends Controller
 {
     public function index(Request $request)
     {
+        $tab = $request->get('tab', 'tickets');
         $status = $request->get('status', 'open');
 
         $tickets = ServiceTicket::when($status !== 'all', fn($q) => $q->where('status', $status))
@@ -21,7 +22,9 @@ class ServiceTicketController extends Controller
         $openCount = ServiceTicket::openCount();
         $closedCount = ServiceTicket::closed()->count();
 
-        return view('admin.tickets.index', compact('tickets', 'status', 'openCount', 'closedCount'));
+        $notes = \App\Models\SystemSetting::getValue('admin_notes', '');
+
+        return view('admin.tickets.index', compact('tickets', 'status', 'openCount', 'closedCount', 'tab', 'notes'));
     }
 
     public function create()
@@ -113,5 +116,12 @@ class ServiceTicketController extends Controller
     {
         $ticket->delete();
         return redirect()->route('admin.tickets.index')->with('success', 'Chamado excluído!');
+    }
+
+    public function saveNotes(Request $request)
+    {
+        $request->validate(['notes' => 'nullable|string|max:50000']);
+        \App\Models\SystemSetting::setValue('admin_notes', $request->input('notes', ''));
+        return redirect()->route('admin.tickets.index', ['tab' => 'notes'])->with('success', 'Anotações salvas!');
     }
 }

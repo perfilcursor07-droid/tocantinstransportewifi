@@ -143,6 +143,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
         Route::post('/{ticket}/fechar', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'close'])->name('close');
         Route::post('/{ticket}/reabrir', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'reopen'])->name('reopen');
         Route::delete('/{ticket}', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'destroy'])->name('destroy');
+        Route::post('/anotacoes', [\App\Http\Controllers\Admin\ServiceTicketController::class, 'saveNotes'])->name('save-notes');
     });
     
     // Rotas APENAS para Administradores

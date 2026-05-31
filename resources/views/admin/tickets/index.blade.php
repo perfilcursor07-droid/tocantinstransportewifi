@@ -22,6 +22,40 @@
         </div>
     @endif
 
+    <!-- Abas: Chamados | Anotações -->
+    <div class="flex border-b border-gray-200 mb-6">
+        <a href="{{ route('admin.tickets.index', ['tab' => 'tickets', 'status' => $status]) }}"
+           class="px-5 py-3 text-sm font-semibold border-b-2 transition {{ $tab === 'tickets' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+            🔧 Chamados
+            @if($openCount > 0)
+                <span class="ml-1.5 px-1.5 py-0.5 bg-red-500 text-white text-[10px] rounded-full font-bold">{{ $openCount }}</span>
+            @endif
+        </a>
+        <a href="{{ route('admin.tickets.index', ['tab' => 'notes']) }}"
+           class="px-5 py-3 text-sm font-semibold border-b-2 transition {{ $tab === 'notes' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+            📝 Anotações
+        </a>
+    </div>
+
+    @if($tab === 'notes')
+    <!-- Aba Anotações -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <form method="POST" action="{{ route('admin.tickets.save-notes') }}">
+            @csrf
+            <div class="mb-4">
+                <p class="text-xs text-gray-500 mb-2">Bloco de notas livre — senhas, configurações, lembretes, etc.</p>
+                <textarea name="notes" rows="16"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-mono leading-relaxed"
+                    placeholder="Ex:&#10;Starlink Ônibus 5013 - Senha: MinhaS3nha123&#10;MikroTik admin: KAO4E84OVY&#10;&#10;Notas gerais...">{{ $notes }}</textarea>
+            </div>
+            <button type="submit" class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl text-sm hover:bg-blue-700 transition shadow-md">
+                💾 Salvar Anotações
+            </button>
+        </form>
+    </div>
+    @else
+    <!-- Aba Chamados -->
+
     <!-- Filtros -->
     <div class="flex gap-2 mb-6">
         <a href="{{ route('admin.tickets.index', ['status' => 'open']) }}" class="px-4 py-2 rounded-lg text-sm font-medium transition {{ $status === 'open' ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
@@ -106,6 +140,7 @@
     </div>
 
     {{ $tickets->links() }}
+    @endif
 </div>
 
 <!-- Modal Encerrar Chamado -->
