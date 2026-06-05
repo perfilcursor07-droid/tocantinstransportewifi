@@ -53,7 +53,7 @@ const NARRATIONS = [
   },
   {
     file: '09-pix.mp3',
-    text: 'Agora copie o código PIX. Ao copiar, três minutos de internet grátis são liberados para você abrir o seu banco e efetuar o pagamento. Após confirmar, a internet é liberada automaticamente!',
+    text: 'Agora copie o código PIX. Ao copiar, um acesso temporário é liberado para você abrir o seu banco e efetuar o pagamento. Após confirmar, a internet é liberada automaticamente!',
   },
   {
     file: '10-outro.mp3',

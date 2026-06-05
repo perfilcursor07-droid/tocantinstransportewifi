@@ -208,7 +208,7 @@
                             </div>
                             <div>
                                 <p class="text-sm font-bold text-ink leading-tight">Escolha seu plano</p>
-                                <p class="text-[11px] text-muted">Selecione e conecte-se</p>
+                                <p class="text-[11px] text-muted">1 hora ou Viagem Completa</p>
                             </div>
                         </div>
 
@@ -896,7 +896,7 @@
                 </div>
                 <div class="bg-emerald-50 rounded-xl p-5 mb-5 text-center border border-emerald-100">
                     <p id="selected-plan-price" class="text-3xl font-extrabold text-emerald-700">R$6,99</p>
-                    <p id="selected-plan-name" class="text-sm text-emerald-600 mt-1">Viagem completa / viagem</p>
+                    <p id="selected-plan-name" class="text-sm text-emerald-600 mt-1">Viagem completa / ate o destino final</p>
                 </div>
                 <button data-payment="pix" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md text-sm">
                     PAGAR AGORA

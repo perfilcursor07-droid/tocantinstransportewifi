@@ -71,7 +71,7 @@ Route::prefix('voucher')->group(function () {
     Route::post('/validate', [PortalController::class, 'validateVoucher']); // Novo endpoint para motoristas
 });
 
-// Instagram Free Access
+// Legacy Instagram promotion endpoint (disabled; paid plans are the current offer)
 Route::post('/instagram/free-access', [PortalController::class, 'instagramFreeAccess']);
 
 // WireGuard Sync (Secure Tunnel)

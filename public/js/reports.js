@@ -13,6 +13,7 @@ class ReportsManager {
         this.setupDateValidation();
         this.setupAutoRefresh();
         this.setupFilterPresets();
+        this.setupAutomaticTimeAdjustment();
     }
 
     setupEventListeners() {
@@ -44,29 +45,66 @@ class ReportsManager {
         });
     }
 
+    setupAutomaticTimeAdjustment() {
+        const startDateInput = document.querySelector('input[name="start_date"]');
+        const endDateInput = document.querySelector('input[name="end_date"]');
+        
+        if (startDateInput && endDateInput) {
+            // Forçar horários ao carregar a página
+            if (startDateInput.value && !startDateInput.value.includes('T00:00')) {
+                const datePart = startDateInput.value.split('T')[0];
+                startDateInput.value = `${datePart}T00:00`;
+            }
+            
+            if (endDateInput.value && !endDateInput.value.includes('T23:59')) {
+                const datePart = endDateInput.value.split('T')[0];
+                endDateInput.value = `${datePart}T23:59`;
+            }
+            
+            // Adicionar listener para ajustar automaticamente quando o usuário selecionar
+            startDateInput.addEventListener('change', () => {
+                if (startDateInput.value) {
+                    const datePart = startDateInput.value.split('T')[0];
+                    startDateInput.value = `${datePart}T00:00`;
+                    this.showNotification('Horário inicial ajustado para 00:00', 'info', 2000);
+                }
+            });
+            
+            endDateInput.addEventListener('change', () => {
+                if (endDateInput.value) {
+                    const datePart = endDateInput.value.split('T')[0];
+                    endDateInput.value = `${datePart}T23:59`;
+                    this.showNotification('Horário final ajustado para 23:59', 'info', 2000);
+                }
+            });
+        }
+    }
+
     setupDateValidation() {
         const startDateInput = document.querySelector('input[name="start_date"]');
         const endDateInput = document.querySelector('input[name="end_date"]');
         
         if (startDateInput && endDateInput) {
-            startDateInput.addEventListener('change', () => {
+            startDateInput.addEventListener('blur', () => {
                 const startDate = new Date(startDateInput.value);
                 const endDate = new Date(endDateInput.value);
                 
                 if (startDate > endDate) {
-                    endDateInput.value = startDateInput.value;
+                    const datePart = startDateInput.value.split('T')[0];
+                    endDateInput.value = `${datePart}T23:59`;
                     this.showNotification('Data final ajustada para não ser anterior à data inicial', 'warning');
                 }
                 
                 this.checkDateRange();
             });
 
-            endDateInput.addEventListener('change', () => {
+            endDateInput.addEventListener('blur', () => {
                 const startDate = new Date(startDateInput.value);
                 const endDate = new Date(endDateInput.value);
                 
                 if (endDate < startDate) {
-                    startDateInput.value = endDateInput.value;
+                    const datePart = endDateInput.value.split('T')[0];
+                    startDateInput.value = `${datePart}T00:00`;
                     this.showNotification('Data inicial ajustada para não ser posterior à data final', 'warning');
                 }
                 
@@ -250,7 +288,7 @@ class ReportsManager {
         return timePart ? `${formatted} ${timePart.substring(0, 5)}` : formatted;
     }
 
-    showNotification(message, type = 'info') {
+    showNotification(message, type = 'info', duration = 3000) {
         // Remover notificação existente
         const existingNotification = document.querySelector('.notification');
         if (existingNotification) {
@@ -278,13 +316,13 @@ class ReportsManager {
             notification.classList.remove('translate-x-full');
         }, 100);
         
-        // Remover após 3 segundos
+        // Remover após o tempo especificado
         setTimeout(() => {
             notification.classList.add('translate-x-full');
             setTimeout(() => {
                 notification.remove();
             }, 300);
-        }, 3000);
+        }, duration);
     }
 
     // Método para atualizar gráficos dinamicamente

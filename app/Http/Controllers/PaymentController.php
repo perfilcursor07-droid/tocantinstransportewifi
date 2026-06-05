@@ -716,7 +716,7 @@ class PaymentController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Internet liberada por 3 minutos! Abra o app do banco.',
+                'message' => 'Acesso temporario liberado para abrir o app do banco.',
                 'expires_in' => 180,
                 'bypasses_remaining' => $remaining,
             ]);

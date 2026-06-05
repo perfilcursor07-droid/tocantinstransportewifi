@@ -744,92 +744,19 @@ class PortalController extends Controller
     }
 
     /**
-     * Processa acesso grátis via Instagram
+     * Endpoint legado de cortesia via Instagram.
+     *
+     * A oferta atual do passageiro e paga: Plano por Hora ou Viagem Completa.
+     * Mantemos a rota respondendo de forma explicita para clientes antigos,
+     * mas sem liberar acesso gratuito fora da estrategia comercial atual.
      */
     public function instagramFreeAccess(Request $request)
     {
-        $request->validate([
-            'mac_address' => 'required|string',
-            'source' => 'required|string'
-        ]);
-
-        try {
-            // Verificar rate limiting por IP (máximo 3 tentativas por hora)
-            $ipAttempts = \App\Models\Session::where('started_at', '>', now()->subHour())
-                ->whereHas('user', function($query) use ($request) {
-                    $query->where('ip_address', $request->ip());
-                })
-                ->whereNull('payment_id')
-                ->count();
-
-            if ($ipAttempts >= 3) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Muitas tentativas deste local. Aguarde 1 hora ou faça um pagamento.'
-                ], 429);
-            }
-
-            // Verificar se já usou o acesso grátis recentemente (evitar spam)
-            $user = User::where('mac_address', $request->mac_address)->first();
-
-            if ($user) {
-                $lastFreeAccess = $user->sessions()
-                    ->where('session_status', 'active')
-                    ->where('started_at', '>', now()->subHours(6))
-                    ->whereNull('payment_id') // Sessões gratuitas não têm payment_id
-                    ->first();
-
-                if ($lastFreeAccess) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Você já usou o acesso grátis recentemente. Aguarde 6 horas ou faça um pagamento.'
-                    ], 400);
-                }
-            }
-
-            // Buscar ou criar usuário
-            if (!$user) {
-                $user = User::create([
-                    'mac_address' => $request->mac_address,
-                    'ip_address' => $request->ip(),
-                    'device_name' => 'Instagram Free User',
-                    'status' => 'connected',
-                    'connected_at' => now(),
-                    'expires_at' => now()->addMinutes(5) // 5 minutos grátis
-                ]);
-            } else {
-                $user->update([
-                    'status' => 'connected',
-                    'connected_at' => now(),
-                    'expires_at' => now()->addMinutes(5)
-                ]);
-            }
-
-            // Criar sessão gratuita
-            $session = \App\Models\Session::create([
-                'user_id' => $user->id,
-                'payment_id' => null, // Sem pagamento - grátis
-                'started_at' => now(),
-                'session_status' => 'active'
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Acesso grátis ativado por 5 minutos!',
-                'session_id' => $session->id,
-                'expires_at' => $user->expires_at->format('Y-m-d H:i:s')
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Erro no acesso grátis Instagram: ' . $e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro interno. Tente novamente.'
-            ], 500);
-        }
+        return response()->json([
+            'success' => false,
+            'message' => 'Esta promocao nao esta disponivel. Escolha Plano por Hora ou Viagem Completa no portal.',
+        ], 410);
     }
-
     /**
      * Valida e ativa voucher de motorista
      */

@@ -46,7 +46,7 @@ export const PixFinalScene: React.FC = () => {
   const { fps } = useVideoConfig();
 
   // 270 frames = 9s
-  // Phases: show screen (0-120), cursor taps copy (105-160), 3-min internet (155-270)
+  // Phases: show screen (0-120), cursor taps copy (105-160), temporary bank access (155-270)
 
   const sceneOpacity = interpolate(frame, [0, 18], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 
@@ -176,13 +176,13 @@ export const PixFinalScene: React.FC = () => {
           </div>
         </div>
 
-        {/* 3-min internet banner */}
+        {/* Temporary bank access banner */}
         {isCopied && (
           <div style={{ opacity: copiedOpacity, transform: `scale(${internetBannerScale})`, background: '#FFFBEB', border: '2px solid #F59E0B', borderRadius: 16, padding: '18px 22px', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <span style={{ fontSize: 32 }}>⚡</span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 24, fontWeight: 900, color: '#92400E' }}>3 minutos GRÁTIS liberados!</div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: '#92400E' }}>Acesso temporário para pagar</div>
                 <div style={{ fontSize: 18, color: '#B45309', fontWeight: 500 }}>Abra o app do banco e efetue o pagamento</div>
               </div>
               <div style={{ textAlign: 'center' }}>

@@ -75,7 +75,7 @@ export const PlansScene: React.FC = () => {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end', marginBottom: 2 }}>
-                  <span style={{ fontSize: 20, color: '#AAA', textDecoration: 'line-through', fontWeight: 600 }}>R$20,97</span>
+                  <span style={{ fontSize: 20, color: '#AAA', textDecoration: 'line-through', fontWeight: 600 }}>R$24,47</span>
                   <div style={{ background: '#D32F2F', borderRadius: 6, paddingLeft: 7, paddingRight: 7, paddingTop: 3, paddingBottom: 3 }}>
                     <span style={{ fontSize: 15, fontWeight: 900, color: 'white' }}>-71%</span>
                   </div>

@@ -55,7 +55,7 @@ NARRATIONS = [
 
     ("09-pix.mp3",
      "Agora copie o código PIX. "
-     "Ao copiar, três minutos de internet grátis são liberados "
+     "Ao copiar, um acesso temporário é liberado "
      "para você abrir o seu banco e efetuar o pagamento. "
      "Após confirmar, a internet é liberada automaticamente!"),
 

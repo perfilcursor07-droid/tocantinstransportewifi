@@ -259,7 +259,7 @@
                     </h2>
                 </div>
                 <div class="p-6">
-                    <p class="text-sm text-gray-600 mb-4">Para clientes que geraram QR Code PIX mas não pagaram, o sistema envia automaticamente uma mensagem WhatsApp depois de 15 minutos com o link do portal e libera 3 minutos de internet pra ele finalizar o pagamento.</p>
+                    <p class="text-sm text-gray-600 mb-4">Para clientes que geraram QR Code PIX mas nao pagaram, o sistema envia automaticamente uma mensagem WhatsApp depois de 15 minutos com o link do portal e libera acesso temporario apenas para finalizar o pagamento.</p>
                     
                     <div class="flex items-center justify-between mb-4 p-4 bg-amber-50 rounded-xl border border-amber-200">
                         <div>
@@ -281,10 +281,10 @@
                         <ul class="text-xs text-gray-600 space-y-1.5 list-disc list-inside">
                             <li>Cliente gera o PIX no portal mas não paga</li>
                             <li>Após <strong>15 minutos</strong>, o sistema verifica e identifica esse pagamento pendente</li>
-                            <li>Libera <strong>3 minutos de internet</strong> pra ele conseguir abrir o WhatsApp e o portal</li>
+                            <li>Libera <strong>acesso temporario</strong> pra ele conseguir abrir o WhatsApp, o portal e o app do banco</li>
                             <li>Envia mensagem com link para finalizar o pagamento</li>
                             <li>Mensagem é enviada <strong>1 vez por dia</strong> por telefone (não floda o cliente)</li>
-                            <li>Após pagar, libera 12 horas como sempre</li>
+                            <li>Apos pagar, libera o tempo do plano escolhido</li>
                         </ul>
                     </div>
                 </div>

@@ -927,7 +927,7 @@ class WiFiPortal {
         this.pixCountdownSeconds = 180; // 3 minutos
         this.pixPaymentConfirmed = false;
         this.updatePixTimerDisplay();
-        this.updatePixStatusHint('Finalize o pagamento em até 3 minutos.');
+        this.updatePixStatusHint('Use este tempo para abrir o banco e finalizar o PIX.');
 
         this.pixTimerInterval = setInterval(() => {
             if (this.pixPaymentConfirmed) {
@@ -1082,7 +1082,7 @@ class WiFiPortal {
                                     <div class="bg-amber-50 border border-amber-300 rounded-lg p-2.5">
                                         <p class="text-amber-800 font-bold text-xs flex items-center gap-1.5">
                                             <span id="bypass-icon" class="inline-block"><div class="animate-spin w-3.5 h-3.5 border-2 border-amber-500 border-t-transparent rounded-full"></div></span>
-                                            <span id="bypass-text">Liberando internet por 3 min...</span>
+                                            <span id="bypass-text">Liberando acesso temporario para pagar...</span>
                                         </p>
                                         <p class="text-amber-700 text-[10px] mt-1" id="bypass-subtext">Aguarde, esta tela pode fechar. Abra o banco e cole o código.</p>
                                     </div>
@@ -1483,7 +1483,7 @@ class WiFiPortal {
     }
 
     /**
-     * Ativa bypass de 3 min automaticamente (sem botão extra)
+     * Ativa acesso temporario de 3 min automaticamente (sem botão extra)
      */
     async activateBypassAuto(paymentId) {
         try {
@@ -1511,7 +1511,7 @@ class WiFiPortal {
                 } else {
                     if (icon) icon.innerHTML = '✅';
                     const remaining = result.bypasses_remaining || 0;
-                    if (text) text.textContent = 'Internet liberada por 3 minutos!';
+                    if (text) text.textContent = 'Acesso temporario liberado para pagar!';
                     if (subtext) subtext.textContent = remaining > 0 
                         ? `Abra o banco e cole o código PIX. (${remaining} liberação restante)` 
                         : 'Abra o banco e cole o código PIX. (última liberação)';

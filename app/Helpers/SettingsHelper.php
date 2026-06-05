@@ -88,16 +88,16 @@ class SettingsHelper
     }
 
     /**
-     * Calcular preço original (preço promocional * multiplicador)
-     * Exemplo: Se preço atual é R$ 5,99, o original seria R$ 20,99
+     * Calcular preço original da Viagem Completa (preço promocional * multiplicador)
+     * Exemplo: Se preço atual é R$ 6,99, o original seria R$ 24,47
      */
     public static function getOriginalPrice(): float
     {
-        $currentPrice = self::getWifiPrice();
+        $currentPrice = self::getWifiPriceFull();
         
         // Multiplicador fixo para calcular o "preço de" (aproximadamente 3.5x)
         // Isso garante um desconto de ~70% que é mais realista
-        // Exemplo: R$ 5,99 × 3.5 = R$ 20,96 (~70% de desconto)
+        // Exemplo: R$ 6,99 × 3.5 = R$ 24,47 (~70% de desconto)
         $multiplier = 3.5;
         
         return round($currentPrice * $multiplier, 2);
@@ -108,7 +108,7 @@ class SettingsHelper
      */
     public static function getDiscountPercentage(): int
     {
-        $currentPrice = self::getWifiPrice();
+        $currentPrice = self::getWifiPriceFull();
         $originalPrice = self::getOriginalPrice();
         
         if ($originalPrice <= 0) {
@@ -125,7 +125,7 @@ class SettingsHelper
      */
     public static function getPriceInfo(): array
     {
-        $currentPrice = self::getWifiPrice();
+        $currentPrice = self::getWifiPriceFull();
         $originalPrice = self::getOriginalPrice();
         $discountPercentage = self::getDiscountPercentage();
         

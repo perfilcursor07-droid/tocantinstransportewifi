@@ -462,7 +462,7 @@
                     <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-base shadow">🎁</div>
                     <div class="flex-1">
                         <p class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Voucher de cortesia</p>
-                        <p class="text-xs font-bold text-emerald-800">${hours} horas grátis · ${adminName} · ${time}</p>
+                        <p class="text-xs font-bold text-emerald-800">${hours} horas de cortesia · ${adminName} · ${time}</p>
                     </div>
                 </div>
                 <div class="bg-white rounded-lg p-2.5 text-center shadow-inner border border-emerald-100 mb-2">

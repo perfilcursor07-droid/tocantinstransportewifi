@@ -97,7 +97,7 @@ const AdSlide3: React.FC<{ progress: number }> = ({ progress }) => {
         <div style={{ transform: `scale(${scaleIn})`, background: 'white', borderRadius: 24, padding: '24px 44px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.35)' }}>
           <div style={{ fontSize: 20, color: '#888', fontWeight: 600, marginBottom: 4 }}>Viagem completa</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginBottom: 4 }}>
-            <span style={{ fontSize: 20, color: '#BBB', textDecoration: 'line-through', fontWeight: 500 }}>R$20,97</span>
+            <span style={{ fontSize: 20, color: '#BBB', textDecoration: 'line-through', fontWeight: 500 }}>R$24,47</span>
             <span style={{ background: '#D32F2F', color: 'white', fontWeight: 900, fontSize: 14, borderRadius: 6, padding: '2px 7px' }}>-71%</span>
           </div>
           <div style={{ fontSize: 58, fontWeight: 900, color: BRAND.green, lineHeight: 1, letterSpacing: -2 }}>R$6,99</div>

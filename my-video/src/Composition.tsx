@@ -44,7 +44,7 @@ export const WifiTocantinsTutorial: React.FC = () => {
   return (
     <AbsoluteFill>
       {/* ── Background music (low volume, full duration) ── */}
-      <Sequence from={0} durationInFrames={3240}>
+      <Sequence durationInFrames={3240}>
         <Audio src={staticFile('audio/background.wav')} volume={0.08} />
       </Sequence>
 

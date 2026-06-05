@@ -212,8 +212,8 @@ class SendUnpaidPaymentReminders extends Command
             // ----- MENSAGEM 1: aviso -----
             $message1 = "{$greeting} 👋\n\n"
                 . "Vi aqui que você gerou um PIX de *R\$ {$amount}* mas o pagamento *ainda não foi identificado*.\n\n"
-                . "🟢 *Liberei sua internet por 3 minutos* pra você conseguir finalizar o pagamento agora.\n\n"
-                . "👇 *Copie o código PIX na próxima mensagem* e cole no app do seu banco. Assim que pagar, sua internet é liberada por 12 horas automaticamente.\n\n"
+                . "🟢 *Liberei um acesso temporário* pra você conseguir finalizar o pagamento agora.\n\n"
+                . "👇 *Copie o código PIX na próxima mensagem* e cole no app do seu banco. Assim que pagar, sua internet é liberada pelo tempo do plano escolhido.\n\n"
                 . "Qualquer dúvida, é só responder por aqui que eu te ajudo. 💚";
 
             $baileysUrl = env('BAILEYS_SERVER_URL', 'http://localhost:3001');
