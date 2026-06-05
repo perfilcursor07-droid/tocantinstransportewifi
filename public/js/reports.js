@@ -89,10 +89,8 @@ class ReportsManager {
                 const startDate = new Date(startDateInput.value);
                 const endDate = new Date(endDateInput.value);
                 
-                if (startDate > endDate) {
-                    const datePart = startDateInput.value.split('T')[0];
-                    endDateInput.value = `${datePart}T23:59`;
-                    this.showNotification('Data final ajustada para não ser anterior à data inicial', 'warning');
+                if (endDate && startDate > endDate) {
+                    this.showNotification('Data inicial não pode ser maior que a data final', 'warning');
                 }
                 
                 this.checkDateRange();
@@ -102,10 +100,8 @@ class ReportsManager {
                 const startDate = new Date(startDateInput.value);
                 const endDate = new Date(endDateInput.value);
                 
-                if (endDate < startDate) {
-                    const datePart = endDateInput.value.split('T')[0];
-                    startDateInput.value = `${datePart}T00:00`;
-                    this.showNotification('Data inicial ajustada para não ser posterior à data final', 'warning');
+                if (startDate && endDate < startDate) {
+                    this.showNotification('Data final não pode ser menor que a data inicial', 'warning');
                 }
                 
                 this.checkDateRange();
