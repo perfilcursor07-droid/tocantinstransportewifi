@@ -196,28 +196,6 @@
                 <p class="text-white font-bold text-sm tracking-wide">WiFi Tocantins Express</p>
             </div>
             <p class="text-white/80 text-[11px] font-medium">Fique conectado até o seu destino • pague no PIX e libere na hora</p>
-
-            @php
-                $reviewAverage = $review_average ?? 0;
-                $reviewCount = $review_count ?? 0;
-                $passengersMonth = $passengers_30d ?? 0;
-            @endphp
-            @if($reviewCount >= 3 || $passengersMonth >= 50)
-            <div class="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-                @if($reviewCount >= 3)
-                <span class="inline-flex items-center gap-1 text-white/90 text-[11px] font-semibold">
-                    <svg class="w-3.5 h-3.5 text-yellow-300" fill="currentColor" viewBox="0 0 20 20"><path d="M9.05 2.93c.3-.92 1.6-.92 1.9 0l1.28 3.95a1 1 0 00.95.69h4.15c.97 0 1.37 1.24.59 1.81l-3.36 2.44a1 1 0 00-.36 1.12l1.28 3.95c.3.92-.75 1.69-1.54 1.12l-3.36-2.44a1 1 0 00-1.18 0l-3.36 2.44c-.78.57-1.83-.2-1.54-1.12l1.28-3.95a1 1 0 00-.36-1.12L1.83 9.38c-.78-.57-.38-1.81.59-1.81h4.15a1 1 0 00.95-.69l1.28-3.95z"/></svg>
-                    {{ number_format($reviewAverage, 1, ',', '.') }} — avaliado por {{ number_format($reviewCount, 0, ',', '.') }} passageiros
-                </span>
-                @endif
-                @if($passengersMonth >= 50)
-                <span class="inline-flex items-center gap-1 text-white/90 text-[11px] font-semibold">
-                    <svg class="w-3.5 h-3.5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    +{{ number_format($passengersMonth, 0, ',', '.') }} conectados este mês
-                </span>
-                @endif
-            </div>
-            @endif
         </div>
 
         <!-- Conteudo Principal -->
@@ -233,7 +211,6 @@
                             </div>
                             <div>
                                 <p class="text-sm font-bold text-ink leading-tight">Escolha seu plano</p>
-                                <p class="text-[11px] text-muted">1 hora ou Viagem Completa</p>
                             </div>
                         </div>
 
@@ -272,28 +249,6 @@
                                 </div>
                             </button>
                             @endif
-                        </div>
-
-                        <!-- Reassurance pré-CTA: reduz ansiedade antes do pagamento -->
-                        <div class="mt-4 grid grid-cols-3 gap-2 border-t border-gray-100 pt-4">
-                            <div class="flex flex-col items-center text-center gap-1">
-                                <div class="w-7 h-7 rounded-full bg-green-pale flex items-center justify-center">
-                                    <svg class="w-3.5 h-3.5 text-green-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-                                </div>
-                                <span class="text-[10px] text-muted leading-tight font-medium">Só precisa do<br>seu telefone</span>
-                            </div>
-                            <div class="flex flex-col items-center text-center gap-1">
-                                <div class="w-7 h-7 rounded-full bg-green-pale flex items-center justify-center">
-                                    <svg class="w-3.5 h-3.5 text-green-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                                </div>
-                                <span class="text-[10px] text-muted leading-tight font-medium">Liberação<br>em até 30s</span>
-                            </div>
-                            <div class="flex flex-col items-center text-center gap-1">
-                                <div class="w-7 h-7 rounded-full bg-green-pale flex items-center justify-center">
-                                    <svg class="w-3.5 h-3.5 text-green-dark" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
-                                </div>
-                                <span class="text-[10px] text-muted leading-tight font-medium">Suporte pelo<br>WhatsApp</span>
-                            </div>
                         </div>
                     </div>
 
