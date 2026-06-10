@@ -75,6 +75,11 @@ class HotspotIdentity
 
         $normalized = strtoupper(trim($mac));
 
+        // 02:FA:CE = prefixo exclusivo dos MACs mock gerados internamente
+        if (str_starts_with($normalized, '02:FA:CE')) {
+            return true;
+        }
+
         // Only reject truly invalid/placeholder MACs
         return in_array($normalized, [
             '00:00:00:00:00:00',
@@ -183,17 +188,17 @@ class HotspotIdentity
             return;
         }
 
+        // Mapa MAC => timestamp de expiração. O R: é reenviado em TODOS os syncs
+        // durante 15 min para que TODOS os MikroTiks (8 ônibus) recebam a remoção
+        // — antes, o cache era apagado no primeiro sync e só 1 ônibus removia.
         $orphanedMacs = cache()->get('orphaned_macs_to_remove', []);
         $normalized = strtoupper(trim($oldMac));
-        
-        if (! in_array($normalized, $orphanedMacs)) {
-            $orphanedMacs[] = $normalized;
-            // Manter no cache por 1 hora (tempo suficiente para vários syncs)
-            cache()->put('orphaned_macs_to_remove', $orphanedMacs, now()->addHour());
-            
-            \Illuminate\Support\Facades\Log::info('🗑️ MAC antigo marcado para remoção do Mikrotik', [
-                'orphaned_mac' => $normalized,
-            ]);
-        }
+
+        $orphanedMacs[$normalized] = now()->addMinutes(15)->timestamp;
+        cache()->put('orphaned_macs_to_remove', $orphanedMacs, now()->addMinutes(20));
+
+        \Illuminate\Support\Facades\Log::info('🗑️ MAC antigo marcado para remoção do Mikrotik', [
+            'orphaned_mac' => $normalized,
+        ]);
     }
 }

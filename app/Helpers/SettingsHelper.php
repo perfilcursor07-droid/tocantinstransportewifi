@@ -88,19 +88,33 @@ class SettingsHelper
     }
 
     /**
-     * Calcular preço original da Viagem Completa (preço promocional * multiplicador)
-     * Exemplo: Se preço atual é R$ 6,99, o original seria R$ 24,47
+     * Calcular preço original da Viagem Completa ("preço de").
+     *
+     * Prioridade:
+     *  1. Configuração manual `wifi_price_original` (admin define o valor real "de").
+     *  2. Fallback crível: ~1.8x o preço atual, com final em ,90 (preço psicológico),
+     *     gerando ~45% de desconto — bem mais honesto que o antigo 3.5x (~70%).
      */
     public static function getOriginalPrice(): float
     {
         $currentPrice = self::getWifiPriceFull();
-        
-        // Multiplicador fixo para calcular o "preço de" (aproximadamente 3.5x)
-        // Isso garante um desconto de ~70% que é mais realista
-        // Exemplo: R$ 6,99 × 3.5 = R$ 24,47 (~70% de desconto)
-        $multiplier = 3.5;
-        
-        return round($currentPrice * $multiplier, 2);
+
+        // 1) Override manual via configuração (se for maior que o preço atual)
+        $configured = \App\Models\SystemSetting::getValue('wifi_price_original', null);
+        if ($configured !== null && (float) $configured > $currentPrice) {
+            return round((float) $configured, 2);
+        }
+
+        // 2) Fallback crível: 1.8x arredondado para o ,90 mais próximo
+        $raw = $currentPrice * 1.8;
+        $original = floor($raw) + 0.90;
+
+        // Garante que o "de" seja sempre maior que o preço atual
+        if ($original <= $currentPrice) {
+            $original = $currentPrice + 3.00;
+        }
+
+        return round($original, 2);
     }
 
     /**

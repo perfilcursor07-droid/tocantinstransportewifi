@@ -84,8 +84,10 @@ class MikrotikSyncController extends Controller
                         ->where('reported_at', '>', now()->subHours(6)) // 6 horas de janela
                         ->pluck('mac_address')
                         ->filter(function($mac) {
-                            // Filtrar MACs válidos (não mock)
-                            return !preg_match('/^(02:|00:00:00|ff:ff:ff)/i', $mac);
+                            // Filtrar apenas mocks reais (02:FA:CE é o prefixo exclusivo
+                            // do gerador interno). MACs randomizados "02:" de celulares
+                            // modernos são REAIS e devem ser liberados.
+                            return !preg_match('/^(02:FA:CE|00:00:00|ff:ff:ff)/i', $mac);
                         });
                     
                     $allowMacs = $allowMacs->merge($recentMacs);

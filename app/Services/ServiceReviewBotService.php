@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ServiceReview;
 use App\Models\WhatsappMessage;
+use App\Models\WhatsappOptOut;
 use App\Models\WhatsappSetting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -299,6 +300,15 @@ class ServiceReviewBotService
             return ['success' => false, 'error' => 'Telefone inválido.'];
         }
 
+        // 🛑 Respeita descadastro (opt-out): não envia avaliação para quem pediu "PARAR".
+        if (WhatsappOptOut::isOptedOut($phone)) {
+            $review->update([
+                'whatsapp_status' => 'skipped',
+                'whatsapp_error_message' => 'Telefone descadastrado (opt-out).',
+            ]);
+            return ['success' => false, 'error' => 'Telefone descadastrado (opt-out).', 'skipped' => true];
+        }
+
         $name = trim((string) ($recipientName ?: $review->user?->name ?: 'Passageiro'));
         $name = $name !== '' ? $name : 'Passageiro';
 
@@ -312,11 +322,7 @@ class ServiceReviewBotService
         ]);
 
         try {
-            $response = Http::timeout(30)->post($this->baileysServerUrl . '/send', [
-                'phone' => $phone,
-                'message' => $message,
-                'session' => 'review', // 🧩 disparo de avaliação sai pelo número separado
-            ]);
+            $response = WhatsappClient::send($phone, $message, ['session' => 'review'], 30);
 
             if ($response->successful()) {
                 $data = $response->json();
@@ -374,10 +380,13 @@ class ServiceReviewBotService
     {
         $template = WhatsappSetting::getReviewMessageTemplate();
 
-        return strtr($template, [
+        $message = strtr($template, [
             '{nome}' => $name,
             '{data_viagem}' => now()->format('d/m/Y'),
         ]);
+
+        // Rodapé de descadastro (opt-out) — obrigatório em disparos não-transacionais.
+        return $message . "\n\n_Não quer mais receber? Responda *PARAR*._";
     }
 
     /**
@@ -394,11 +403,7 @@ class ServiceReviewBotService
                 'status' => 'pending',
             ]);
 
-            $response = Http::timeout(15)->post($this->baileysServerUrl . '/send', [
-                'phone' => $formatted,
-                'message' => $message,
-                'session' => 'review', // 🧩 conversa de avaliação sai pelo número separado
-            ]);
+            $response = WhatsappClient::send($formatted, $message, ['session' => 'review'], 15);
 
             return $response->successful();
         } catch (\Throwable $e) {

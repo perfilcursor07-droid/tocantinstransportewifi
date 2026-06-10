@@ -151,18 +151,40 @@ class MikrotikApiController extends Controller
             
             // 🔧 FIX: Incluir MACs antigos que foram substituídos (órfãos)
             // Quando um usuário reconecta com MAC novo, o MAC antigo fica liberado no Mikrotik
-            // sem ninguém mandando remover. Usamos cache para rastrear esses MACs temporariamente.
+            // sem ninguém mandando remover. O cache guarda MAC => timestamp de expiração e o
+            // R: é reenviado em todos os syncs por 15 min — assim TODOS os MikroTiks (8 ônibus)
+            // recebem a remoção, não só o primeiro que sincronizar (a remoção é idempotente).
             $orphanedMacs = cache()->get('orphaned_macs_to_remove', []);
             if (!empty($orphanedMacs)) {
-                foreach ($orphanedMacs as $orphanMac) {
-                    $orphanMac = strtoupper(trim($orphanMac));
+                $stillValid = [];
+                foreach ($orphanedMacs as $orphanMac => $expiresTs) {
+                    // Compatibilidade com formato antigo (lista simples sem timestamp)
+                    if (is_int($orphanMac)) {
+                        $orphanMac = $expiresTs;
+                        $expiresTs = now()->addMinutes(15)->timestamp;
+                    }
+
+                    $orphanMac = strtoupper(trim((string) $orphanMac));
+
+                    if (!$orphanMac || $expiresTs < now()->timestamp) {
+                        continue; // expirou, parar de enviar
+                    }
+
+                    $stillValid[$orphanMac] = $expiresTs;
+
                     // Só remover se não está na lista de ativos (segurança)
-                    if ($orphanMac && !in_array($orphanMac, $activeMacs) && !in_array($orphanMac, $expiredMacs)) {
+                    if (!in_array($orphanMac, $activeMacs) && !in_array($orphanMac, $expiredMacs)) {
                         $output .= "R:$orphanMac\n";
                     }
                 }
-                // Limpar cache após enviar (o Mikrotik vai processar na próxima sync)
-                cache()->forget('orphaned_macs_to_remove');
+
+                if ($stillValid !== $orphanedMacs) {
+                    if (empty($stillValid)) {
+                        cache()->forget('orphaned_macs_to_remove');
+                    } else {
+                        cache()->put('orphaned_macs_to_remove', $stillValid, now()->addMinutes(20));
+                    }
+                }
             }
             
             $output .= "END";

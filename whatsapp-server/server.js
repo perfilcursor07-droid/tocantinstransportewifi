@@ -11,6 +11,10 @@
  *   para manter compatibilidade com o código que já existe.
  */
 
+// Carrega variáveis de um arquivo .env local, se o pacote dotenv estiver instalado.
+// (opcional — em produção as variáveis também podem vir do PM2/systemd)
+try { require('dotenv').config(); } catch (_) {}
+
 const express = require('express');
 const cors = require('cors');
 const QRCode = require('qrcode');
@@ -38,6 +42,31 @@ const logger = pino({ level: 'info' });
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// 🔐 API KEY — protege TODOS os endpoints (exceto /health) contra acesso não autorizado.
+// Sem isso, qualquer um que alcance a porta 3001 consegue disparar mensagens em massa
+// pela sua conta = denúncia/ban garantido. Defina API_KEY no ambiente do Node com o
+// MESMO valor de BAILEYS_API_KEY no Laravel.
+const API_KEY = process.env.API_KEY || process.env.BAILEYS_API_KEY || '';
+if (!API_KEY) {
+    logger.warn('⚠️  API_KEY NÃO configurada — servidor aceitando QUALQUER requisição. Defina API_KEY (Node) e BAILEYS_API_KEY (Laravel) para proteger a porta 3001.');
+}
+app.use((req, res, next) => {
+    // Health check fica público (monitoramento) e preflight CORS passa direto.
+    if (req.path === '/health' || req.method === 'OPTIONS') {
+        return next();
+    }
+    // Compatibilidade: sem key configurada, não bloqueia (apenas avisa no boot).
+    if (!API_KEY) {
+        return next();
+    }
+    const provided = req.get('X-API-Key') || req.query.api_key;
+    if (provided && provided === API_KEY) {
+        return next();
+    }
+    logger.warn(`[AUTH] 🚫 Requisição sem API key válida: ${req.method} ${req.path} de ${req.ip}`);
+    return res.status(401).json({ error: 'Unauthorized: API key inválida ou ausente' });
+});
 
 // ====== Estado por sessão ======
 // Cada sessão tem credenciais (pasta própria) e estado de conexão independentes.

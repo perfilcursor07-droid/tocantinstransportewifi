@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\WhatsappMessage;
+use App\Models\WhatsappOptOut;
 use App\Models\WhatsappSetting;
 use App\Models\Payment;
 use App\Models\User;
+use App\Services\WhatsappClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -146,7 +148,7 @@ class WhatsappController extends Controller
     public function getQrCode()
     {
         try {
-            $response = Http::timeout(30)->get($this->baileysServerUrl . '/qrcode');
+            $response = WhatsappClient::http(30)->get($this->baileysServerUrl . '/qrcode');
             
             if ($response->successful()) {
                 $data = $response->json();
@@ -175,7 +177,7 @@ class WhatsappController extends Controller
     public function checkStatus()
     {
         try {
-            $response = Http::timeout(10)->get($this->baileysServerUrl . '/status');
+            $response = WhatsappClient::http(10)->get($this->baileysServerUrl . '/status');
             
             if ($response->successful()) {
                 $data = $response->json();
@@ -206,7 +208,7 @@ class WhatsappController extends Controller
     public function disconnect()
     {
         try {
-            $response = Http::timeout(10)->post($this->baileysServerUrl . '/disconnect');
+            $response = WhatsappClient::http(10)->post($this->baileysServerUrl . '/disconnect');
             
             WhatsappSetting::updateConnectionStatus('disconnected');
             WhatsappSetting::set('last_qr_code', null);
@@ -229,7 +231,7 @@ class WhatsappController extends Controller
     public function getReviewQrCode()
     {
         try {
-            $response = Http::timeout(30)->get($this->baileysServerUrl . '/qrcode', ['session' => 'review']);
+            $response = WhatsappClient::http(30)->get($this->baileysServerUrl . '/qrcode', ['session' => 'review']);
 
             if ($response->successful()) {
                 $data = $response->json();
@@ -258,7 +260,7 @@ class WhatsappController extends Controller
     public function checkReviewStatus()
     {
         try {
-            $response = Http::timeout(10)->get($this->baileysServerUrl . '/status', ['session' => 'review']);
+            $response = WhatsappClient::http(10)->get($this->baileysServerUrl . '/status', ['session' => 'review']);
 
             if ($response->successful()) {
                 $data = $response->json();
@@ -289,7 +291,7 @@ class WhatsappController extends Controller
     public function disconnectReview()
     {
         try {
-            Http::timeout(10)->post($this->baileysServerUrl . '/disconnect', ['session' => 'review']);
+            WhatsappClient::http(10)->post($this->baileysServerUrl . '/disconnect', ['session' => 'review']);
 
             WhatsappSetting::updateConnectionStatusFor('review', 'disconnected');
             WhatsappSetting::setQrCodeFor('review', null);
@@ -419,10 +421,7 @@ HTML;
         ]);
 
         try {
-            $response = Http::timeout(30)->post($this->baileysServerUrl . '/send', [
-                'phone' => $phone,
-                'message' => $request->message,
-            ]);
+            $response = WhatsappClient::send($phone, $request->message, [], 30);
 
             if ($response->successful()) {
                 $data = $response->json();
@@ -452,6 +451,14 @@ HTML;
             return response()->json(['error' => 'WhatsApp não está conectado'], 400);
         }
 
+        // 🛡️ Anti-ban exige delays longos entre mensagens (15-25s). Como isso pode
+        // ultrapassar o tempo de uma requisição web, soltamos o limite de execução e
+        // continuamos mesmo se o admin fechar a aba. Mesmo assim limitamos o lote por
+        // clique (MAX_PER_RUN) — quem sobrar é pego no próximo envio.
+        @set_time_limit(0);
+        @ignore_user_abort(true);
+        $maxPerRun = 20;
+
         $pendingMinutes = WhatsappSetting::getPendingMinutes();
         $messageTemplate = WhatsappSetting::getMessageTemplate();
 
@@ -479,8 +486,24 @@ HTML;
         $sent = 0;
         $failed = 0;
         $skipped = 0;
+        $batchCount = 0;
+
+        // 🔀 Variações leves do template (anti-ban): se o template tiver marcadores,
+        // criamos 3 versões com pequenas diferenças de saudação/fechamento.
+        $optOutFooter = "\n\n_Não quer mais receber? Responda *PARAR*._";
 
         foreach ($pendingPayments as $payment) {
+            // Teto por execução (anti-ban + evita request infinito)
+            if ($sent >= $maxPerRun) {
+                break;
+            }
+
+            // 🛡️ Respeita descadastro (opt-out)
+            if (WhatsappOptOut::isOptedOut($payment->user->phone)) {
+                $skipped++;
+                continue;
+            }
+
             // Verificar se já enviou mensagem para este USUÁRIO nas últimas 24 horas
             $alreadySent = WhatsappMessage::where('user_id', $payment->user_id)
                 ->whereIn('status', ['sent', 'delivered', 'read'])
@@ -501,6 +524,14 @@ HTML;
                 $messageTemplate
             );
 
+            // Pequena variação de fechamento para não enviar texto 100% idêntico em massa
+            $closers = [
+                "\n\nQualquer dúvida, é só responder aqui! 💚",
+                "\n\nEstamos à disposição. 🚌",
+                "\n\nConte com a gente na sua viagem! ✨",
+            ];
+            $message .= $closers[array_rand($closers)] . $optOutFooter;
+
             // Criar registro
             $whatsappMessage = WhatsappMessage::create([
                 'user_id' => $payment->user_id,
@@ -511,10 +542,7 @@ HTML;
             ]);
 
             try {
-                $response = Http::timeout(30)->post($this->baileysServerUrl . '/send', [
-                    'phone' => $phone,
-                    'message' => $message,
-                ]);
+                $response = WhatsappClient::send($phone, $message, [], 30);
 
                 if ($response->successful()) {
                     $data = $response->json();
@@ -525,8 +553,15 @@ HTML;
                     $failed++;
                 }
 
-                // Pequeno delay entre mensagens para evitar bloqueio
-                usleep(500000); // 0.5 segundos
+                $batchCount++;
+
+                // 🛡️ Anti-ban: delay randomizado de 15-25s entre mensagens (parece humano)
+                // e pausa longa a cada 10 mensagens enviadas.
+                if ($batchCount % 10 === 0) {
+                    sleep(rand(60, 90));
+                } else {
+                    sleep(rand(15, 25));
+                }
             } catch (\Exception $e) {
                 $whatsappMessage->markAsFailed($e->getMessage());
                 $failed++;
@@ -554,10 +589,7 @@ HTML;
         }
 
         try {
-            $response = Http::timeout(30)->post($this->baileysServerUrl . '/send', [
-                'phone' => $message->phone,
-                'message' => $message->message,
-            ]);
+            $response = WhatsappClient::send($message->phone, $message->message, [], 30);
 
             if ($response->successful()) {
                 $data = $response->json();
@@ -627,7 +659,34 @@ HTML;
                 $lid = $data['lid'] ?? null;
                 $pushName = $data['pushName'] ?? null;
                 $timestamp = isset($data['timestamp']) ? (int) $data['timestamp'] : null;
-                
+
+                // 🛑 OPT-OUT: se a pessoa pediu "PARAR" (ou similar), registramos o
+                // descadastro ANTES de qualquer outro processamento e confirmamos.
+                // Isso vale para qualquer número/sessão e é o principal anti-denúncia.
+                if ($messageText !== '' && \App\Models\WhatsappOptOut::isOptOutMessage($messageText)) {
+                    try {
+                        \App\Models\WhatsappOptOut::optOut($phone, 'keyword', mb_substr(trim($messageText), 0, 60));
+
+                        WhatsappClient::send(
+                            \App\Models\WhatsappMessage::formatPhone($phone),
+                            "Pronto! ✅ Você não vai mais receber nossas mensagens automáticas.\n\nSe mudar de ideia, é só pagar uma nova viagem que voltamos a te avisar. 💚",
+                            ['session' => $session, 'priority' => true],
+                            15
+                        );
+
+                        Log::info('🛑 Opt-out registrado via WhatsApp', [
+                            'phone' => $phone,
+                            'session' => $session,
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::error('❌ Erro ao registrar opt-out', [
+                            'phone' => $phone,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                    break; // não repassa pro bot de avaliação
+                }
+
                 if ($messageText !== '') {
                     try {
                         $handled = app(\App\Services\ServiceReviewBotService::class)

@@ -6,10 +6,11 @@ use App\Models\Payment;
 use App\Models\TempBypassLog;
 use App\Models\User;
 use App\Models\WhatsappMessage;
+use App\Models\WhatsappOptOut;
 use App\Models\WhatsappSetting;
+use App\Services\WhatsappClient;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -86,6 +87,13 @@ class SendUnpaidPaymentReminders extends Command
                 continue;
             }
 
+            // 🛡️ Respeita descadastro (opt-out): quem pediu "PARAR" não recebe mais lembretes.
+            if (WhatsappOptOut::isOptedOut($user->phone)) {
+                $this->markReminderSent($payment, 'telefone descadastrado (opt-out)');
+                $skipped++;
+                continue;
+            }
+
             if (!$user->mac_address) {
                 $this->markReminderSent($payment, 'sem MAC');
                 $skipped++;
@@ -125,8 +133,8 @@ class SendUnpaidPaymentReminders extends Command
                 $failed++;
             }
 
-            // Pequena pausa pra não floodar
-            usleep(500000); // 0.5s
+            // Pequena pausa randomizada pra não parecer disparo automático (anti-ban)
+            sleep(rand(6, 12));
         }
 
         $this->info("Lembretes: {$sent} enviados, {$skipped} pulados, {$failed} falharam.");
@@ -209,14 +217,32 @@ class SendUnpaidPaymentReminders extends Command
 
             $greeting = $name ? "Oi {$name}!" : 'Oi!';
 
-            // ----- MENSAGEM 1: aviso -----
-            $message1 = "{$greeting} 👋\n\n"
-                . "Vi aqui que você gerou um PIX de *R\$ {$amount}* mas o pagamento *ainda não foi identificado*.\n\n"
-                . "🟢 *Liberei um acesso temporário* pra você conseguir finalizar o pagamento agora.\n\n"
-                . "👇 *Copie o código PIX na próxima mensagem* e cole no app do seu banco. Assim que pagar, sua internet é liberada pelo tempo do plano escolhido.\n\n"
-                . "Qualquer dúvida, é só responder por aqui que eu te ajudo. 💚";
+            // 🔀 Variações de texto (anti-ban): o WhatsApp detecta mensagens idênticas
+            // enviadas em massa. Sorteamos uma de 3 versões com o mesmo sentido.
+            $variations = [
+                "{$greeting} 👋\n\n"
+                    . "Vi aqui que você gerou um PIX de *R\$ {$amount}* mas o pagamento *ainda não foi identificado*.\n\n"
+                    . "🟢 *Liberei um acesso temporário* pra você conseguir finalizar o pagamento agora.\n\n"
+                    . "👇 *Copie o código PIX na próxima mensagem* e cole no app do seu banco. Assim que pagar, sua internet é liberada pelo tempo do plano escolhido.\n\n"
+                    . "Qualquer dúvida, é só responder por aqui que eu te ajudo. 💚",
 
-            $baileysUrl = env('BAILEYS_SERVER_URL', 'http://localhost:3001');
+                "{$greeting} 😊\n\n"
+                    . "Seu PIX de *R\$ {$amount}* ficou pendente — o pagamento ainda não caiu por aqui.\n\n"
+                    . "🟢 Já *liberei alguns minutos de acesso* pra você concluir sem pressa.\n\n"
+                    . "👇 É só *copiar o código PIX da próxima mensagem* e pagar no seu banco. A internet libera automaticamente após o pagamento.\n\n"
+                    . "Precisando de ajuda, responde aqui. 💚",
+
+                "{$greeting} 🚀\n\n"
+                    . "Notei que seu pagamento de *R\$ {$amount}* via PIX ainda não foi confirmado.\n\n"
+                    . "🟢 *Soltei um acesso rápido* pra você finalizar agora mesmo.\n\n"
+                    . "👇 *Copie o código da próxima mensagem* e cole no app do banco. Pagou, liberou! 🎉\n\n"
+                    . "Estou por aqui se precisar. 💚",
+            ];
+
+            // Rodapé de descadastro (opt-out) — exigência anti-denúncia para envios proativos.
+            $optOutFooter = "\n\n_Não quer mais receber? Responda *PARAR*._";
+
+            $message1 = $variations[array_rand($variations)] . $optOutFooter;
 
             $msg1 = WhatsappMessage::create([
                 'user_id' => $user->id,
@@ -226,10 +252,7 @@ class SendUnpaidPaymentReminders extends Command
                 'status' => 'pending',
             ]);
 
-            $resp1 = Http::timeout(15)->post($baileysUrl . '/send', [
-                'phone' => $phone,
-                'message' => $message1,
-            ]);
+            $resp1 = WhatsappClient::send($phone, $message1, [], 15);
 
             if (!$resp1->successful()) {
                 $msg1->markAsFailed($resp1->body());
@@ -249,10 +272,7 @@ class SendUnpaidPaymentReminders extends Command
                 'status' => 'pending',
             ]);
 
-            $resp2 = Http::timeout(15)->post($baileysUrl . '/send', [
-                'phone' => $phone,
-                'message' => $pixCode,
-            ]);
+            $resp2 = WhatsappClient::send($phone, $pixCode, [], 15);
 
             if ($resp2->successful()) {
                 $msg2->markAsSent($resp2->json('messageId'));

@@ -74,6 +74,15 @@ class PortalController extends Controller
         
         $priceInfo = \App\Helpers\SettingsHelper::getPriceInfo();
 
+        // 🌟 Prova social dinâmica (puxada do banco): média de avaliação + nº de passageiros.
+        $reviewStats = \App\Models\ServiceReview::ratingStats();
+        $passengers30d = \Illuminate\Support\Facades\Cache::remember('portal_passengers_30d', 1800, function () {
+            return (int) \App\Models\Payment::where('status', 'completed')
+                ->where('paid_at', '>=', now()->subDays(30))
+                ->distinct('user_id')
+                ->count('user_id');
+        });
+
         // Detectar se o usuário está REALMENTE no WiFi do ônibus.
         // Usa os MESMOS sinais que já funcionam no fluxo (não muda a detecção):
         //  1. Parâmetros na URL vindos do MikroTik (mac, captive, source, etc.)
@@ -103,6 +112,9 @@ class PortalController extends Controller
             'video_discount_amount' => \App\Helpers\SettingsHelper::getVideoDiscountAmount(),
             'connected_user' => $existingUser,
             'on_hotspot' => $onHotspot,
+            'review_average' => $reviewStats['average'],
+            'review_count' => $reviewStats['count'],
+            'passengers_30d' => $passengers30d,
         ]);
     }
     
@@ -138,7 +150,6 @@ class PortalController extends Controller
             'mikrotik_url' => $mikrotikUrl,
             'return_url' => $returnUrl,
             'ip' => $clientIp,
-            'is_on_hotspot' => $isOnHotspot,
             'user_agent' => $request->userAgent(),
         ]);
         
@@ -491,25 +502,23 @@ class PortalController extends Controller
      */
     private function generateMacFromIp($ip)
     {
-        // Converter IP em MAC fictício para testes
+        // Converter IP em MAC fictício para testes.
+        // ⚠️ Prefixo exclusivo 02:FA:CE — NUNCA usar apenas "02:" como marcador de mock,
+        // pois MACs randomizados REAIS de Android/iOS também podem começar com 02:.
         $parts = explode('.', $ip);
         if (count($parts) === 4) {
             $mac = sprintf(
-                '02:%02x:%02x:%02x:%02x:%02x',
-                $parts[0] % 256,
+                '02:FA:CE:%02x:%02x:%02x',
                 $parts[1] % 256,
                 $parts[2] % 256,
-                $parts[3] % 256,
-                rand(0, 255)
+                $parts[3] % 256
             );
             return strtoupper($mac);
         }
 
         // Fallback para MAC aleatório
         return sprintf(
-            '02:%02X:%02X:%02X:%02X:%02X',
-            rand(0, 255),
-            rand(0, 255),
+            '02:FA:CE:%02X:%02X:%02X',
             rand(0, 255),
             rand(0, 255),
             rand(0, 255)
@@ -618,7 +627,11 @@ class PortalController extends Controller
 
     private function isLikelyMockMac(string $mac): bool
     {
-        return (bool) preg_match('/^(02:|00:00:00|FF:FF:FF)/i', $mac);
+        // ⚠️ NÃO filtrar todo MAC "02:" — dispositivos Android/iOS com MAC
+        // randomizado (padrão de fábrica) podem ter esse prefixo e são REAIS.
+        // Só são mocks: o prefixo exclusivo 02:FA:CE (gerado por generateMacFromIp)
+        // e os placeholders inválidos.
+        return (bool) preg_match('/^(02:FA:CE|00:00:00|FF:FF:FF)/i', $mac);
     }
 
     /**

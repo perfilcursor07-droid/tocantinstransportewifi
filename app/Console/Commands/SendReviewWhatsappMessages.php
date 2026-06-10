@@ -113,6 +113,12 @@ class SendReviewWhatsappMessages extends Command
                 continue;
             }
 
+            // 🛑 Respeita descadastro (opt-out)
+            if (\App\Models\WhatsappOptOut::isOptedOut($user->phone)) {
+                $skipped++;
+                continue;
+            }
+
             $review = $reviewWhatsappService->prepareReviewForUser($user, $batchDate);
 
             if ($review->whatsapp_status === 'sent' && !$user->email) {

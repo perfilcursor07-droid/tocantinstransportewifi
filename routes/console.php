@@ -16,6 +16,15 @@ Artisan::command('debug:qrcode {--test-payment : Criar um pagamento de teste}', 
     return $command->handle();
 })->purpose('Debug da geração de QR Code PIX');
 
+// Scheduler: Reconciliar pagamentos a cada minuto
+// 1. Confirma PIX pago no PagBank cujo webhook se perdeu (consulta a API)
+// 2. Reativa usuários com pagamento 'completed' mas sem acesso liberado
+Schedule::command('payments:reconcile')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/payments-reconcile.log'));
+
 // Scheduler: Lembrar clientes que geraram PIX e não pagaram após 15 minutos
 // (substitui o antigo whatsapp:send-pending — agora libera 3 min de bypass + mensagem melhor)
 Schedule::command('payments:send-unpaid-reminders')
@@ -24,9 +33,10 @@ Schedule::command('payments:send-unpaid-reminders')
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/unpaid-reminders.log'));
 
-// Scheduler: Envio do link de avaliacao diariamente as 07:00
+// Scheduler: Envio do link de avaliacao diariamente as 08:05
+// (precisa ser >= 08:00 porque o comando só dispara WhatsApp na janela 08h-20h)
 Schedule::command('reviews:send-whatsapp')
-    ->dailyAt('07:00')
+    ->dailyAt('08:05')
     ->withoutOverlapping()
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/reviews-whatsapp-send.log'));

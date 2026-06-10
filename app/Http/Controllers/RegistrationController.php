@@ -189,8 +189,14 @@ class RegistrationController extends Controller
             // 🎯 PROCESSAR MAC E IP ADDRESS
             // PRIORIZAR IP/MAC do request body (enviado pelo JavaScript) em vez do IP público
             $ipAddress = $request->input('ip_address');
-            $macAddress = $request->input('mac_address');
-            
+            $macAddress = HotspotIdentity::normalizeMac($request->input('mac_address'));
+
+            // Rejeitar placeholders inválidos (00:00:..., FF:FF:...) — MACs randomizados são aceitos
+            if ($macAddress && HotspotIdentity::isMockMac($macAddress)) {
+                \Log::warning('⚠️ MAC mock/inválido enviado pelo frontend — tentando fallback', ['mac_recebido' => $macAddress]);
+                $macAddress = null;
+            }
+
             \Log::info('📋 DADOS RECEBIDOS DO FRONTEND', [
                 'ip_enviado' => $ipAddress,
                 'mac_enviado' => $macAddress,

@@ -39,6 +39,30 @@ class ServiceReview extends Model
         ];
     }
 
+    /**
+     * Estatísticas públicas de avaliação (média + total), para prova social no portal.
+     * Cacheado por 10 minutos para não pesar na página de vendas.
+     *
+     * @return array{average: float, count: int}
+     */
+    public static function ratingStats(): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember('service_reviews_public_stats', 600, function () {
+            $agg = static::query()
+                ->whereNotNull('rating')
+                ->whereNotNull('submitted_at')
+                ->selectRaw('AVG(rating) as avg_rating, COUNT(*) as cnt')
+                ->first();
+
+            $count = (int) ($agg->cnt ?? 0);
+
+            return [
+                'average' => $count > 0 ? round((float) $agg->avg_rating, 1) : 0.0,
+                'count' => $count,
+            ];
+        });
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);

@@ -21,7 +21,14 @@ class PaymentController extends Controller
 {
     private function whatsappHttpClient()
     {
-        return \Illuminate\Support\Facades\Http::connectTimeout(2)->timeout(10);
+        $client = \Illuminate\Support\Facades\Http::connectTimeout(2)->timeout(10);
+
+        // 🔐 Anexa a API key do servidor Baileys, se configurada.
+        if ($key = \App\Services\WhatsappClient::apiKey()) {
+            $client = $client->withHeaders(['X-API-Key' => $key]);
+        }
+
+        return $client;
     }
 
     /**
@@ -535,7 +542,7 @@ class PaymentController extends Controller
             ]);
 
             $baileysUrl = env('BAILEYS_SERVER_URL', 'http://localhost:3001');
-            $resp = \Illuminate\Support\Facades\Http::timeout(10)->post($baileysUrl . '/send', [
+            $resp = $this->whatsappHttpClient()->post($baileysUrl . '/send', [
                 'phone' => $phone,
                 'message' => $message,
                 'priority' => true,
@@ -1278,7 +1285,7 @@ class PaymentController extends Controller
     /**
      * Ativa o acesso do usuário e libera no MikroTik - MELHORADO COM LIBERAÇÃO IMEDIATA
      */
-    private function activateUserAccess(Payment $payment)
+    public function activateUserAccess(Payment $payment)
     {
         $startTime = microtime(true);
 
@@ -2249,7 +2256,8 @@ class PaymentController extends Controller
             if (!\App\Models\WhatsappSetting::isConnected()) return;
 
             // Não notificar se o MAC antigo era nulo/mock (primeira associação)
-            if (!$oldMac || str_starts_with(strtoupper($oldMac), '02:') || str_starts_with(strtoupper($oldMac), '00:00:00')) {
+            // 02:FA:CE = prefixo exclusivo de mock gerado internamente (MACs 02: reais são válidos)
+            if (!$oldMac || str_starts_with(strtoupper($oldMac), '02:FA:CE') || str_starts_with(strtoupper($oldMac), '00:00:00')) {
                 return;
             }
 
@@ -2271,7 +2279,7 @@ class PaymentController extends Controller
             ]);
 
             $baileysUrl = env('BAILEYS_SERVER_URL', 'http://localhost:3001');
-            $resp = \Illuminate\Support\Facades\Http::timeout(10)->post($baileysUrl . '/send', [
+            $resp = $this->whatsappHttpClient()->post($baileysUrl . '/send', [
                 'phone' => $phone,
                 'message' => $message,
             ]);
