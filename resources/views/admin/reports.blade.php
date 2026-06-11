@@ -256,6 +256,9 @@
                             <th class="text-left text-[10px] font-bold text-muted uppercase tracking-wider py-2.5 px-3">Valor</th>
                             <th class="text-left text-[10px] font-bold text-muted uppercase tracking-wider py-2.5 px-3">Tipo</th>
                             <th class="text-left text-[10px] font-bold text-muted uppercase tracking-wider py-2.5 px-3">Status</th>
+                            @if(auth()->user()?->role === 'admin')
+                            <th class="text-left text-[10px] font-bold text-muted uppercase tracking-wider py-2.5 px-3">Veículo</th>
+                            @endif
                             <th class="text-left text-[10px] font-bold text-muted uppercase tracking-wider py-2.5 px-3">Pago em</th>
                             <th class="text-left text-[10px] font-bold text-muted uppercase tracking-wider py-2.5 px-3">Criado</th>
                             @if(auth()->user()?->role === 'admin')
@@ -264,6 +267,9 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
+                        @php
+                            $busSerialMap = $busList->pluck('name', 'mikrotik_serial');
+                        @endphp
                         @forelse($payments as $payment)
                         <tr class="hover:bg-surface transition-colors">
                             @if(auth()->user()?->role === 'admin')
@@ -293,6 +299,25 @@
                                     {{ $stLabel[$payment->status] ?? ucfirst($payment->status) }}
                                 </span>
                             </td>
+                            @if(auth()->user()?->role === 'admin')
+                            <td class="py-3 px-3">
+                                @php
+                                    $serial = $payment->user->last_mikrotik_id ?? null;
+                                    $busName = $serial ? ($busSerialMap[$serial] ?? null) : null;
+                                @endphp
+                                @if($busName)
+                                    <span class="inline-flex items-center gap-1 text-[10px] font-bold bg-blue/10 text-blue px-1.5 py-0.5 rounded">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8m-8 4h8m-4 4v4m-4-4h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                        {{ $busName }}
+                                    </span>
+                                    <p class="text-[9px] text-muted font-mono mt-0.5">{{ $serial }}</p>
+                                @elseif($serial)
+                                    <span class="text-[10px] text-muted font-mono">{{ $serial }}</span>
+                                @else
+                                    <span class="text-[10px] text-muted">—</span>
+                                @endif
+                            </td>
+                            @endif
                             <td class="py-3 px-3 text-xs text-ink2">{{ $payment->paid_at ? $payment->paid_at->format('d/m/Y H:i') : '—' }}</td>
                             <td class="py-3 px-3 text-xs text-muted">{{ $payment->created_at->format('d/m/Y H:i') }}</td>
                             @if(auth()->user()?->role === 'admin')
@@ -306,7 +331,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="{{ auth()->user()?->role === 'admin' ? 9 : 7 }}" class="py-10 text-center">
+                            <td colspan="{{ auth()->user()?->role === 'admin' ? 10 : 7 }}" class="py-10 text-center">
                                 <div class="w-10 h-10 bg-surface rounded-full flex items-center justify-center mx-auto mb-2">
                                     <svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
                                 </div>
