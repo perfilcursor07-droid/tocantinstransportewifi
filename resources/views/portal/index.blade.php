@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WiFi Tocantins - Conecte-se à Internet</title>
+    <title>WiFi Tocantins — Assista a Copa na viagem</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @php
         $forceLogin = config('wifi.mikrotik.force_login_redirect', false);
@@ -88,6 +88,27 @@
             border-width: 5px !important; border-color: #00A335 !important;
         }
         .hero-gradient { background: linear-gradient(160deg, #006B25 0%, #00A335 40%, #00C040 100%); }
+        .hero-copa {
+            background: linear-gradient(160deg, #004d1a 0%, #007A28 35%, #00A335 70%, #009c3b 100%);
+            position: relative; overflow: hidden;
+        }
+        .hero-copa::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 8px,
+                rgba(255,255,255,0.03) 8px,
+                rgba(255,255,255,0.03) 16px
+            );
+            pointer-events: none;
+        }
+        .hero-copa > * { position: relative; z-index: 1; }
+        .price-pill {
+            background: linear-gradient(135deg, #fef9c3 0%, #fde047 100%);
+            color: #14532d;
+        }
         body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
     </style>
 </head>
@@ -190,61 +211,82 @@
     <div class="min-h-screen flex flex-col">
 
         <!-- Header -->
-        <div class="hero-gradient pt-4 pb-4 px-4 text-center">
-            <div class="flex items-center justify-center gap-2 mb-0.5">
-                <svg class="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0"/></svg>
-                <p class="text-white font-bold text-sm tracking-wide">WiFi Tocantins Express</p>
+        <div class="hero-copa pt-3 pb-2.5 px-4 text-center">
+            <div class="flex items-center justify-center gap-1.5 mb-1">
+                <span class="inline-flex items-center gap-1 bg-yellow-400/95 text-green-900 text-[9px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full">
+                    ⚽ Copa 2026
+                </span>
+                <span class="text-white/50 text-[9px]">·</span>
+                <span class="text-white/80 text-[9px] font-semibold">Starlink 100+ Mbps</span>
             </div>
-            <p class="text-white/80 text-[11px] font-medium">Fique conectado até o seu destino • pague no PIX e libere na hora</p>
+            <p class="text-white font-extrabold text-[15px] leading-tight">Assista todos os jogos na viagem</p>
+            <p class="text-white/70 text-[10px] mt-0.5">Pague no PIX · libera em segundos · sem cadastro</p>
+            @php
+                $reviewAverage = $review_average ?? 0;
+                $reviewCount = $review_count ?? 0;
+                $passengersMonth = $passengers_30d ?? 0;
+            @endphp
+            @if($reviewCount >= 3 || $passengersMonth >= 20)
+            <p class="mt-1.5 text-[9px] text-white/85 font-medium">
+                @if($reviewCount >= 3)
+                    ⭐ {{ number_format($reviewAverage, 1, ',', '.') }} ({{ number_format($reviewCount, 0, ',', '.') }} avaliações)
+                @endif
+                @if($reviewCount >= 3 && $passengersMonth >= 20)
+                    <span class="text-white/40 mx-1">·</span>
+                @endif
+                @if($passengersMonth >= 20)
+                    +{{ number_format($passengersMonth, 0, ',', '.') }} conectados/mês
+                @endif
+            </p>
+            @endif
         </div>
 
         <!-- Conteudo Principal -->
-        <main class="flex-1 px-4 pt-5 pb-6 sm:pt-6 sm:pb-8">
-            <div class="max-w-lg mx-auto space-y-4 sm:space-y-5">
+        <main class="flex-1 px-4 pt-2.5 pb-5 sm:pt-4 sm:pb-8">
+            <div class="max-w-lg mx-auto space-y-2.5 sm:space-y-4">
 
                 <!-- Card de Planos -->
                 <section class="bg-white rounded-2xl border border-border shadow-card overflow-hidden animate-slide-up">
-                    <div class="px-5 py-5 sm:px-6 sm:py-6">
-                        <div class="flex items-center gap-2 mb-4">
-                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-green to-green-dark flex items-center justify-center">
-                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0"/></svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-bold text-ink leading-tight">Escolha seu plano</p>
-                            </div>
+                    <div class="px-4 py-3 sm:px-5 sm:py-4">
+                        <div class="flex items-center justify-between mb-2.5">
+                            <p class="text-xs font-bold text-ink">Escolha seu plano</p>
+                            <span class="text-[9px] font-bold text-green-dark bg-green-pale px-2 py-0.5 rounded-full">PIX instantâneo</span>
                         </div>
 
-                        <div class="space-y-3" id="wifi-plan-options">
+                        <div class="space-y-2" id="wifi-plan-options">
                             @if($plan_short_enabled ?? true)
                             <!-- Plano 1 hora (compacto) -->
                             <button type="button" data-plan-option data-plan-price="{{ $wifi_price_short ?? 5.99 }}" data-plan-duration="{{ $session_duration_short ?? 1 }}" data-plan-name="{{ $session_duration_short ?? 1 }} hora(s) de acesso" data-plan-suffix="/ hora"
-                                class="wifi-plan-card flex w-full items-center gap-3 rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-left transition-all duration-200 hover:border-green/40 focus:outline-none focus:ring-2 focus:ring-green/20">
-                                <span data-plan-radio class="h-5 w-5 rounded-full border-2 border-gray-300 bg-white flex-shrink-0 transition-all duration-200"></span>
+                                class="wifi-plan-card flex w-full items-center gap-2.5 rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-left transition-all duration-200 hover:border-green/40 focus:outline-none focus:ring-2 focus:ring-green/20">
+                                <span data-plan-radio class="h-4 w-4 rounded-full border-2 border-gray-300 bg-white flex-shrink-0 transition-all duration-200"></span>
                                 <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-bold text-ink leading-tight">{{ $session_duration_short ?? 1 }} hora(s) de acesso</p>
-                                    <p class="text-[11px] text-muted mt-0.5">Ideal para uso rápido</p>
+                                    <p class="text-sm font-bold text-ink leading-tight">{{ $session_duration_short ?? 1 }}h de WiFi</p>
+                                    <p class="text-[10px] text-muted">Ideal para 1 jogo</p>
                                 </div>
-                                <p data-plan-price-display class="text-lg font-extrabold text-ink tracking-tight">R${{ number_format($wifi_price_short ?? 5.99, 2, ',', '.') }}</p>
+                                <p data-plan-price-display class="text-base font-extrabold text-ink tracking-tight">R${{ number_format($wifi_price_short ?? 5.99, 2, ',', '.') }}</p>
                             </button>
                             @endif
 
                             @if($plan_full_enabled ?? true)
                             <!-- Plano Viagem Completa (PRÉ-SELECIONADO) -->
                             <button type="button" data-plan-option data-plan-price="{{ $wifi_price_full ?? 6.99 }}" data-plan-duration="{{ $session_duration ?? 12 }}" data-plan-name="Viagem completa" data-plan-suffix="/ viagem" data-plan-default="true"
-                                class="wifi-plan-card plan-card-selected relative flex w-full rounded-2xl border-2 border-green text-left transition-all duration-200 hover:shadow-hover focus:outline-none focus:ring-2 focus:ring-green/20 flex-col">
-                                <span class="absolute -top-2.5 right-4 bg-gradient-to-r from-green to-green-dark text-white text-[9px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full shadow-sm z-10">Mais escolhido</span>
-                                <div class="flex items-center gap-3 px-4 pt-5 pb-4">
-                                    <span data-plan-radio class="h-5 w-5 rounded-full border-[5px] border-green bg-white flex-shrink-0 transition-all duration-200"></span>
+                                class="wifi-plan-card plan-card-selected relative flex w-full rounded-xl border-2 border-green text-left transition-all duration-200 hover:shadow-hover focus:outline-none focus:ring-2 focus:ring-green/20">
+                                <span class="absolute -top-2 right-3 price-pill text-[8px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm z-10">⚽ Melhor p/ Copa</span>
+                                <div class="flex items-center gap-2.5 px-3 py-2.5">
+                                    <span data-plan-radio class="h-4 w-4 rounded-full border-[4px] border-green bg-white flex-shrink-0 transition-all duration-200"></span>
                                     <div class="min-w-0 flex-1">
-                                        <p class="text-[17px] font-extrabold text-ink leading-tight">Viagem completa</p>
-                                        <p class="text-sm text-green-dark font-medium mt-1">WiFi até o destino final</p>
+                                        <p class="text-[15px] font-extrabold text-ink leading-tight">Viagem completa</p>
+                                        <p class="text-[10px] text-green-dark font-medium">Todos os jogos até chegar</p>
+                                        @if(($savings ?? 0) > 0)
+                                        <p class="text-[9px] text-amber-700 font-semibold mt-0.5">Economize R${{ number_format($savings, 2, ',', '.') }}</p>
+                                        @endif
                                     </div>
                                     <div class="text-right flex-shrink-0">
-                                        <div class="flex items-center gap-1.5 justify-end">
-                                            <span class="text-xs text-gray-400 line-through font-medium">R${{ number_format($original_price ?? 9.99, 2, ',', '.') }}</span>
-                                            <span class="text-[10px] font-bold text-white bg-red-500 rounded px-1.5 py-0.5 leading-none">-{{ $discount_percentage ?? 30 }}%</span>
+                                        <div class="flex items-center gap-1 justify-end">
+                                            <span class="text-[10px] text-gray-400 line-through">R${{ number_format($original_price ?? 9.99, 2, ',', '.') }}</span>
+                                            <span class="text-[9px] font-bold text-white bg-red-500 rounded px-1 py-px leading-none">-{{ $discount_percentage ?? 30 }}%</span>
                                         </div>
-                                        <p data-plan-price-display class="text-[26px] font-black text-green-dark tracking-tight leading-none mt-1">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
+                                        <p data-plan-price-display class="text-[22px] font-black text-green-dark tracking-tight leading-none mt-0.5">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
                                     </div>
                                 </div>
                             </button>
@@ -254,107 +296,95 @@
 
                     <div class="border-t border-gray-100"></div>
 
-                    <div class="px-5 py-5 sm:px-6">
-                        <!-- Apps compatíveis -->
-                        <p class="text-center text-[10px] text-muted font-medium mb-2.5 uppercase tracking-wider">Funciona com todos os apps</p>
-                        <div class="flex justify-center items-center gap-3 mb-5">
-                            <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: linear-gradient(135deg, #833AB4, #E1306C, #F77737);" title="Instagram">
-                                <svg class="w-[18px] h-[18px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 01-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 017.8 2m-.2 2A3.6 3.6 0 004 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 003.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 110 2.5 1.25 1.25 0 010-2.5M12 7a5 5 0 110 10 5 5 0 010-10m0 2a3 3 0 100 6 3 3 0 000-6z"/></svg>
-                            </div>
-                            <div class="w-9 h-9 rounded-lg bg-[#25D366] flex items-center justify-center" title="WhatsApp">
-                                <svg class="w-[18px] h-[18px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                            </div>
-                            <div class="w-9 h-9 rounded-lg bg-[#FF0000] flex items-center justify-center" title="YouTube">
-                                <svg class="w-[18px] h-[18px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-                            </div>
-                            <div class="w-9 h-9 rounded-lg bg-[#1877F2] flex items-center justify-center" title="Facebook">
-                                <svg class="w-[18px] h-[18px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                            </div>
-                            <div class="w-9 h-9 rounded-lg bg-black flex items-center justify-center" title="TikTok">
-                                <svg class="w-[18px] h-[18px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.46V13a8.28 8.28 0 005.58 2.17V11.7a4.83 4.83 0 01-3.77-1.24V6.69h3.77z"/></svg>
-                            </div>
-                            <div class="w-9 h-9 rounded-lg bg-black flex items-center justify-center" title="Netflix">
-                                <svg class="w-[16px] h-[16px]" fill="#E50914" viewBox="0 0 24 24"><path d="M5.398 0v.006c3.028 8.556 5.37 15.175 8.348 23.596 2.344.058 4.85.398 4.854.398-2.8-7.924-5.923-16.747-8.487-24zm8.489 0v9.63L18.6 22.951c-.043-7.86-.004-15.913.002-22.95zM5.398 1.05V24c1.873-.225 2.81-.312 4.715-.398v-9.22z"/></svg>
-                            </div>
-                        </div>
-
-                        <!-- Botão CTA Principal - PULSANDO -->
+                    <div class="px-4 py-3 sm:px-5 sm:py-4">
+                        <!-- CTA primeiro: usuário vê plano + botão sem rolar -->
                         <div id="plan-cta-wrapper">
                             <button id="connect-btn"
-                                class="connect-button btn-pulse w-full text-white font-extrabold py-4 rounded-xl text-base flex items-center justify-center gap-2.5 shadow-lg lg:hidden">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
-                                ACESSAR INTERNET AGORA
+                                class="connect-button btn-pulse w-full text-white font-extrabold py-3.5 rounded-xl text-[15px] flex flex-col items-center justify-center gap-0.5 shadow-lg lg:hidden">
+                                <span>⚽ LIBERAR INTERNET AGORA</span>
+                                <span class="text-[10px] font-semibold text-white/80">Só precisa do telefone · 3 toques</span>
                             </button>
                             <button id="connect-btn-desktop"
-                                class="connect-button btn-pulse w-full text-white font-extrabold py-4 rounded-xl text-base items-center justify-center gap-2.5 shadow-lg hidden lg:flex">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
-                                ACESSAR INTERNET AGORA
+                                class="connect-button btn-pulse w-full text-white font-extrabold py-3.5 rounded-xl text-[15px] flex flex-col items-center justify-center gap-0.5 shadow-lg hidden lg:flex">
+                                <span>⚽ LIBERAR INTERNET AGORA</span>
+                                <span class="text-[10px] font-semibold text-white/80">Só precisa do telefone · 3 toques</span>
                             </button>
                         </div>
 
-                        <!-- Indicadores de confiança -->
-                        <div class="mt-4 flex items-center justify-center gap-5 text-xs text-muted">
-                            <span class="flex items-center gap-1.5">
-                                <svg class="w-3.5 h-3.5 text-green" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
-                                Pagamento seguro
-                            </span>
-                            <span class="flex items-center gap-1.5">
-                                <svg class="w-3.5 h-3.5 text-green" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/></svg>
-                                PIX instantâneo
-                            </span>
-                            <span class="flex items-center gap-1.5">
-                                <svg class="w-3.5 h-3.5 text-green" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                                Liberação automática
-                            </span>
+                        <p class="mt-1.5 text-center text-[9px] text-muted leading-tight">
+                            🔒 Pagamento seguro · ⚡ libera em ~30s · 📱 suporte WhatsApp
+                        </p>
+
+                        <!-- Apps compatíveis (prova visual abaixo do CTA) -->
+                        <p class="text-center text-[9px] text-muted font-medium mt-2.5 mb-1.5 uppercase tracking-wider">Assista onde quiser</p>
+                        <div class="flex justify-center items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: linear-gradient(135deg, #833AB4, #E1306C, #F77737);" title="Instagram">
+                                <svg class="w-[16px] h-[16px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 01-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 017.8 2m-.2 2A3.6 3.6 0 004 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 003.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 110 2.5 1.25 1.25 0 010-2.5M12 7a5 5 0 110 10 5 5 0 010-10m0 2a3 3 0 100 6 3 3 0 000-6z"/></svg>
+                            </div>
+                            <div class="w-8 h-8 rounded-lg bg-[#25D366] flex items-center justify-center" title="WhatsApp">
+                                <svg class="w-[16px] h-[16px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                            </div>
+                            <div class="w-8 h-8 rounded-lg bg-[#FF0000] flex items-center justify-center" title="YouTube">
+                                <svg class="w-[16px] h-[16px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                            </div>
+                            <div class="w-8 h-8 rounded-lg bg-[#1877F2] flex items-center justify-center" title="Facebook">
+                                <svg class="w-[16px] h-[16px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                            </div>
+                            <div class="w-8 h-8 rounded-lg bg-black flex items-center justify-center" title="TikTok">
+                                <svg class="w-[16px] h-[16px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.46V13a8.28 8.28 0 005.58 2.17V11.7a4.83 4.83 0 01-3.77-1.24V6.69h3.77z"/></svg>
+                            </div>
+                            <div class="w-8 h-8 rounded-lg bg-black flex items-center justify-center" title="Netflix">
+                                <svg class="w-[14px] h-[14px]" fill="#E50914" viewBox="0 0 24 24"><path d="M5.398 0v.006c3.028 8.556 5.37 15.175 8.348 23.596 2.344.058 4.85.398 4.854.398-2.8-7.924-5.923-16.747-8.487-24zm8.489 0v9.63L18.6 22.951c-.043-7.86-.004-15.913.002-22.95zM5.398 1.05V24c1.873-.225 2.81-.312 4.715-.398v-9.22z"/></svg>
+                            </div>
                         </div>
                     </div>
                 </section>
 
                 <!-- Tutorial em vídeo -->
                 <section class="bg-white rounded-xl border border-border shadow-card animate-slide-up-delay">
-                    <button onclick="openVideoTutorial()" class="flex items-center justify-between p-4 w-full group">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-red-pale rounded-xl flex items-center justify-center border border-red/20">
-                                <svg class="w-5 h-5 text-red" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                    <button onclick="openVideoTutorial()" class="flex items-center justify-between p-3 w-full group">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 bg-red-pale rounded-xl flex items-center justify-center border border-red/20">
+                                <svg class="w-4 h-4 text-red" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
                             </div>
                             <div>
                                 <p class="text-sm font-bold text-ink">Como se conectar?</p>
-                                <p class="text-[11px] text-muted">Assista o passo a passo</p>
+                                <p class="text-[10px] text-muted">Vídeo passo a passo</p>
                             </div>
                         </div>
-                        <svg class="w-5 h-5 text-gray-300 group-hover:text-red group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <svg class="w-4 h-4 text-gray-300 group-hover:text-red group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
                 </section>
 
                 <!-- Já paguei mas sem internet? (recuperação rápida) -->
                 <section class="bg-white rounded-xl border border-amber-200 shadow-card animate-slide-up-delay">
-                    <button type="button" onclick="openRecoveryModal()" class="flex items-center justify-between p-4 w-full group">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center border border-amber-200">
-                                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <button type="button" onclick="openRecoveryModal()" class="flex items-center justify-between p-3 w-full group">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center border border-amber-200">
+                                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             </div>
                             <div class="text-left">
                                 <p class="text-sm font-bold text-ink">Já paguei mas sem internet?</p>
-                                <p class="text-[11px] text-muted">Recuperar com seu telefone</p>
+                                <p class="text-[10px] text-muted">Recuperar com seu telefone</p>
                             </div>
                         </div>
-                        <svg class="w-5 h-5 text-gray-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <svg class="w-4 h-4 text-gray-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </button>
                 </section>
 
                 <!-- Voucher do motorista -->
                 <section class="bg-white rounded-xl border border-border shadow-card animate-slide-up-delay">
-                    <a href="{{ route('voucher.activate') }}{{ request()->has('mac') ? '?source=mikrotik&mac=' . request('mac') . '&ip=' . request('ip') : '' }}" class="flex items-center justify-between p-4 group">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-gold-pale rounded-xl flex items-center justify-center border border-gold/20">
-                                <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+                    <a href="{{ route('voucher.activate') }}{{ request()->has('mac') ? '?source=mikrotik&mac=' . request('mac') . '&ip=' . request('ip') : '' }}" class="flex items-center justify-between p-3 group">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 bg-gold-pale rounded-xl flex items-center justify-center border border-gold/20">
+                                <svg class="w-4 h-4 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
                             </div>
                             <div>
                                 <p class="text-sm font-bold text-ink">Motorista? Ative seu voucher</p>
-                                <p class="text-[11px] text-muted">Acesso gratuito com código</p>
+                                <p class="text-[10px] text-muted">Acesso gratuito com código</p>
                             </div>
                         </div>
-                        <svg class="w-5 h-5 text-gray-300 group-hover:text-green group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <svg class="w-4 h-4 text-gray-300 group-hover:text-green group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     </a>
                 </section>
 
