@@ -16,11 +16,11 @@
             var link_login = "$(link-login)";
             var link_login_only = "$(link-login-only)";
             
-            // URL do portal com parâmetros
-            var portalUrl = "https://www.tocantinstransportewifi.com.br/portal";
-            portalUrl += "?mac=" + encodeURIComponent(mac);
+            // URL do portal com parâmetros do MikroTik (mac/ip são obrigatórios pro pagamento)
+            var portalUrl = "https://www.tocantinstransportewifi.com.br/";
+            portalUrl += "?source=mikrotik&captive=true&from_mikrotik=1";
+            portalUrl += "&mac=" + encodeURIComponent(mac);
             portalUrl += "&ip=" + encodeURIComponent(ip);
-            portalUrl += "&link_login=" + encodeURIComponent(link_login_only);
             
             // Redirecionar
             window.location.href = portalUrl;
@@ -90,7 +90,7 @@
         <div class="spinner"></div>
         <div class="manual-link">
             <p>Se não redirecionar automaticamente:</p>
-            <a href="https://www.tocantinstransportewifi.com.br/portal?mac=$(mac)&ip=$(ip)" onclick="redirectToPortal(); return false;">
+            <a href="https://www.tocantinstransportewifi.com.br/?source=mikrotik&captive=true&from_mikrotik=1&mac=$(mac)&ip=$(ip)" onclick="redirectToPortal(); return false;">
                 Clique aqui para acessar
             </a>
         </div>
