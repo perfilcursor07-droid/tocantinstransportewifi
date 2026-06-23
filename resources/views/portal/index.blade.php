@@ -142,26 +142,16 @@
 
     <script>
     // 🎯 OPÇÃO B: O backend decide se o usuário está no WiFi do ônibus.
-    // MAC/IP do hotspot vêm do MikroTik na URL — o servidor valida antes de renderizar.
+    // $on_hotspot vem do PortalController usando os mesmos sinais confiáveis
+    // (URL do MikroTik, sessão verificada, IP do hotspot, usuário vinculado).
+    // O JS só faz a verificação extra quando o usuário clica "Já conectei".
     window._ON_HOTSPOT = {{ ($on_hotspot ?? false) ? 'true' : 'false' }};
-    window._PORTAL_MAC = @json($hotspot_client_mac ?? null);
-    window._PORTAL_IP = @json($hotspot_client_ip ?? null);
-
-    function isHotspotInternalIp(ip) {
-        if (!ip) return false;
-        return /^10\.5\.50\.\d{1,3}$/.test(ip) || /^10\.10\.10\.\d{1,3}$/.test(ip);
-    }
 
     function hasMikrotikContext() {
         const urlParams = new URLSearchParams(window.location.search);
-        const source = (urlParams.get('source') || '').toLowerCase();
-        const ip = urlParams.get('ip') || urlParams.get('client_ip');
         return urlParams.has('mac') || urlParams.has('mikrotik_mac') || urlParams.has('client_mac') ||
-               urlParams.has('from_mikrotik') || urlParams.has('from_router') || urlParams.has('from_splash') ||
-               urlParams.has('captive') || urlParams.has('from_login') ||
-               ['mikrotik', 'captive-portal', 'hotspot'].includes(source) ||
-               isHotspotInternalIp(ip) ||
-               (window._PORTAL_MAC && window._PORTAL_IP);
+               urlParams.has('from_mikrotik') || urlParams.has('from_router') ||
+               urlParams.has('captive') || urlParams.has('from_login');
     }
     function showNoWifiWarning() {
         document.getElementById('no-wifi-warning').classList.remove('hidden');
@@ -197,13 +187,12 @@
         }, 4000);
     }
     document.addEventListener('DOMContentLoaded', function() {
-        // Backend confirmou hotspot OU URL tem mac/ip do MikroTik → liberar pagamento
+        // Se o backend já confirmou que está no WiFi do ônibus, não mostra aviso.
         if (window._ON_HOTSPOT || hasMikrotikContext()) {
-            hideNoWifiWarning();
             window._noWifiBlocked = false;
             return;
         }
-        // Acesso externo (4G/5G ou WiFi de casa) sem contexto MikroTik
+        // Backend não detectou hotspot → mostrar aviso direto (sem fetch lento/falso positivo)
         showNoWifiWarning();
     });
     </script>
@@ -312,13 +301,13 @@
                         <div id="plan-cta-wrapper">
                             <button id="connect-btn"
                                 class="connect-button btn-pulse w-full text-white font-extrabold py-3.5 rounded-xl text-[15px] flex flex-col items-center justify-center gap-0.5 shadow-lg lg:hidden">
-                                <span>⚽ LIBERAR INTERNET AGORA</span>
-                                <span class="text-[10px] font-semibold text-white/80">Só precisa do telefone · 3 toques</span>
+                                <span>CONECTAR AGORA</span>
+                                <span class="text-[10px] font-semibold text-white/80">Pague via PIX e navegue na hora · rápido e fácil</span>
                             </button>
                             <button id="connect-btn-desktop"
                                 class="connect-button btn-pulse w-full text-white font-extrabold py-3.5 rounded-xl text-[15px] flex flex-col items-center justify-center gap-0.5 shadow-lg hidden lg:flex">
-                                <span>⚽ LIBERAR INTERNET AGORA</span>
-                                <span class="text-[10px] font-semibold text-white/80">Só precisa do telefone · 3 toques</span>
+                                <span>CONECTAR AGORA</span>
+                                <span class="text-[10px] font-semibold text-white/80">Pague via PIX e navegue na hora · rápido e fácil</span>
                             </button>
                         </div>
 

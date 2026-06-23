@@ -84,15 +84,14 @@ class PortalController extends Controller
         });
 
         // Detectar se o usuário está REALMENTE no WiFi do ônibus.
-        // O IP visto pelo Laravel costuma ser o IP público (Starlink/NAT), não 10.5.50.x.
-        // Por isso o parâmetro ?ip=10.5.50.x na URL (enviado pelo MikroTik) é sinal confiável.
-        $hotspotClientIp = $this->getHotspotClientIpFromRequest($request);
-        $hotspotClientMac = $this->getHotspotClientMacFromRequest($request);
-
+        // Usa os MESMOS sinais que já funcionam no fluxo (não muda a detecção):
+        //  1. Parâmetros na URL vindos do MikroTik (mac, captive, source, etc.)
+        //  2. Sessão já verificada como contexto MikroTik
+        //  3. IP da faixa do hotspot
+        //  4. Usuário existente vinculado (cookie/pagamento)
         $onHotspot = $existingUser !== null
             || $request->session()->get('mikrotik_context_verified', false)
             || $request->hasAny(['mac', 'mikrotik_mac', 'client_mac', 'from_mikrotik', 'from_splash', 'dst', 'source', 'captive', 'from_login', 'from_router'])
-            || $hotspotClientIp !== null
             || $this->ipMatchesHotspotSubnets($clientIp);
 
         return view('portal.index', [
@@ -113,8 +112,6 @@ class PortalController extends Controller
             'video_discount_amount' => \App\Helpers\SettingsHelper::getVideoDiscountAmount(),
             'connected_user' => $existingUser,
             'on_hotspot' => $onHotspot,
-            'hotspot_client_mac' => $hotspotClientMac ?? ($clientInfo['mac_address'] ?? null),
-            'hotspot_client_ip' => $hotspotClientIp ?? ($clientInfo['hotspot_ip'] ?? null),
             'review_average' => $reviewStats['average'],
             'review_count' => $reviewStats['count'],
             'passengers_30d' => $passengers30d,
@@ -324,14 +321,12 @@ class PortalController extends Controller
     {
         $ip = $request->ip();
         $userAgent = $request->userAgent();
-        $hotspotIp = $this->getHotspotClientIpFromRequest($request);
 
         // PRODUÇÃO: Em hotspot MikroTik, o MAC vem via headers especiais
         $macAddress = $this->getMacAddressFromMikrotik($request, $ip);
 
         return [
             'ip_address' => $ip,
-            'hotspot_ip' => $hotspotIp,
             'mac_address' => $macAddress,
             'user_agent' => $userAgent,
             'device_type' => $this->detectDeviceType($userAgent)
@@ -621,42 +616,6 @@ class PortalController extends Controller
         }
 
         return false;
-    }
-
-    /**
-     * IP interno do hotspot enviado pelo MikroTik na URL (?ip=10.5.50.x).
-     * O Laravel vê o IP público do ônibus — este parâmetro é a fonte confiável.
-     */
-    private function getHotspotClientIpFromRequest(Request $request): ?string
-    {
-        foreach (['ip', 'client_ip', 'hotspot_ip'] as $key) {
-            $candidate = trim((string) $request->query($key, ''));
-            if ($candidate !== '' && $this->ipMatchesHotspotSubnets($candidate)) {
-                return $candidate;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * MAC do cliente enviado pelo MikroTik na URL (?mac=XX:XX:...).
-     */
-    private function getHotspotClientMacFromRequest(Request $request): ?string
-    {
-        foreach (['mac', 'mikrotik_mac', 'client_mac'] as $key) {
-            $candidate = trim((string) $request->query($key, ''));
-            if (!preg_match('/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/', $candidate)) {
-                continue;
-            }
-
-            $normalized = strtoupper(str_replace('-', ':', $candidate));
-            if (!$this->isLikelyMockMac($normalized)) {
-                return $normalized;
-            }
-        }
-
-        return null;
     }
 
     private function markMikrotikContextVerified(Request $request): void

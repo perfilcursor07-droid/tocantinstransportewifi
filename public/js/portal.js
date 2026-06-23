@@ -7,7 +7,6 @@ class WiFiPortal {
     constructor() {
         this.deviceMac = '';
         this.deviceIp = '';
-        this.bootstrapIdentifiersFromServer();
         this.connectionCheckInterval = null;
         this.paymentCheckInterval = null;
         this.loadingOverlay = null;
@@ -160,48 +159,6 @@ class WiFiPortal {
                 }
             });
         }
-    }
-
-    /**
-     * MAC/IP injetados pelo servidor ou presentes na URL do MikroTik (síncrono).
-     */
-    bootstrapIdentifiersFromServer() {
-        if (window._PORTAL_MAC && this.isValidMacAddress(window._PORTAL_MAC)) {
-            this.deviceMac = window._PORTAL_MAC.toUpperCase();
-        }
-        if (window._PORTAL_IP) {
-            this.deviceIp = window._PORTAL_IP;
-        }
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const macFromUrl = urlParams.get('mac') || urlParams.get('mikrotik_mac') || urlParams.get('client_mac');
-        const ipFromUrl = urlParams.get('ip') || urlParams.get('client_ip');
-
-        if (macFromUrl && this.isValidMacAddress(macFromUrl)) {
-            this.deviceMac = macFromUrl.toUpperCase();
-        }
-        if (ipFromUrl) {
-            this.deviceIp = ipFromUrl;
-        }
-    }
-
-    isOnHotspotContext() {
-        if (window._ON_HOTSPOT) {
-            return true;
-        }
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const source = (urlParams.get('source') || '').toLowerCase();
-        const ip = urlParams.get('ip') || urlParams.get('client_ip') || this.deviceIp;
-
-        return (
-            urlParams.has('mac') ||
-            urlParams.has('captive') ||
-            urlParams.has('from_mikrotik') ||
-            ['mikrotik', 'captive-portal', 'hotspot'].includes(source) ||
-            /^10\.5\.50\.\d{1,3}$/.test(ip) ||
-            /^10\.10\.10\.\d{1,3}$/.test(ip)
-        );
     }
 
     /**
@@ -2183,19 +2140,13 @@ class WiFiPortal {
     }
 
     hasRealIdentifiers() {
-        const hasMac = (
+        return (
             this.deviceMac &&
             this.deviceMac.length === 17 &&
             this.isValidMacAddress(this.deviceMac) &&
-            this.deviceMac !== '00:00:00:00:00:00'
+            this.deviceMac !== '00:00:00:00:00:00' &&
+            this.deviceIp
         );
-
-        const hasHotspotIp = this.deviceIp && (
-            /^10\.5\.50\.\d{1,3}$/.test(this.deviceIp) ||
-            /^10\.10\.10\.\d{1,3}$/.test(this.deviceIp)
-        );
-
-        return hasMac && (hasHotspotIp || this.isOnHotspotContext());
     }
 
     redirectToCaptivePortal() {
