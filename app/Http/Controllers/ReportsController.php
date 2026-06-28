@@ -295,22 +295,21 @@ class ReportsController extends Controller
 
                 // Evita remoção acidental de contas administrativas.
                 if ($user && in_array($user->role, ['admin', 'manager'])) {
-                    throw new \RuntimeException('Não é permitido excluir usuários administrativos por esta tela.');
+                    throw new \RuntimeException('Não é permitido excluir pagamentos de usuários administrativos por esta tela.');
                 }
 
+                // Deletar avaliações vinculadas ao usuário deste pagamento
                 if ($user) {
-                    // Deletar avaliações vinculadas ao usuário
                     \App\Models\ServiceReview::where('user_id', $user->id)->delete();
-
-                    // A FK em payments.user_id possui onDelete('cascade').
-                    $user->delete();
-                    return;
                 }
 
+                // Deletar apenas o pagamento selecionado (NÃO o usuário inteiro).
+                // Antes: deletava o usuário, o que por CASCADE removia TODOS os pagamentos
+                // e sessões dele — inclusive de meses anteriores.
                 $payment->delete();
             });
 
-            return back()->with('success', 'Registro removido com sucesso (pagamento, usuário e avaliações). Os indicadores do relatório foram atualizados.');
+            return back()->with('success', 'Pagamento removido com sucesso.');
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         } catch (\Throwable $e) {
@@ -354,20 +353,15 @@ class ReportsController extends Controller
                         continue;
                     }
 
-                    if ($user) {
-                        if (in_array($user->id, $deletedUserIds)) {
-                            continue;
-                        }
-
-                        // Deletar avaliações vinculadas ao usuário
+                    // Deletar avaliações vinculadas ao usuário (se ainda não deletou)
+                    if ($user && !in_array($user->id, $deletedUserIds)) {
                         $deletedReviews += \App\Models\ServiceReview::where('user_id', $user->id)->delete();
-
-                        $user->delete();
-                        $deletedUsers++;
                         $deletedUserIds[] = $user->id;
-                        continue;
                     }
 
+                    // Deletar apenas o pagamento (NÃO o usuário inteiro).
+                    // Antes: deletava o usuário, o que por CASCADE removia TODOS os
+                    // pagamentos e sessões dele — inclusive de meses anteriores.
                     $payment->delete();
                     $deletedPayments++;
                 }
