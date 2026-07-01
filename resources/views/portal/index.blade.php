@@ -123,12 +123,29 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M6 18L18 6"/>
                     </svg>
                 </div>
-                <h3 class="text-base font-bold text-gray-900 mb-1">Conecte ao WiFi do ônibus</h3>
-                <p class="text-xs text-gray-500 mb-4">Desative os dados móveis e conecte na rede <strong>"TocantinsTransporteWiFi"</strong></p>
+                <h3 class="text-base font-bold text-gray-900 mb-1">Desligue os dados móveis (4G)</h3>
+                <p class="text-xs text-gray-500 mb-4">Para o pagamento liberar seu acesso, você precisa estar <strong>só no WiFi do ônibus</strong>.</p>
+
+                <div class="text-left bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3 space-y-2">
+                    <div class="flex items-start gap-2">
+                        <span class="flex-shrink-0 w-5 h-5 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center">1</span>
+                        <p class="text-[12px] text-gray-700"><strong>Desligue o 4G / dados móveis</strong> do celular.</p>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <span class="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-500 text-white text-[11px] font-bold flex items-center justify-center">2</span>
+                        <div>
+                            <p class="text-[12px] text-gray-700">No Wi-Fi do celular, toque na rede:</p>
+                            <span class="inline-flex items-center gap-1 mt-1 bg-emerald-50 text-emerald-800 font-bold text-[12px] px-2 py-1 rounded-md border border-emerald-300">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
+                                TocantinsTransporteWiFi
+                            </span>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="bg-amber-50 border border-amber-200 rounded-lg p-2.5 mb-4">
                     <p class="text-[11px] text-amber-800">
-                        ⚠️ Sem o WiFi do ônibus, o pagamento <strong>não libera</strong> o acesso.
+                        ⚠️ Se pagar com o 4G ligado, o sistema <strong>não reconhece seu aparelho</strong> e o acesso <strong>não é liberado</strong>.
                     </p>
                 </div>
 
@@ -245,6 +262,21 @@
         <main class="flex-1 px-4 pt-2.5 pb-5 sm:pt-4 sm:pb-8">
             <div class="max-w-lg mx-auto space-y-2.5 sm:space-y-4">
 
+                <!-- Status de conexão: só avisa quando NÃO está na rede do ônibus -->
+                @if(!($on_hotspot ?? false))
+                <section class="bg-amber-50 border-2 border-amber-400 rounded-2xl px-4 py-3 shadow-card animate-slide-up">
+                    <div class="flex items-start gap-3">
+                        <div class="w-9 h-9 rounded-full bg-amber-400 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M6 18L18 6"/></svg>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-amber-900 font-extrabold text-sm leading-tight">Conecte no WiFi do ônibus para pagar</p>
+                            <p class="text-amber-800 text-[11px] mt-0.5 leading-snug">Entre na rede <strong>"TocantinsTransporteWiFi"</strong> e depois pague. <button type="button" onclick="showNoWifiWarning()" class="font-bold underline underline-offset-2">Ver como</button></p>
+                        </div>
+                    </div>
+                </section>
+                @endif
+
                 <!-- Card de Planos -->
                 <section class="bg-white rounded-2xl border border-border shadow-card overflow-hidden animate-slide-up">
                     <div class="px-4 py-3 sm:px-5 sm:py-4">
@@ -336,6 +368,33 @@
                             <div class="w-8 h-8 rounded-lg bg-black flex items-center justify-center" title="Netflix">
                                 <svg class="w-[14px] h-[14px]" fill="#E50914" viewBox="0 0 24 24"><path d="M5.398 0v.006c3.028 8.556 5.37 15.175 8.348 23.596 2.344.058 4.85.398 4.854.398-2.8-7.924-5.923-16.747-8.487-24zm8.489 0v9.63L18.6 22.951c-.043-7.86-.004-15.913.002-22.95zM5.398 1.05V24c1.873-.225 2.81-.312 4.715-.398v-9.22z"/></svg>
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Como funciona: 3 passos simples -->
+                <section class="bg-white rounded-2xl border border-border shadow-card px-4 py-3 animate-slide-up-delay">
+                    <div class="flex items-start justify-between gap-0.5">
+                        <div class="flex flex-col items-center text-center flex-1 px-0.5">
+                            <div class="w-9 h-9 rounded-full bg-green-pale text-green-dark flex items-center justify-center mb-1.5 border border-green/20">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
+                            </div>
+                            <p class="text-[11px] font-bold text-ink leading-tight">Entre no WiFi</p>
+                            <p class="text-[9px] text-muted leading-tight mt-0.5">rede do ônibus</p>
+                        </div>
+                        <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <div class="flex flex-col items-center text-center flex-1 px-0.5">
+                            <div class="w-9 h-9 rounded-full bg-blue-pale text-blue text-sm font-extrabold flex items-center justify-center mb-1.5 border border-blue/20">2</div>
+                            <p class="text-[11px] font-bold text-ink leading-tight">Pague no PIX</p>
+                            <p class="text-[9px] text-muted leading-tight mt-0.5">copie e cole no banco</p>
+                        </div>
+                        <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <div class="flex flex-col items-center text-center flex-1 px-0.5">
+                            <div class="w-9 h-9 rounded-full bg-green text-white flex items-center justify-center mb-1.5 shadow-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                            <p class="text-[11px] font-bold text-ink leading-tight">Pronto!</p>
+                            <p class="text-[9px] text-muted leading-tight mt-0.5">internet na hora</p>
                         </div>
                     </div>
                 </section>

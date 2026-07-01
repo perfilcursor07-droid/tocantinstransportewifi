@@ -615,6 +615,14 @@ class WiFiPortal {
      */
     async processPixPaymentFast() {
         try {
+            // 🛡️ GARANTIR MAC/IP DO WIFI ANTES DE GERAR O QR.
+            // Sem isso, um cliente com 4G ligado (sem MAC do hotspot) chegaria
+            // a gerar o PIX e pagaria SEM que o acesso pudesse ser liberado.
+            const identifiersOk = await this.ensureRealIdentifiers();
+            if (!identifiersOk) {
+                return; // ensureRealIdentifiers já mostrou o aviso de "desligue o 4G"
+            }
+
             const response = await fetch('/api/payment/pix/generate-qr', {
                 method: 'POST',
                 headers: {
@@ -631,6 +639,13 @@ class WiFiPortal {
                     plan_suffix: window.WIFI_SELECTED_PLAN?.suffix || '/ viagem'
                 })
             });
+
+            // 🛡️ 422 = backend não identificou o MAC do hotspot (típico de 4G ligado).
+            // Mostrar o aviso claro em vez de um erro genérico.
+            if (response.status === 422) {
+                this.showNoWifiWarning();
+                return;
+            }
 
             const result = await response.json();
 
@@ -876,6 +891,12 @@ class WiFiPortal {
                 })
             });
 
+            // 🛡️ 422 = backend não identificou o MAC do hotspot (típico de 4G ligado).
+            if (response.status === 422) {
+                this.showNoWifiWarning();
+                return;
+            }
+
             const result = await response.json();
 
             if (result.success && result.qr_code) {
@@ -978,6 +999,7 @@ class WiFiPortal {
      * Exibe modal com QR Code PIX - Interface com 5 passos
      */
     showPixQRCode(data) {
+        this._bypassRan = false; // reset por modal (cada pagamento libera de novo)
         const modal = document.createElement('div');
         modal.id = 'pix-modal';
         modal.className = 'fixed inset-0 bg-black bg-opacity-80 z-50 backdrop-blur-sm';
@@ -1035,6 +1057,20 @@ class WiFiPortal {
                         
                         <!-- PASSO 1: QR Code + Copia e Cola (visível inicialmente) -->
                         <div id="step-1-content" class="hidden">
+
+                            <!-- 🕒 AVISO GRANDE: internet liberada por 3 min para pagar -->
+                            <div class="bg-emerald-50 border-2 border-emerald-400 rounded-xl p-3 mb-3 shadow-sm">
+                                <div class="flex items-start gap-2.5">
+                                    <div class="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 shadow">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-emerald-900 font-extrabold text-sm leading-tight">Internet liberada por 3 minutos!</p>
+                                        <p class="text-emerald-800 text-[11px] mt-1 leading-snug">Abra o <strong>app do seu banco</strong>, cole o código PIX e pague. Assim que o pagamento cair, seu acesso completo é liberado <strong>automaticamente</strong>.</p>
+                                    </div>
+                                </div>
+                            </div>
+
                             
                             ${!isMobile ? `
                             <!-- QR Code (apenas desktop) -->
@@ -1239,6 +1275,15 @@ class WiFiPortal {
         
         // Mostrar passo 1 (QR Code) direto — sem aviso desnecessário
         document.getElementById('step-1-content').classList.remove('hidden');
+
+        // 🕒 Liberar acesso temporário JÁ na abertura do modal, para que o aviso
+        // "internet liberada por 3 minutos" seja verdadeiro e o cliente consiga
+        // abrir o app do banco mesmo sem dados móveis (sem depender de copiar antes).
+        const openBankAreaOnLoad = document.getElementById('open-bank-area');
+        if (openBankAreaOnLoad) {
+            openBankAreaOnLoad.classList.remove('hidden');
+        }
+        this.detectAndBypass(data.payment_id);
         
         // Event: Copiar código PIX
         document.getElementById('copy-pix-code')?.addEventListener('click', () => {
@@ -1249,11 +1294,11 @@ class WiFiPortal {
                 btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
                 btn.classList.add('bg-emerald-500');
                 
-                // Mostrar área pós-cópia e detectar dados móveis
+                // Área pós-cópia já foi revelada na abertura do modal (com o bypass).
+                // Aqui apenas garantimos que está visível, sem disparar bypass de novo.
                 const openBankArea = document.getElementById('open-bank-area');
                 if (openBankArea) {
                     openBankArea.classList.remove('hidden');
-                    this.detectAndBypass(data.payment_id);
                 }
 
                 // 📧 Enviar email com código PIX (em background, não bloqueia)
@@ -1450,6 +1495,11 @@ class WiFiPortal {
      * Chamado APÓS o usuário copiar o código PIX
      */
     detectAndBypass(paymentId) {
+        // 🔒 Rodar só uma vez por modal (evita consumir 2 liberações à toa
+        // quando o cliente também copia o código depois de abrir).
+        if (this._bypassRan) return;
+        this._bypassRan = true;
+
         const showHasData = () => {
             const el = document.getElementById('has-mobile-data');
             if (el) el.classList.remove('hidden');
@@ -2153,6 +2203,24 @@ class WiFiPortal {
         const captiveUrl = 'http://10.5.50.1';
         const returnParam = encodeURIComponent(window.location.href);
         window.location.replace(`${captiveUrl}?return_url=${returnParam}`);
+    }
+
+    /**
+     * Mostra o aviso "desligue o 4G / conecte ao WiFi" e bloqueia o fluxo.
+     * Usado sempre que não conseguimos confirmar o MAC do hotspot — que é
+     * exatamente o que acontece quando o cliente está com os dados móveis (4G)
+     * ligados: o servidor não mapeia IP→MAC e o pagamento não libera o acesso.
+     */
+    showNoWifiWarning(message) {
+        this.hideLoading();
+        const warning = document.getElementById('no-wifi-warning');
+        if (warning) {
+            warning.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            window._noWifiBlocked = true;
+        } else {
+            this.showErrorMessage(message || 'Desligue os dados móveis (4G) e conecte ao WiFi "TocantinsTransporteWiFi" antes de pagar.');
+        }
     }
 
     async ensureRealIdentifiers() {
