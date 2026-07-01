@@ -709,6 +709,9 @@ class PaymentController extends Controller
                 \Illuminate\Support\Facades\Cache::put($phoneKey, $bypassesByPhone + 1, now()->addHour());
             }
 
+            // Invalidar cache para o MikroTik pegar o MAC no próximo sync (≤15s)
+            Cache::forget('mikrotik_sync_lists_all');
+
             Log::info('🏦 BYPASS TEMPORÁRIO DE 3 MIN ATIVADO', [
                 'user_id' => $user->id,
                 'mac_address' => $user->mac_address,

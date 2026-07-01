@@ -282,8 +282,11 @@ class PortalController extends Controller
             Log::error('Erro ao consultar MACs reportados', ['error' => $e->getMessage()]);
         }
 
-        // 2. MAC via URL (MikroTik redirect)
+        // 2. MAC via URL (MikroTik redirect) ou corpo JSON (portal.js)
         $macViaUrl = $request->get('mac') ?: $request->get('mikrotik_mac') ?: $request->get('client_mac');
+        if (! $macViaUrl && $request->isJson()) {
+            $macViaUrl = $request->input('mac_address') ?: $request->input('mac');
+        }
         if ($macViaUrl && preg_match('/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/', $macViaUrl)) {
             $cleanMac = strtoupper(str_replace('-', ':', $macViaUrl));
             if (!$this->isLikelyMockMac($cleanMac)) {

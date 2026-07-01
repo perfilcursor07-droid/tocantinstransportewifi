@@ -166,10 +166,12 @@ class WiFiPortal {
      */
     async detectDevice() {
         try {
-            // 🎯 PRIORIDADE: Verificar se MAC está na URL (MikroTik)
+            // 🎯 PRIORIDADE: MAC da URL (MikroTik) ou injetado pelo servidor
             const urlParams = new URLSearchParams(window.location.search);
-            const macFromUrl = urlParams.get('mac') || urlParams.get('mikrotik_mac') || urlParams.get('client_mac');
-            const ipFromUrl = urlParams.get('ip') || urlParams.get('client_ip');
+            const macFromUrl = urlParams.get('mac') || urlParams.get('mikrotik_mac') || urlParams.get('client_mac')
+                || (window.PORTAL_MAC || '');
+            const ipFromUrl = urlParams.get('ip') || urlParams.get('client_ip')
+                || (window.PORTAL_IP || '');
             
             if (macFromUrl && this.isValidMacAddress(macFromUrl)) {
                 this.deviceMac = macFromUrl.toUpperCase();
@@ -194,9 +196,30 @@ class WiFiPortal {
             
         } catch (error) {
             console.error('❌ Erro ao detectar dispositivo:', error);
-            // Não gerar MOCK — handleConnectClick mostra o overlay "no-wifi-warning"
-            // quando deviceMac está vazio, o que é o comportamento correto.
             this.deviceMac = '';
+        }
+    }
+
+    /** Contexto MikroTik (MAC/IP) para enviar ao backend */
+    getPortalContextPayload() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return {
+            mac_address: this.deviceMac
+                || urlParams.get('mac') || urlParams.get('mikrotik_mac') || urlParams.get('client_mac')
+                || window.PORTAL_MAC || null,
+            ip_address: this.deviceIp
+                || urlParams.get('ip') || urlParams.get('client_ip')
+                || window.PORTAL_IP || null,
+        };
+    }
+
+    async fetchWithTimeout(url, options = {}, timeoutMs = 35000) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            return await fetch(url, { ...options, signal: controller.signal });
+        } finally {
+            clearTimeout(timer);
         }
     }
 
@@ -205,74 +228,68 @@ class WiFiPortal {
      */
     async waitForRealMac() {
         console.log('🔍 Aguardando MAC real...');
-        const maxAttempts = 6; // 30 segundos total
-        
+        const maxAttempts = 4;
+
         for (let i = 0; i < maxAttempts; i++) {
+            this.setLoadingMessage(
+                'Identificando seu aparelho...',
+                `Aguarde ${i + 1}/${maxAttempts} — o WiFi do ônibus precisa reconhecer o celular`
+            );
             try {
-                // Fazer requisição para detectar MAC
-                const response = await fetch('/api/detect-device', {
+                const response = await this.fetchWithTimeout('/api/detect-device', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': this.getCSRFToken()
-                    }
-                });
+                    },
+                    body: JSON.stringify(this.getPortalContextPayload())
+                }, 12000);
 
                 const data = await response.json();
                 const mac = data.mac_address || '';
                 const detectedIp = data.client_ip || data.ip_address;
                 
-                // Se encontrou MAC válido (aceitar todos, incluindo randomizados)
                 if (mac && this.isValidMacAddress(mac)) {
                     this.deviceMac = mac.toUpperCase();
                     console.log('✅ MAC detectado:', this.deviceMac);
-                    if (this.isRandomizedMac(this.deviceMac)) {
-                        console.log('ℹ️ MAC randomizado (normal em dispositivos modernos)');
-                    }
                     if (detectedIp) {
                         this.deviceIp = detectedIp;
-                        console.log('🌐 IP do dispositivo detectado:', this.deviceIp);
                     }
                     return;
                 }
                 
-                console.log(`⏳ Tentativa ${i + 1}/${maxAttempts} - MAC mock detectado, aguardando real...`);
-                
-                // Aguardar 5 segundos antes da próxima tentativa
-                await new Promise(resolve => setTimeout(resolve, 5000));
+                console.log(`⏳ Tentativa ${i + 1}/${maxAttempts} — aguardando MikroTik reportar MAC...`);
+                await new Promise(resolve => setTimeout(resolve, 3000));
                 
             } catch (error) {
                 console.error('Erro na tentativa', i + 1, ':', error);
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
         }
         
-        // Timeout: se o backend realmente não confirmou o MAC, deixar vazio.
-        // Tentativa final com chamada bloqueante:
-        console.warn('⚠️ Timeout: tentando última confirmação...');
         try {
-            const response = await fetch('/api/detect-device', {
+            const response = await this.fetchWithTimeout('/api/detect-device', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': this.getCSRFToken()
-                }
-            });
+                },
+                body: JSON.stringify(this.getPortalContextPayload())
+            }, 12000);
             const data = await response.json();
             if (data.mac_address && this.isValidMacAddress(data.mac_address)) {
                 this.deviceMac = data.mac_address.toUpperCase();
                 if (data.client_ip || data.ip_address) {
                     this.deviceIp = data.client_ip || data.ip_address;
                 }
-                console.log('📱 MAC final:', this.deviceMac);
                 return;
             }
         } catch (e) {
             console.error('Falha na tentativa final:', e);
         }
 
-        // Sem MAC confirmado — handleConnectClick mostrará o aviso "conecte ao WiFi".
         this.deviceMac = '';
-        console.warn('⚠️ Não foi possível confirmar MAC — aguardando usuário reconectar ao WiFi');
+        console.warn('⚠️ Não foi possível confirmar MAC — usuário deve estar no WiFi sem 4G');
     }
 
     /**
@@ -615,15 +632,14 @@ class WiFiPortal {
      */
     async processPixPaymentFast() {
         try {
-            // 🛡️ GARANTIR MAC/IP DO WIFI ANTES DE GERAR O QR.
-            // Sem isso, um cliente com 4G ligado (sem MAC do hotspot) chegaria
-            // a gerar o PIX e pagaria SEM que o acesso pudesse ser liberado.
+            this.setLoadingMessage('Identificando aparelho...', 'Não feche esta tela');
             const identifiersOk = await this.ensureRealIdentifiers();
             if (!identifiersOk) {
-                return; // ensureRealIdentifiers já mostrou o aviso de "desligue o 4G"
+                return;
             }
 
-            const response = await fetch('/api/payment/pix/generate-qr', {
+            this.setLoadingMessage('Gerando QR Code PIX...', 'Isso pode levar alguns segundos');
+            const response = await this.fetchWithTimeout('/api/payment/pix/generate-qr', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -638,10 +654,8 @@ class WiFiPortal {
                     plan_name: window.WIFI_SELECTED_PLAN?.name || 'Viagem completa',
                     plan_suffix: window.WIFI_SELECTED_PLAN?.suffix || '/ viagem'
                 })
-            });
+            }, 40000);
 
-            // 🛡️ 422 = backend não identificou o MAC do hotspot (típico de 4G ligado).
-            // Mostrar o aviso claro em vez de um erro genérico.
             if (response.status === 422) {
                 this.showNoWifiWarning();
                 return;
@@ -660,7 +674,11 @@ class WiFiPortal {
         } catch (error) {
             console.error('Erro no pagamento PIX:', error);
             this.hideLoading();
-            this.showErrorMessage('Erro de conexão. Verifique sua internet.');
+            if (error.name === 'AbortError') {
+                this.showErrorMessage('Demorou demais para gerar o PIX. Desligue o 4G, confira o WiFi e tente novamente.');
+            } else {
+                this.showErrorMessage('Erro de conexão. Verifique sua internet.');
+            }
         }
     }
 
@@ -863,7 +881,7 @@ class WiFiPortal {
         this.hidePaymentModal();
 
         try {
-            // 🎯 VALIDAR SE TEMOS MAC E USER_ID
+            this.setLoadingMessage('Identificando aparelho...', 'Não feche esta tela');
             const identifiersOk = await this.ensureRealIdentifiers();
             if (!identifiersOk) {
                 return;
@@ -874,14 +892,15 @@ class WiFiPortal {
                 return;
             }
 
-            const response = await fetch('/api/payment/pix/generate-qr', {
+            this.setLoadingMessage('Gerando QR Code PIX...', 'Isso pode levar alguns segundos');
+            const response = await this.fetchWithTimeout('/api/payment/pix/generate-qr', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': this.getCSRFToken()
                 },
                 body: JSON.stringify({
-                    amount: window.WIFI_PRICE || 5.99, // 🎯 VALOR DINÂMICO DO BANCO
+                    amount: window.WIFI_PRICE || 5.99,
                     mac_address: this.deviceMac,
                     user_id: this.currentUserId,
                     ip_address: this.deviceIp,
@@ -889,9 +908,8 @@ class WiFiPortal {
                     plan_name: window.WIFI_SELECTED_PLAN?.name || 'Viagem completa',
                     plan_suffix: window.WIFI_SELECTED_PLAN?.suffix || '/ viagem'
                 })
-            });
+            }, 40000);
 
-            // 🛡️ 422 = backend não identificou o MAC do hotspot (típico de 4G ligado).
             if (response.status === 422) {
                 this.showNoWifiWarning();
                 return;
@@ -903,7 +921,6 @@ class WiFiPortal {
                 this.hideLoading();
                 this.showPixQRCode(result);
                 
-                // 🎯 LOG PARA DEBUG
                 console.log('💳 Pagamento PIX criado:', {
                     payment_id: result.payment_id,
                     mac_address: this.deviceMac,
@@ -915,7 +932,11 @@ class WiFiPortal {
             }
         } catch (error) {
             console.error('Erro no pagamento PIX:', error);
-            this.showErrorMessage('Erro de conexão. Verifique sua internet.');
+            if (error.name === 'AbortError') {
+                this.showErrorMessage('Demorou demais para gerar o PIX. Desligue o 4G, confira o WiFi e tente novamente.');
+            } else {
+                this.showErrorMessage('Erro de conexão. Verifique sua internet.');
+            }
         } finally {
             this.hideLoading();
         }
@@ -2058,6 +2079,22 @@ class WiFiPortal {
     showLoading() {
         if (this.loadingOverlay) {
             this.loadingOverlay.classList.remove('hidden');
+            this.setLoadingMessage('Processando...', 'Por favor, aguarde');
+        }
+    }
+
+    /**
+     * Atualiza textos do overlay de loading
+     */
+    setLoadingMessage(title, subtitle) {
+        const titleEl = document.getElementById('loading-title');
+        const subEl = document.getElementById('loading-subtitle');
+        const hintEl = document.getElementById('loading-hint');
+        if (titleEl && title) titleEl.textContent = title;
+        if (subEl && subtitle) subEl.textContent = subtitle;
+        if (hintEl) {
+            const showHint = (title || '').toLowerCase().includes('gerando') || (title || '').toLowerCase().includes('identificando');
+            hintEl.classList.toggle('hidden', !showHint);
         }
     }
 

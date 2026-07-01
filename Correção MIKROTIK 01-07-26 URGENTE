@@ -1,0 +1,31 @@
+Código completo — cole no Terminal do MikroTik
+1. Backup:
+
+/system backup save name=backup-captive
+
+
+2. Correção captive (principal):
+
+/ip dns static set [find name=captive.apple.com] address=10.5.50.1 comment="Captive CNA"
+/ip dns static set [find name=connectivitycheck.gstatic.com] address=10.5.50.1 comment="Captive CNA"
+/ip dns static set [find name=connectivitycheck.android.com] address=10.5.50.1 comment="Captive CNA"
+/ip dns static set [find name=clients3.google.com] address=10.5.50.1 comment="Captive CNA"
+:do { /ip dns static add name=www.apple.com address=10.5.50.1 comment="Captive CNA" } on-error={}
+:do { /ip dns static add name=gsp1-ssl.ls.apple.com address=10.5.50.1 comment="Captive CNA" } on-error={}
+:do { /ip dns static add name=www.appleiphonecell.com address=10.5.50.1 comment="Captive CNA" } on-error={}
+:do { /ip dns static add name=clients4.google.com address=10.5.50.1 comment="Captive CNA" } on-error={}
+:do { /ip dns static add name=www.msftconnecttest.com address=10.5.50.1 comment="Captive CNA" } on-error={}
+/ip dns static print where comment="Captive CNA"
+
+
+3. Opcional — MAC mais rápido (não afeta captive):
+
+/system scheduler set [find name=registrarMacsScheduler] interval=15s
+4. Opcional — syncPagos com www:
+No Winbox → System → Scripts → syncPagos, troque só a linha da URL:
+
+DE:  https://tocantinstransportewifi.com.br/api/mikrotik/check-paid-users-lite?token=...
+PARA: https://www.tocantinstransportewifi.com.br/api/mikrotik/check-paid-users-lite?token=...
+Mantenha &mid= no final — igual está hoje.
+
+O arquivo .rsc completo está em docs/MIKROTIK-CAPTIVE-MINIMO.rsc e o guia rápido em Correção MIKROTIK 01-07-26 URGENTE.

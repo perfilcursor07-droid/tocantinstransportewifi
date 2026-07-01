@@ -50,6 +50,8 @@ class MacDetector {
 
     // Tentar detectar MAC via múltiplos métodos
     async tryDetectMac() {
+        const urlParams = new URLSearchParams(window.location.search);
+
         // Método 1: Via API detect-device (fonte de verdade — só retorna MAC confirmado)
         try {
             const response = await fetch('/api/detect-device', {
@@ -57,7 +59,11 @@ class MacDetector {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                }
+                },
+                body: JSON.stringify({
+                    mac_address: urlParams.get('mac') || urlParams.get('mikrotik_mac') || window.PORTAL_MAC || null,
+                    ip_address: urlParams.get('ip') || urlParams.get('client_ip') || window.PORTAL_IP || null,
+                })
             });
 
             const data = await response.json();
@@ -70,8 +76,7 @@ class MacDetector {
         }
 
         // Método 2: Via parâmetros URL (se vier do hotspot)
-        const urlParams = new URLSearchParams(window.location.search);
-        const macFromUrl = urlParams.get('mac');
+        const macFromUrl = urlParams.get('mac') || urlParams.get('mikrotik_mac') || window.PORTAL_MAC;
         if (macFromUrl && this.isValidMac(macFromUrl)) {
             return macFromUrl;
         }
