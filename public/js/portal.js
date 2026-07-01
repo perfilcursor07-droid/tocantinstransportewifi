@@ -1061,7 +1061,7 @@ class WiFiPortal {
                                 <div id="step-2" class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm font-bold">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
                                 </div>
-                                <span id="step-2-text" class="text-[11px] mt-1 text-gray-400 font-medium">Pagar</span>
+                                <span id="step-2-text" class="text-[11px] mt-1 text-gray-400 font-medium">Banco</span>
                             </div>
                             <div class="h-1 flex-1 bg-gray-200 rounded-full -mt-4 mx-1"><div id="line-2-3" class="h-full bg-gray-200 rounded-full transition-all duration-500" style="width:0%"></div></div>
                             <div class="flex flex-col items-center flex-1">
@@ -1079,15 +1079,19 @@ class WiFiPortal {
                         <!-- PASSO 1: QR Code + Copia e Cola (visível inicialmente) -->
                         <div id="step-1-content" class="hidden">
 
-                            <!-- 🕒 AVISO GRANDE: internet liberada por 3 min para pagar -->
-                            <div class="bg-emerald-50 border-2 border-emerald-400 rounded-xl p-3 mb-3 shadow-sm">
+                            <!-- Status bypass / instruções (atualizado após API) -->
+                            <div id="bypass-status-banner" class="bg-slate-50 border-2 border-slate-200 rounded-xl p-3 mb-3 shadow-sm">
                                 <div class="flex items-start gap-2.5">
-                                    <div class="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 shadow">
-                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <div id="bypass-banner-icon" class="w-10 h-10 bg-slate-400 rounded-full flex items-center justify-center flex-shrink-0 shadow">
+                                        <div class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
                                     </div>
                                     <div class="min-w-0">
-                                        <p class="text-emerald-900 font-extrabold text-sm leading-tight">Internet liberada por 3 minutos!</p>
-                                        <p class="text-emerald-800 text-[11px] mt-1 leading-snug">Abra o <strong>app do seu banco</strong>, cole o código PIX e pague. Assim que o pagamento cair, seu acesso completo é liberado <strong>automaticamente</strong>.</p>
+                                        <p id="bypass-banner-title" class="text-slate-900 font-extrabold text-sm leading-tight">Preparando pagamento...</p>
+                                        <p id="bypass-banner-text" class="text-slate-700 text-[11px] mt-1 leading-snug">
+                                            <strong>1.</strong> Copie o código PIX abaixo<br>
+                                            <strong>2.</strong> Abra o app do banco e <strong>cole</strong> o código<br>
+                                            <strong>3.</strong> Confirme o pagamento — o WiFi libera sozinho
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -1099,18 +1103,19 @@ class WiFiPortal {
                                 <div class="bg-white p-2 rounded-xl border-2 border-dashed border-emerald-300 inline-block shadow-sm">
                                     <img src="${data.qr_code.image_url}" alt="QR Code PIX" class="w-36 h-36 mx-auto">
                                 </div>
-                                <p class="text-gray-400 text-[10px] mt-1">Escaneie com o app do banco</p>
+                                <p class="text-gray-400 text-[10px] mt-1">No celular: copie o código. No computador: escaneie ou copie.</p>
                             </div>
                             
                             <div class="flex items-center gap-2 mb-2">
                                 <div class="flex-1 h-px bg-gray-200"></div>
-                                <span class="text-[10px] text-gray-400 font-medium">OU COPIE O CÓDIGO</span>
+                                <span class="text-[10px] text-gray-400 font-medium">PASSO 1 — COPIE O CÓDIGO</span>
                                 <div class="flex-1 h-px bg-gray-200"></div>
                             </div>
                             ` : `
-                            <!-- Instrução mobile -->
-                            <div class="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-2">
-                                <p class="text-amber-800 font-bold text-xs flex items-center gap-1.5">📱 Copie o código e cole no app do banco</p>
+                            <div class="flex items-center gap-2 mb-2">
+                                <div class="flex-1 h-px bg-gray-200"></div>
+                                <span class="text-[10px] text-blue-700 font-bold">PASSO 1 — COPIE O CÓDIGO</span>
+                                <div class="flex-1 h-px bg-gray-200"></div>
                             </div>
                             `}
                             
@@ -1125,23 +1130,31 @@ class WiFiPortal {
                                 </button>
                             </div>
                             
-                            <!-- Status após copiar (aparece após copiar) -->
+                            <!-- Passo 2: abrir banco (aparece após copiar) -->
                             <div id="open-bank-area" class="hidden mb-2">
-                                <!-- Caso 1: Tem dados móveis -->
-                                <div id="has-mobile-data" class="hidden">
+                                <div class="flex items-center gap-2 mb-1.5">
+                                    <div class="flex-1 h-px bg-gray-200"></div>
+                                    <span class="text-[10px] text-emerald-700 font-bold">PASSO 2 — ABRA O BANCO E COLE</span>
+                                    <div class="flex-1 h-px bg-gray-200"></div>
+                                </div>
+                                <div id="after-copy-hint" class="hidden">
                                     <div class="bg-emerald-50 border border-emerald-300 rounded-lg p-2.5">
-                                        <p class="text-emerald-800 font-bold text-xs flex items-center gap-1.5">✅ Abra o app do banco e cole o código PIX.</p>
-                                        <p class="text-emerald-600 text-[10px] mt-1">Após pagar, o WiFi será liberado automaticamente.</p>
+                                        <p class="text-emerald-800 font-bold text-xs">✅ Código copiado! Agora abra o <strong>app do banco</strong> e cole o PIX.</p>
+                                        <p class="text-emerald-600 text-[10px] mt-1">Não abra o banco antes de copiar — o código precisa estar na área de transferência.</p>
                                     </div>
                                 </div>
-                                <!-- Caso 2: Sem dados móveis - liberando automaticamente -->
+                                <div id="has-mobile-data" class="hidden">
+                                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+                                        <p class="text-blue-800 font-bold text-xs">📱 Use seus <strong>dados móveis (4G)</strong> para abrir o app do banco e colar o código.</p>
+                                    </div>
+                                </div>
                                 <div id="no-mobile-data" class="hidden">
                                     <div class="bg-amber-50 border border-amber-300 rounded-lg p-2.5">
                                         <p class="text-amber-800 font-bold text-xs flex items-center gap-1.5">
                                             <span id="bypass-icon" class="inline-block"><div class="animate-spin w-3.5 h-3.5 border-2 border-amber-500 border-t-transparent rounded-full"></div></span>
-                                            <span id="bypass-text">Liberando acesso temporario para pagar...</span>
+                                            <span id="bypass-text">Liberando internet para você abrir o banco...</span>
                                         </p>
-                                        <p class="text-amber-700 text-[10px] mt-1" id="bypass-subtext">Aguarde, esta tela pode fechar. Abra o banco e cole o código.</p>
+                                        <p class="text-amber-700 text-[10px] mt-1" id="bypass-subtext">Depois de copiar, abra o app do banco e cole o código PIX.</p>
                                     </div>
                                 </div>
                             </div>
@@ -1294,16 +1307,10 @@ class WiFiPortal {
         
         document.body.appendChild(modal);
         
-        // Mostrar passo 1 (QR Code) direto — sem aviso desnecessário
+        // Mostrar passo 1 (QR Code) direto
         document.getElementById('step-1-content').classList.remove('hidden');
 
-        // 🕒 Liberar acesso temporário JÁ na abertura do modal, para que o aviso
-        // "internet liberada por 3 minutos" seja verdadeiro e o cliente consiga
-        // abrir o app do banco mesmo sem dados móveis (sem depender de copiar antes).
-        const openBankAreaOnLoad = document.getElementById('open-bank-area');
-        if (openBankAreaOnLoad) {
-            openBankAreaOnLoad.classList.remove('hidden');
-        }
+        // Verificar bypass / limite e liberar internet se necessário (sem mostrar passo 2 antes de copiar)
         this.detectAndBypass(data.payment_id);
         
         // Event: Copiar código PIX
@@ -1314,13 +1321,15 @@ class WiFiPortal {
                 btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> COPIADO!';
                 btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
                 btn.classList.add('bg-emerald-500');
-                
-                // Área pós-cópia já foi revelada na abertura do modal (com o bypass).
-                // Aqui apenas garantimos que está visível, sem disparar bypass de novo.
+
                 const openBankArea = document.getElementById('open-bank-area');
-                if (openBankArea) {
-                    openBankArea.classList.remove('hidden');
-                }
+                const afterCopyHint = document.getElementById('after-copy-hint');
+                const hasMobile = document.getElementById('has-mobile-data');
+                const noMobile = document.getElementById('no-mobile-data');
+                if (openBankArea) openBankArea.classList.remove('hidden');
+                if (afterCopyHint) afterCopyHint.classList.remove('hidden');
+                if (this._bypassMode === 'mobile' && hasMobile) hasMobile.classList.remove('hidden');
+                if (this._bypassMode === 'limit' && noMobile) noMobile.classList.remove('hidden');
 
                 // 📧 Enviar email com código PIX (em background, não bloqueia)
                 fetch('/api/payment/pix/send-email', {
@@ -1512,25 +1521,93 @@ class WiFiPortal {
     }
 
     /**
+     * Atualiza o banner principal do modal PIX conforme status do bypass
+     */
+    updateBypassBanner(mode, options = {}) {
+        const banner = document.getElementById('bypass-status-banner');
+        const iconEl = document.getElementById('bypass-banner-icon');
+        const titleEl = document.getElementById('bypass-banner-title');
+        const textEl = document.getElementById('bypass-banner-text');
+        if (!banner || !iconEl || !titleEl || !textEl) return;
+
+        const copySteps = '<strong>1.</strong> Copie o código PIX abaixo<br><strong>2.</strong> Abra o app do banco e <strong>cole</strong> o código<br><strong>3.</strong> Confirme o pagamento — o WiFi libera sozinho';
+
+        const styles = {
+            checking: {
+                banner: 'bg-slate-50 border-2 border-slate-200',
+                icon: 'bg-slate-400',
+                iconHtml: '<div class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>',
+                title: 'text-slate-900',
+                text: 'text-slate-700',
+            },
+            success: {
+                banner: 'bg-emerald-50 border-2 border-emerald-400',
+                icon: 'bg-emerald-500',
+                iconHtml: '<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+                title: 'text-emerald-900',
+                text: 'text-emerald-800',
+            },
+            limit: {
+                banner: 'bg-red-50 border-2 border-red-400',
+                icon: 'bg-red-500',
+                iconHtml: '<span class="text-white text-lg leading-none">!</span>',
+                title: 'text-red-900',
+                text: 'text-red-800',
+            },
+            mobile: {
+                banner: 'bg-blue-50 border-2 border-blue-300',
+                icon: 'bg-blue-500',
+                iconHtml: '<span class="text-white text-sm">📱</span>',
+                title: 'text-blue-900',
+                text: 'text-blue-800',
+            },
+            blocked: {
+                banner: 'bg-red-50 border-2 border-red-400',
+                icon: 'bg-red-600',
+                iconHtml: '<span class="text-white text-lg leading-none">🚫</span>',
+                title: 'text-red-900',
+                text: 'text-red-800',
+            },
+        };
+
+        const s = styles[mode] || styles.checking;
+        banner.className = `${s.banner} rounded-xl p-3 mb-3 shadow-sm`;
+        iconEl.className = `w-10 h-10 ${s.icon} rounded-full flex items-center justify-center flex-shrink-0 shadow`;
+        iconEl.innerHTML = s.iconHtml;
+        titleEl.className = `${s.title} font-extrabold text-sm leading-tight`;
+        textEl.className = `${s.text} text-[11px] mt-1 leading-snug`;
+
+        if (mode === 'checking') {
+            titleEl.textContent = 'Preparando pagamento...';
+            textEl.innerHTML = copySteps;
+        } else if (mode === 'success') {
+            const remaining = options.remaining ?? 0;
+            const extra = remaining > 0
+                ? ` (${remaining} liberação${remaining > 1 ? 'ões' : ''} restante${remaining > 1 ? 's' : ''} nesta hora)`
+                : ' (última liberação desta hora)';
+            titleEl.textContent = 'Internet liberada por 3 minutos!';
+            textEl.innerHTML = `Primeiro <strong>copie o código abaixo</strong>. Depois abra o app do banco e cole para pagar. O acesso completo libera automaticamente após o PIX.${extra}`;
+        } else if (mode === 'limit') {
+            titleEl.textContent = 'Limite de liberações usado';
+            textEl.innerHTML = 'Você já usou as <strong>2 liberações por hora</strong>. Copie o código abaixo e pague com <strong>dados móveis (4G) ligados</strong>, ou aguarde 1 hora. Sem 4G não dá para abrir o app do banco.';
+        } else if (mode === 'mobile') {
+            titleEl.textContent = 'Copie primeiro, depois abra o banco';
+            textEl.innerHTML = copySteps + '<br><br>📱 Você tem internet pelo <strong>4G</strong> — use para abrir o app do banco após copiar.';
+        } else if (mode === 'blocked') {
+            titleEl.textContent = 'Liberação temporária suspensa';
+            textEl.innerHTML = options.message || 'Entre em contato com o suporte ou realize o pagamento com dados móveis.';
+        }
+    }
+
+    /**
      * Detecta se tem internet (dados móveis) e ativa bypass automaticamente se não tem
-     * Chamado APÓS o usuário copiar o código PIX
+     * Chamado na abertura do modal PIX
      */
     detectAndBypass(paymentId) {
-        // 🔒 Rodar só uma vez por modal (evita consumir 2 liberações à toa
-        // quando o cliente também copia o código depois de abrir).
         if (this._bypassRan) return;
         this._bypassRan = true;
+        this._bypassMode = 'checking';
 
-        const showHasData = () => {
-            const el = document.getElementById('has-mobile-data');
-            if (el) el.classList.remove('hidden');
-        };
-        const showNoData = () => {
-            const el = document.getElementById('no-mobile-data');
-            if (el) el.classList.remove('hidden');
-        };
-
-        // Tentar acessar a internet para detectar dados móveis
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 3000);
 
@@ -1542,13 +1619,11 @@ class WiFiPortal {
         })
         .then(() => {
             clearTimeout(timeout);
-            // Tem internet (dados móveis) → só mostrar instrução
-            showHasData();
+            this._bypassMode = 'mobile';
+            this.updateBypassBanner('mobile');
         })
         .catch(() => {
             clearTimeout(timeout);
-            // Sem internet → mostrar loading e ativar bypass automaticamente
-            showNoData();
             this.activateBypassAuto(paymentId);
         });
     }
@@ -1557,6 +1632,7 @@ class WiFiPortal {
      * Ativa acesso temporario de 3 min automaticamente (sem botão extra)
      */
     async activateBypassAuto(paymentId) {
+        this.updateBypassBanner('checking');
         try {
             const response = await fetch('/api/payment/pix/temp-bypass', {
                 method: 'POST',
@@ -1574,21 +1650,22 @@ class WiFiPortal {
             const subtext = document.getElementById('bypass-subtext');
 
             if (result.success) {
-                if (result.already_bypassed) {
-                    // Já tem bypass ativo
+                this._bypassMode = 'success';
+                if (result.already_bypassed || result.already_connected) {
+                    this.updateBypassBanner('success', { remaining: result.bypasses_remaining ?? 1 });
                     if (icon) icon.innerHTML = '✅';
-                    if (text) text.textContent = 'Internet já está liberada!';
-                    if (subtext) subtext.textContent = 'Abra o app do banco e cole o código PIX.';
+                    if (text) text.textContent = 'Internet já liberada — abra o banco e cole o código';
+                    if (subtext) subtext.textContent = 'Copie o código acima se ainda não copiou.';
                 } else {
+                    const remaining = result.bypasses_remaining ?? 0;
+                    this.updateBypassBanner('success', { remaining });
                     if (icon) icon.innerHTML = '✅';
-                    const remaining = result.bypasses_remaining || 0;
-                    if (text) text.textContent = 'Acesso temporario liberado para pagar!';
-                    if (subtext) subtext.textContent = remaining > 0 
-                        ? `Abra o banco e cole o código PIX. (${remaining} liberação restante)` 
-                        : 'Abra o banco e cole o código PIX. (última liberação)';
+                    if (text) text.textContent = 'Internet liberada! Agora abra o banco e cole o código';
+                    if (subtext) subtext.textContent = remaining > 0
+                        ? `Copie o código acima primeiro. (${remaining} liberação restante nesta hora)`
+                        : 'Copie o código acima primeiro. (última liberação desta hora)';
                 }
-                
-                // Mudar cor para verde
+
                 const container = document.getElementById('no-mobile-data')?.querySelector('div');
                 if (container) {
                     container.className = 'bg-emerald-50 border border-emerald-300 rounded-lg p-2.5';
@@ -1598,11 +1675,12 @@ class WiFiPortal {
                     });
                 }
             } else if (result.limit_reached) {
-                // Limite atingido - mostrar aviso vermelho
+                this._bypassMode = 'limit';
+                this.updateBypassBanner('limit');
                 if (icon) icon.innerHTML = '🚫';
-                if (text) text.textContent = 'Limite de liberações atingido';
-                if (subtext) subtext.textContent = 'Use seus dados móveis para pagar ou aguarde 1 hora.';
-                
+                if (text) text.textContent = 'Sem internet — limite de liberações atingido';
+                if (subtext) subtext.textContent = 'Ligue o 4G, copie o código e pague pelo app do banco.';
+
                 const container = document.getElementById('no-mobile-data')?.querySelector('div');
                 if (container) {
                     container.className = 'bg-red-50 border border-red-300 rounded-lg p-2.5';
@@ -1611,17 +1689,25 @@ class WiFiPortal {
                         p.classList.add('text-red-700');
                     });
                 }
+            } else if (result.blocked) {
+                this._bypassMode = 'blocked';
+                this.updateBypassBanner('blocked', { message: result.message });
+                if (icon) icon.innerHTML = '🚫';
+                if (text) text.textContent = result.message || 'Liberação suspensa';
+                if (subtext) subtext.textContent = 'Use dados móveis para pagar.';
             } else {
+                this.updateBypassBanner('mobile');
                 if (icon) icon.innerHTML = '⚠️';
-                if (text) text.textContent = result.message || 'Use seus dados móveis para pagar';
-                if (subtext) subtext.textContent = 'Abra o app do banco e cole o código PIX copiado.';
+                if (text) text.textContent = result.message || 'Copie o código e use o 4G para pagar';
+                if (subtext) subtext.textContent = 'Abra o app do banco somente depois de copiar.';
             }
         } catch (e) {
             console.error('Erro ao ativar bypass:', e);
+            this.updateBypassBanner('mobile');
             const icon = document.getElementById('bypass-icon');
             const text = document.getElementById('bypass-text');
             if (icon) icon.innerHTML = '📱';
-            if (text) text.textContent = 'Abra o app do banco e cole o código PIX';
+            if (text) text.textContent = 'Copie o código e use o 4G para abrir o banco';
         }
     }
 
