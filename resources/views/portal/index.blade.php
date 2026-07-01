@@ -278,22 +278,6 @@
                 </section>
                 @endif
 
-                <!-- Portal não abriu sozinho? (iPhone/Android) -->
-                <section class="bg-white rounded-xl border border-blue-200 shadow-card px-3 py-2.5">
-                    <details class="group">
-                        <summary class="text-[11px] font-bold text-blue-800 cursor-pointer list-none flex items-center justify-between gap-2">
-                            <span>📱 A página não abriu sozinha ao conectar?</span>
-                            <span class="text-blue-400 group-open:rotate-180 transition-transform">▼</span>
-                        </summary>
-                        <div class="mt-2 space-y-1.5 text-[10px] text-gray-600 leading-snug">
-                            <p><strong>iPhone:</strong> Toque em <em>"Usar sem Internet"</em> ou <em>"Cancelar"</em> na notificação do WiFi, depois abra o <strong>Safari</strong> e digite:</p>
-                            <p class="font-mono bg-gray-100 rounded px-2 py-1 text-[10px] break-all">http://10.5.50.1</p>
-                            <p><strong>Android:</strong> Toque na notificação <em>"Fazer login na rede"</em> ou abra o Chrome e acesse o endereço acima.</p>
-                            <p class="text-amber-700">⚠️ Desligue os <strong>dados móveis (4G)</strong> antes de pagar.</p>
-                        </div>
-                    </details>
-                </section>
-
                 <!-- Card de Planos -->
                 <section class="bg-white rounded-2xl border border-border shadow-card overflow-hidden animate-slide-up">
                     <div class="px-4 py-3 sm:px-5 sm:py-4">
