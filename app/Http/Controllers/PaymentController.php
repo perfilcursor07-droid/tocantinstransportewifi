@@ -1348,6 +1348,25 @@ class PaymentController extends Controller
                         'recovered_mac' => $recoveredMac,
                     ]);
                 }
+
+                // 🔥 FALLBACK FINAL: recuperar MAC pelo IP via relatórios do MikroTik
+                // (registrarMacs reporta MAC+IP de todos os conectados). Garante liberação
+                // mesmo se o MAC não veio no fluxo de pagamento.
+                if (! $payment->user->mac_address && $payment->user->ip_address) {
+                    try {
+                        $report = MikrotikMacReport::getLatestMacForIp($payment->user->ip_address);
+                        if ($report && ! \App\Support\HotspotIdentity::isMockMac($report->mac_address)) {
+                            $payment->user->update(['mac_address' => strtoupper($report->mac_address)]);
+                            Log::info('🔧 MAC recuperado via relatório MikroTik (por IP)', [
+                                'user_id' => $payment->user_id,
+                                'ip' => $payment->user->ip_address,
+                                'recovered_mac' => $report->mac_address,
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('Fallback MAC por IP falhou', ['error' => $e->getMessage()]);
+                    }
+                }
             }
 
             // Criar sessão ativa
