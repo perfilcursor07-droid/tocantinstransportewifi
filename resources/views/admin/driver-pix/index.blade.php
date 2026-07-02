@@ -1,0 +1,82 @@
+@extends('layouts.admin')
+
+@section('title', 'Pagamentos Motoristas')
+
+@section('breadcrumb')
+    <span class="mx-2">/</span>
+    <span class="text-green font-medium">Pagamentos Motoristas</span>
+@endsection
+
+@section('page-title', 'Pagamentos Motoristas')
+
+@section('content')
+<div class="space-y-6">
+    @if(session('success'))
+    <div class="bg-green-pale border border-green/30 text-green-dark px-4 py-3 rounded-2xl text-sm">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+    <div class="bg-red-pale border border-red/30 text-red px-4 py-3 rounded-2xl text-sm">{{ session('error') }}</div>
+    @endif
+    @if(session('new_link_url'))
+    <div class="bg-blue-pale border border-blue/30 rounded-2xl p-4">
+        <p class="text-sm font-semibold text-blue mb-2">Novo link gerado — copie e envie ao motorista:</p>
+        <div class="flex gap-2">
+            <input type="text" id="newLinkUrl" value="{{ session('new_link_url') }}" readonly class="flex-1 px-3 py-2 bg-white border border-border rounded-xl text-xs font-mono">
+            <button type="button" onclick="copyLink()" class="px-4 py-2 bg-blue text-white rounded-xl text-xs font-semibold hover:bg-blue-light">Copiar</button>
+        </div>
+    </div>
+    @endif
+
+    {{-- Stats --}}
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="bg-white rounded-2xl border border-border p-4 shadow-card">
+            <p class="text-[10px] font-bold uppercase text-muted tracking-wider">Pendentes</p>
+            <p class="text-2xl font-bold text-amber-600 mt-1">{{ $stats['pending_profiles'] }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-border p-4 shadow-card">
+            <p class="text-[10px] font-bold uppercase text-muted tracking-wider">Aprovados</p>
+            <p class="text-2xl font-bold text-green mt-1">{{ $stats['approved_profiles'] }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-border p-4 shadow-card">
+            <p class="text-[10px] font-bold uppercase text-muted tracking-wider">Pagtos pendentes</p>
+            <p class="text-2xl font-bold text-blue mt-1">{{ $stats['pending_payments'] }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-border p-4 shadow-card">
+            <p class="text-[10px] font-bold uppercase text-muted tracking-wider">Total pago</p>
+            <p class="text-2xl font-bold text-ink mt-1">R$ {{ number_format($stats['total_paid'], 2, ',', '.') }}</p>
+        </div>
+    </div>
+
+    {{-- Tabs --}}
+    <div class="flex gap-2 border-b border-border pb-0">
+        @foreach(['drivers' => 'Motoristas', 'links' => 'Links de cadastro', 'payments' => 'Pagamentos'] as $key => $label)
+        <a href="{{ route('admin.driver-pix.index', ['tab' => $key]) }}"
+           class="px-4 py-2.5 text-sm font-semibold rounded-t-xl transition-colors {{ $tab === $key ? 'bg-white border border-border border-b-white -mb-px text-green' : 'text-muted hover:text-ink' }}">
+            {{ $label }}
+        </a>
+        @endforeach
+    </div>
+
+    @if($tab === 'links')
+    @include('admin.driver-pix.partials.links', ['links' => $links])
+    @elseif($tab === 'payments')
+    @include('admin.driver-pix.partials.payments', ['payments' => $payments])
+    @else
+    @include('admin.driver-pix.partials.drivers', ['profiles' => $profiles])
+    @endif
+</div>
+
+<script>
+function copyLink() {
+    const el = document.getElementById('newLinkUrl');
+    if (!el) return;
+    navigator.clipboard.writeText(el.value);
+}
+function copyText(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.value);
+    alert('Link copiado!');
+}
+</script>
+@endsection

@@ -19,7 +19,9 @@ use App\Http\Controllers\ServiceReviewController;
 use App\Http\Controllers\Admin\WhatsappController;
 use App\Http\Controllers\DriverVoucherController;
 use App\Http\Controllers\DriverRequestController;
+use App\Http\Controllers\DriverPixRegistrationController;
 use App\Http\Controllers\Admin\DriverRequestController as AdminDriverRequestController;
+use App\Http\Controllers\Admin\DriverPixController as AdminDriverPixController;
 use App\Http\Controllers\ConnectivityProbeController;
 
 // Página principal do portal cativo
@@ -70,6 +72,11 @@ Route::post('/avaliacao/{token}', [ServiceReviewController::class, 'store'])->na
 Route::get('/cadastro-motorista', [DriverRequestController::class, 'create'])->name('driver-request.create');
 Route::post('/cadastro-motorista', [DriverRequestController::class, 'store'])->name('driver-request.store');
 Route::get('/cadastro-motorista/enviado', [DriverRequestController::class, 'success'])->name('driver-request.success');
+
+// Cadastro PIX motoristas (link com token)
+Route::get('/motorista/pix/{token}', [DriverPixRegistrationController::class, 'show'])->name('driver-pix.register');
+Route::post('/motorista/pix/{token}', [DriverPixRegistrationController::class, 'store'])->name('driver-pix.store');
+Route::get('/motorista/pix/{token}/enviado', [DriverPixRegistrationController::class, 'success'])->name('driver-pix.success');
 
 // Rotas de Autenticação
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -186,10 +193,20 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
             Route::post('/resend/{id}', [WhatsappController::class, 'resendMessage'])->name('resend');
         });
 
-        // Pedidos de motoristas
+        // Pedidos de motoristas (vouchers)
         Route::get('/pedidos-motoristas', [AdminDriverRequestController::class, 'index'])->name('driver-requests.index');
         Route::patch('/pedidos-motoristas/{driverRequest}/aprovar', [AdminDriverRequestController::class, 'approve'])->name('driver-requests.approve');
         Route::patch('/pedidos-motoristas/{driverRequest}/rejeitar', [AdminDriverRequestController::class, 'reject'])->name('driver-requests.reject');
+
+        // Pagamentos PIX motoristas
+        Route::get('/pagamentos-motoristas', [AdminDriverPixController::class, 'index'])->name('driver-pix.index');
+        Route::post('/pagamentos-motoristas/links', [AdminDriverPixController::class, 'storeLink'])->name('driver-pix.links.store');
+        Route::patch('/pagamentos-motoristas/links/{link}/toggle', [AdminDriverPixController::class, 'toggleLink'])->name('driver-pix.links.toggle');
+        Route::patch('/pagamentos-motoristas/{profile}/aprovar', [AdminDriverPixController::class, 'approve'])->name('driver-pix.approve');
+        Route::patch('/pagamentos-motoristas/{profile}/rejeitar', [AdminDriverPixController::class, 'reject'])->name('driver-pix.reject');
+        Route::post('/pagamentos-motoristas/{profile}/pagamentos', [AdminDriverPixController::class, 'storePayment'])->name('driver-pix.payments.store');
+        Route::patch('/pagamentos-motoristas/pagamentos/{payment}/pagar', [AdminDriverPixController::class, 'markPaymentPaid'])->name('driver-pix.payments.paid');
+        Route::patch('/pagamentos-motoristas/pagamentos/{payment}/cancelar', [AdminDriverPixController::class, 'cancelPayment'])->name('driver-pix.payments.cancel');
 
         // Gerenciamento de Usuários
         Route::get('/users', [AdminController::class, 'users'])->name('users');
