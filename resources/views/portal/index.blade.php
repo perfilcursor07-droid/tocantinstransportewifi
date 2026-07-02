@@ -253,12 +253,33 @@
 
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden">
-        <div class="flex items-center justify-center h-full">
-            <div class="bg-white rounded-2xl p-8 text-center shadow-xl">
-                <div class="animate-spin rounded-full h-10 w-10 border-3 border-gray-200 border-t-brand-600 mx-auto mb-4"></div>
-                <p id="loading-title" class="text-gray-800 font-semibold text-sm">Processando...</p>
-                <p id="loading-subtitle" class="text-gray-400 text-xs mt-1">Por favor, aguarde</p>
-                <p id="loading-hint" class="text-gray-400 text-[10px] mt-2 hidden">Se demorar mais de 30s, desligue o 4G e tente de novo.</p>
+        <div class="flex items-center justify-center h-full p-4">
+            <div class="bg-white rounded-2xl p-6 sm:p-8 text-center shadow-xl w-full max-w-xs animate-slide-up">
+                <div class="relative w-14 h-14 mx-auto mb-4">
+                    <div id="loading-spinner" class="animate-spin rounded-full h-14 w-14 border-[3px] border-gray-200 border-t-brand-600"></div>
+                    <div id="loading-scan-icon" class="hidden absolute inset-0 flex items-center justify-center">
+                        <svg class="w-7 h-7 text-brand-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                </div>
+                <p id="loading-title" class="text-gray-800 font-bold text-sm">Processando...</p>
+                <p id="loading-subtitle" class="text-gray-500 text-xs mt-1.5 leading-relaxed">Por favor, aguarde</p>
+
+                <div id="loading-progress-wrap" class="hidden mt-4">
+                    <div class="flex justify-center gap-2 mb-2">
+                        <span id="loading-dot-1" class="w-2 h-2 rounded-full bg-gray-200 transition-colors"></span>
+                        <span id="loading-dot-2" class="w-2 h-2 rounded-full bg-gray-200 transition-colors"></span>
+                        <span id="loading-dot-3" class="w-2 h-2 rounded-full bg-gray-200 transition-colors"></span>
+                        <span id="loading-dot-4" class="w-2 h-2 rounded-full bg-gray-200 transition-colors"></span>
+                    </div>
+                    <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div id="loading-progress-bar" class="h-full bg-gradient-to-r from-brand-600 to-brand-500 transition-all duration-500 rounded-full" style="width:25%"></div>
+                    </div>
+                    <p class="text-[10px] text-brand-600 font-semibold mt-2 animate-pulse">Analisando conexão WiFi...</p>
+                </div>
+
+                <p id="loading-hint" class="text-gray-400 text-[10px] mt-3 hidden leading-relaxed">Se demorar mais de 30s, desligue o 4G e tente de novo.</p>
             </div>
         </div>
     </div>

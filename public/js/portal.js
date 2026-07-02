@@ -230,12 +230,45 @@ class WiFiPortal {
         console.log('🔍 Aguardando MAC real...');
         const maxAttempts = 4;
 
-        for (let i = 0; i < maxAttempts; i++) {
-            this.setLoadingMessage(
-                'Identificando seu aparelho...',
-                `Aguarde ${i + 1}/${maxAttempts} — o WiFi do ônibus precisa reconhecer o celular`
-            );
+        this.showDeviceIdentificationLoading(1, maxAttempts);
+
+        try {
+            for (let i = 0; i < maxAttempts; i++) {
+                this.showDeviceIdentificationLoading(i + 1, maxAttempts);
+                try {
+                    const response = await this.fetchWithTimeout('/api/detect-device', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': this.getCSRFToken()
+                        },
+                        body: JSON.stringify(this.getPortalContextPayload())
+                    }, 12000);
+
+                    const data = await response.json();
+                    const mac = data.mac_address || '';
+                    const detectedIp = data.client_ip || data.ip_address;
+                    
+                    if (mac && this.isValidMacAddress(mac)) {
+                        this.deviceMac = mac.toUpperCase();
+                        console.log('✅ MAC detectado:', this.deviceMac);
+                        if (detectedIp) {
+                            this.deviceIp = detectedIp;
+                        }
+                        return;
+                    }
+                    
+                    console.log(`⏳ Tentativa ${i + 1}/${maxAttempts} — aguardando MikroTik reportar MAC...`);
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    
+                } catch (error) {
+                    console.error('Erro na tentativa', i + 1, ':', error);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+            
             try {
+                this.showDeviceIdentificationLoading(maxAttempts, maxAttempts);
                 const response = await this.fetchWithTimeout('/api/detect-device', {
                     method: 'POST',
                     headers: {
@@ -244,52 +277,23 @@ class WiFiPortal {
                     },
                     body: JSON.stringify(this.getPortalContextPayload())
                 }, 12000);
-
                 const data = await response.json();
-                const mac = data.mac_address || '';
-                const detectedIp = data.client_ip || data.ip_address;
-                
-                if (mac && this.isValidMacAddress(mac)) {
-                    this.deviceMac = mac.toUpperCase();
-                    console.log('✅ MAC detectado:', this.deviceMac);
-                    if (detectedIp) {
-                        this.deviceIp = detectedIp;
+                if (data.mac_address && this.isValidMacAddress(data.mac_address)) {
+                    this.deviceMac = data.mac_address.toUpperCase();
+                    if (data.client_ip || data.ip_address) {
+                        this.deviceIp = data.client_ip || data.ip_address;
                     }
                     return;
                 }
-                
-                console.log(`⏳ Tentativa ${i + 1}/${maxAttempts} — aguardando MikroTik reportar MAC...`);
-                await new Promise(resolve => setTimeout(resolve, 3000));
-                
-            } catch (error) {
-                console.error('Erro na tentativa', i + 1, ':', error);
-                await new Promise(resolve => setTimeout(resolve, 2000));
+            } catch (e) {
+                console.error('Falha na tentativa final:', e);
             }
-        }
-        
-        try {
-            const response = await this.fetchWithTimeout('/api/detect-device', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': this.getCSRFToken()
-                },
-                body: JSON.stringify(this.getPortalContextPayload())
-            }, 12000);
-            const data = await response.json();
-            if (data.mac_address && this.isValidMacAddress(data.mac_address)) {
-                this.deviceMac = data.mac_address.toUpperCase();
-                if (data.client_ip || data.ip_address) {
-                    this.deviceIp = data.client_ip || data.ip_address;
-                }
-                return;
-            }
-        } catch (e) {
-            console.error('Falha na tentativa final:', e);
-        }
 
-        this.deviceMac = '';
-        console.warn('⚠️ Não foi possível confirmar MAC — usuário deve estar no WiFi sem 4G');
+            this.deviceMac = '';
+            console.warn('⚠️ Não foi possível confirmar MAC — usuário deve estar no WiFi sem 4G');
+        } finally {
+            this.hideDeviceIdentificationLoading();
+        }
     }
 
     /**
@@ -2097,10 +2101,60 @@ class WiFiPortal {
     /**
      * Exibe loading
      */
-    showLoading() {
+    showLoading(options = {}) {
         if (this.loadingOverlay) {
             this.loadingOverlay.classList.remove('hidden');
-            this.setLoadingMessage('Processando...', 'Por favor, aguarde');
+            if (!options.keepMessage) {
+                this.setLoadingMessage('Processando...', 'Por favor, aguarde');
+                this.setLoadingProgress(0, 4, false);
+            }
+        }
+    }
+
+    /**
+     * Overlay dedicado à identificação do aparelho no WiFi do ônibus
+     */
+    showDeviceIdentificationLoading(step, maxSteps = 4) {
+        if (this.loadingOverlay) {
+            this.loadingOverlay.classList.remove('hidden');
+        }
+        this.setLoadingMessage(
+            'Identificando seu aparelho...',
+            `Aguarde ${step}/${maxSteps} — o WiFi do ônibus precisa reconhecer o celular`
+        );
+        this.setLoadingProgress(step, maxSteps, true);
+    }
+
+    hideDeviceIdentificationLoading() {
+        this.setLoadingProgress(0, 4, false);
+        const scanIcon = document.getElementById('loading-scan-icon');
+        const spinner = document.getElementById('loading-spinner');
+        if (scanIcon) scanIcon.classList.add('hidden');
+        if (spinner) spinner.classList.remove('hidden');
+        this.hideLoading();
+    }
+
+    setLoadingProgress(step, max, visible) {
+        const wrap = document.getElementById('loading-progress-wrap');
+        const bar = document.getElementById('loading-progress-bar');
+        const scanIcon = document.getElementById('loading-scan-icon');
+        const spinner = document.getElementById('loading-spinner');
+
+        if (wrap) wrap.classList.toggle('hidden', !visible);
+        if (bar && max > 0) {
+            bar.style.width = `${Math.min(100, Math.round((step / max) * 100))}%`;
+        }
+        if (scanIcon && spinner) {
+            scanIcon.classList.toggle('hidden', !visible);
+            spinner.classList.toggle('hidden', visible);
+        }
+        for (let i = 1; i <= max; i++) {
+            const dot = document.getElementById(`loading-dot-${i}`);
+            if (!dot) continue;
+            dot.classList.toggle('bg-brand-600', i <= step);
+            dot.classList.toggle('bg-gray-200', i > step);
+            dot.classList.toggle('animate-pulse', visible && i === step);
+            dot.classList.toggle('scale-125', visible && i === step);
         }
     }
 
@@ -2114,8 +2168,9 @@ class WiFiPortal {
         if (titleEl && title) titleEl.textContent = title;
         if (subEl && subtitle) subEl.textContent = subtitle;
         if (hintEl) {
-            const showHint = (title || '').toLowerCase().includes('gerando') || (title || '').toLowerCase().includes('identificando');
-            hintEl.classList.toggle('hidden', !showHint);
+            const isIdentifying = (title || '').toLowerCase().includes('identificando');
+            const isGenerating = (title || '').toLowerCase().includes('gerando');
+            hintEl.classList.toggle('hidden', !(isIdentifying || isGenerating));
         }
     }
 
