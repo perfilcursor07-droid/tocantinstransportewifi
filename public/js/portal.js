@@ -302,16 +302,49 @@ class WiFiPortal {
             }
 
             this.deviceMac = '';
-            console.warn('⚠️ Não foi possível confirmar MAC — usuário deve estar no WiFi sem 4G');
-
-            // Mostrar o aviso "Desligue os dados móveis" imediatamente,
-            // em vez de fechar o overlay em silêncio e deixar o usuário perdido.
-            // Não mostra se o backend já confirmou que está no WiFi do ônibus.
-            if (!window._ON_HOTSPOT && typeof showNoWifiWarning === 'function') {
-                showNoWifiWarning();
-            }
+            console.warn('⚠️ Não foi possível confirmar MAC');
+            await this.handleMacDetectionFailure();
         } finally {
             this.hideDeviceIdentificationLoading();
+        }
+    }
+
+    /**
+     * MAC não identificado. Decide o próximo passo com base no servidor:
+     * - Está no ônibus (IP público bate com um MikroTik): o MikroTik ainda não
+     *   reportou o MAC deste aparelho. Redireciona pelo login do hotspot
+     *   (http://10.5.50.1/login), que volta ao portal com mac/ip na URL.
+     *   Navegação top-level HTTP é permitida (não é mixed content).
+     * - Não está no ônibus: mostra o aviso "Desligue os dados móveis".
+     */
+    async handleMacDetectionFailure() {
+        let onHotspot = false;
+        try {
+            const res = await this.fetchWithTimeout('/api/connection-check', {
+                headers: { 'Accept': 'application/json' },
+                cache: 'no-store'
+            }, 5000);
+            const data = await res.json();
+            onHotspot = !!(data && data.on_hotspot);
+        } catch (e) {
+            console.warn('connection-check falhou:', e);
+        }
+
+        if (onHotspot) {
+            if (!sessionStorage.getItem('hotspotLoginTried')) {
+                sessionStorage.setItem('hotspotLoginTried', '1');
+                this.setLoadingMessage('Confirmando seu aparelho...', 'Passando pelo WiFi do ônibus, aguarde');
+                const dst = window.location.origin + '/?from_login=1&captive=true';
+                window.location.href = 'http://10.5.50.1/login?dst=' + encodeURIComponent(dst);
+                return;
+            }
+            // Já passou pelo login do hotspot e mesmo assim sem MAC
+            this.showErrorMessage('Não conseguimos confirmar seu aparelho. Desligue e ligue o WiFi do celular, reconecte na rede e tente de novo.');
+            return;
+        }
+
+        if (!window._ON_HOTSPOT && typeof showNoWifiWarning === 'function') {
+            showNoWifiWarning();
         }
     }
 
@@ -605,15 +638,7 @@ class WiFiPortal {
             // 🛡️ BLOQUEAR REGISTRO SEM MAC VÁLIDO (evita pagamento sem liberação)
             if (!this.deviceMac || !this.isValidMacAddress(this.deviceMac)) {
                 this.hideLoading();
-                const warning = document.getElementById('no-wifi-warning');
-                if (warning) {
-                    warning.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    window._noWifiBlocked = true;
-                } else {
-                    this.showRegistrationModal();
-                    this.showRegistrationError('Não foi possível identificar seu dispositivo. Desative os dados móveis, conecte ao WiFi "TocantinsTransporteWiFi" e tente novamente.');
-                }
+                await this.handleMacDetectionFailure();
                 return;
             }
 
@@ -912,15 +937,9 @@ class WiFiPortal {
 
             if (!this.deviceMac || !this.isValidMacAddress(this.deviceMac)) {
                 this.hideLoading();
-                // Mostrar overlay de "conecte ao WiFi" em vez de mensagem genérica
-                const warning = document.getElementById('no-wifi-warning');
-                if (warning) {
-                    warning.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                    window._noWifiBlocked = true;
-                } else {
-                    this.showErrorMessage('Não foi possível identificar seu dispositivo. Desative os dados móveis e conecte ao WiFi "TocantinsTransporteWiFi".');
-                }
+                // Está no ônibus? Redireciona pelo hotspot para capturar o MAC.
+                // Não está? Mostra o aviso de 4G.
+                await this.handleMacDetectionFailure();
                 return;
             }
 
@@ -2435,16 +2454,9 @@ class WiFiPortal {
             return true;
         }
 
-        // Mostrar overlay de "conecte ao WiFi" em vez de redirecionar
+        // Decide entre redirecionar pelo hotspot (está no ônibus) ou avisar sobre 4G
         this.hideLoading();
-        const warning = document.getElementById('no-wifi-warning');
-        if (warning) {
-            warning.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-            window._noWifiBlocked = true;
-        } else {
-            this.showErrorMessage('Não conseguimos identificar seu dispositivo. Desative os dados móveis e conecte ao WiFi "TocantinsTransporteWiFi".');
-        }
+        await this.handleMacDetectionFailure();
         return false;
     }
 }
