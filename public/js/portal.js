@@ -230,6 +230,18 @@ class WiFiPortal {
         console.log('🔍 Aguardando MAC real...');
         const maxAttempts = 4;
 
+        // ⚡ Teste rápido: se o roteador do ônibus (10.5.50.1) não responde,
+        // o usuário está no 4G — mostra o aviso NA HORA, sem as 4 tentativas.
+        const hotspotReachable = await this.probeHotspotQuick(2500);
+        if (!hotspotReachable && !window._ON_HOTSPOT) {
+            this.deviceMac = '';
+            console.warn('⚠️ Roteador do ônibus não responde — usuário está no 4G');
+            if (typeof showNoWifiWarning === 'function') {
+                showNoWifiWarning();
+            }
+            return;
+        }
+
         this.showDeviceIdentificationLoading(1, maxAttempts);
 
         try {
@@ -301,6 +313,27 @@ class WiFiPortal {
         } finally {
             this.hideDeviceIdentificationLoading();
         }
+    }
+
+    /**
+     * Testa se o roteador do ônibus responde (mesma lógica do probe do blade).
+     */
+    probeHotspotQuick(timeoutMs = 2500) {
+        return new Promise((resolve) => {
+            let done = false;
+            const finish = (result) => {
+                if (!done) { done = true; resolve(result); }
+            };
+            const img = new Image();
+            img.onload = () => finish(true);
+            img.onerror = () => {
+                fetch('http://10.5.50.1', { mode: 'no-cors', cache: 'no-cache' })
+                    .then(() => finish(true))
+                    .catch(() => finish(false));
+            };
+            img.src = 'http://10.5.50.1/favicon.ico?t=' + Date.now();
+            setTimeout(() => finish(false), timeoutMs);
+        });
     }
 
     /**
