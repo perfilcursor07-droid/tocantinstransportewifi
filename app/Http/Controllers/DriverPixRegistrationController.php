@@ -38,7 +38,7 @@ class DriverPixRegistrationController extends Controller
             'phone.required' => 'Informe seu telefone com DDD.',
         ]);
 
-        $pixKeyType = DriverPixProfile::detectPixKeyType($validated['pix_key']);
+        $pixKeyType = DriverPixProfile::detectPixKeyType($validated['pix_key'], $phone);
         $normalizedPixKey = DriverPixProfile::normalizePixKey($validated['pix_key'], $pixKeyType);
         $busNumber = strtoupper(trim($validated['bus_number']));
         $phone = preg_replace('/\D/', '', $validated['phone']);

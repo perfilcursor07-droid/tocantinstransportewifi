@@ -75,6 +75,17 @@ class DriverPixController extends Controller
             ->withCount(['payments as pending_payments_count' => fn ($q) => $q->where('status', 'pending')]);
     }
 
+    private function nextProfileToRegister(DriverPixProfile $current): ?DriverPixProfile
+    {
+        return $this->driverProfilesQuery()
+            ->where('status', 'approved')
+            ->where('bus_number', $current->bus_number)
+            ->where('id', '!=', $current->id)
+            ->whereDoesntHave('payments', fn ($q) => $q->where('status', 'pending'))
+            ->orderBy('full_name')
+            ->first();
+    }
+
     public function pixQr(Request $request, DriverPixProfile $profile, PixQRCodeService $pixQRCodeService)
     {
         if (! $profile->isApproved()) {
@@ -88,7 +99,8 @@ class DriverPixController extends Controller
             $profile->pix_key,
             $profile->full_name,
             $parsedAmount,
-            reference: 'BUS' . $profile->bus_number
+            reference: 'BUS' . $profile->bus_number,
+            pixKeyType: $profile->effectivePixKeyType()
         );
 
         return response()->json([
@@ -179,9 +191,18 @@ class DriverPixController extends Controller
             'status' => 'pending',
         ]);
 
+        $next = $this->nextProfileToRegister($profile);
+
+        $message = $next
+            ? "Pagamento de {$profile->full_name} registrado! Abrindo {$next->full_name} (ônibus {$profile->bus_number})..."
+            : "Pagamento de {$profile->full_name} registrado! Clique em \"Pagar\" para escanear o QR Code.";
+
         return redirect()
             ->route('admin.driver-pix.index', ['tab' => 'drivers'])
-            ->with('success', 'Pagamento registrado! Clique em "Pagar" para escanear o QR Code e marcar como pago.');
+            ->with('success', $message)
+            ->with('open_register_profile', $next?->id)
+            ->with('open_register_amount', $validated['amount'])
+            ->with('open_register_description', $validated['description'] ?? '');
     }
 
     public function markPaymentPaid(DriverPixPayment $payment)

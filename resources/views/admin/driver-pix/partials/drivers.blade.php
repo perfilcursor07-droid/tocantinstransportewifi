@@ -189,7 +189,7 @@
         openPayModal(b.dataset);
     });
 
-    window.openCreateModal = function(id, name, phone, bus, pixKey) {
+    window.openCreateModal = function(id, name, phone, bus, pixKey, defaultAmount, defaultDescription) {
         modalProfileId = id;
         modalPixKey = pixKey;
         document.getElementById('modalTitle').textContent = 'Registrar pagamento';
@@ -200,11 +200,14 @@
         document.getElementById('paymentModalForm').action = pixQrBase + '/' + id + '/pagamentos';
         document.getElementById('paymentModalForm').classList.remove('hidden');
         document.getElementById('modalPaySection').classList.add('hidden');
-        document.getElementById('modalAmount').value = '';
-        document.getElementById('modalDescription').value = '';
+        document.getElementById('modalAmount').value = defaultAmount ?? '';
+        document.getElementById('modalDescription').value = defaultDescription ?? '';
         document.getElementById('modalAmount').readOnly = false;
         resetQr();
         showModal();
+        if (defaultAmount && parseFloat(defaultAmount) > 0) {
+            updateQr(parseFloat(defaultAmount));
+        }
     };
 
     window.openPayModal = function(data) {
@@ -286,6 +289,28 @@
     window.copyPixKey = function(key) {
         navigator.clipboard.writeText(key);
     };
+
+    @if(session('open_register_profile'))
+    document.addEventListener('DOMContentLoaded', function() {
+        const profileId = @json(session('open_register_profile'));
+        const amount = @json(session('open_register_amount'));
+        const description = @json(session('open_register_description'));
+        const btn = document.querySelector('.btn-register-payment[data-id="' + profileId + '"]');
+        if (btn) {
+            setTimeout(() => {
+                openCreateModal(
+                    btn.dataset.id,
+                    btn.dataset.name,
+                    btn.dataset.phone,
+                    btn.dataset.bus,
+                    btn.dataset.pix,
+                    amount,
+                    description
+                );
+            }, 300);
+        }
+    });
+    @endif
 })();
 </script>
 @endpush

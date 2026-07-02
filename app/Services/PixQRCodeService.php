@@ -109,9 +109,10 @@ class PixQRCodeService
         string $recipientName,
         ?float $amount = null,
         ?string $city = null,
-        ?string $reference = null
+        ?string $reference = null,
+        ?string $pixKeyType = null
     ): string {
-        $key = $this->formatPixKeyForEmv($pixKey);
+        $key = $this->formatPixKeyForEmv($pixKey, $pixKeyType);
         $name = $this->cleanString($recipientName, 25);
         $cityClean = $this->cleanString($city ?? config('wifi.pix.merchant_city', 'PALMAS'), 15);
 
@@ -142,15 +143,15 @@ class PixQRCodeService
         return substr($payload, 0, -4) . '6304' . $crc;
     }
 
-    private function formatPixKeyForEmv(string $key): string
+    private function formatPixKeyForEmv(string $key, ?string $pixKeyType = null): string
     {
-        $type = \App\Models\DriverPixProfile::detectPixKeyType($key);
+        $type = $pixKeyType ?? \App\Models\DriverPixProfile::detectPixKeyType($key);
         $normalized = \App\Models\DriverPixProfile::normalizePixKey($key, $type);
 
         if ($type === 'phone') {
             $digits = preg_replace('/\D/', '', $normalized);
 
-            if (strlen($digits) === 11) {
+            if (strlen($digits) === 10 || strlen($digits) === 11) {
                 return '+55' . $digits;
             }
 

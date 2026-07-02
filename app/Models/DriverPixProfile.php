@@ -85,7 +85,7 @@ class DriverPixProfile extends Model
         return substr($key, 0, 3) . str_repeat('*', strlen($key) - 6) . substr($key, -3);
     }
 
-    public static function detectPixKeyType(string $key): string
+    public static function detectPixKeyType(string $key, ?string $phoneHint = null): string
     {
         $normalized = trim($key);
 
@@ -94,8 +94,21 @@ class DriverPixProfile extends Model
         }
 
         $digits = preg_replace('/\D/', '', $normalized);
+        $phoneDigits = $phoneHint ? preg_replace('/\D/', '', $phoneHint) : null;
+
+        if ($phoneDigits && $digits === $phoneDigits) {
+            return 'phone';
+        }
 
         if (strlen($digits) === 11) {
+            if (self::isValidCpf($digits)) {
+                return 'cpf';
+            }
+
+            if (self::looksLikeMobilePhone($digits)) {
+                return 'phone';
+            }
+
             return 'cpf';
         }
 
@@ -108,6 +121,59 @@ class DriverPixProfile extends Model
         }
 
         return 'random';
+    }
+
+    public static function isValidCpf(string $cpf): bool
+    {
+        $cpf = preg_replace('/\D/', '', $cpf);
+
+        if (strlen($cpf) !== 11 || preg_match('/^(\d)\1{10}$/', $cpf)) {
+            return false;
+        }
+
+        for ($t = 9; $t < 11; $t++) {
+            $sum = 0;
+            for ($i = 0; $i < $t; $i++) {
+                $sum += (int) $cpf[$i] * (($t + 1) - $i);
+            }
+            $digit = ((10 * $sum) % 11) % 10;
+            if ((int) $cpf[$t] !== $digit) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static function looksLikeMobilePhone(string $digits): bool
+    {
+        if (strlen($digits) !== 11) {
+            return false;
+        }
+
+        $ddd = (int) substr($digits, 0, 2);
+
+        return $ddd >= 11 && $ddd <= 99 && $digits[2] === '9';
+    }
+
+    public function effectivePixKeyType(): string
+    {
+        $pixDigits = preg_replace('/\D/', '', $this->pix_key);
+        $phoneDigits = preg_replace('/\D/', '', (string) $this->phone);
+
+        if ($phoneDigits !== '' && $pixDigits === $phoneDigits) {
+            return 'phone';
+        }
+
+        if ($this->pix_key_type === 'phone') {
+            return 'phone';
+        }
+
+        if (strlen($pixDigits) === 11 && ! self::isValidCpf($pixDigits) && self::looksLikeMobilePhone($pixDigits)) {
+            return 'phone';
+        }
+
+        return $this->pix_key_type ?: self::detectPixKeyType($this->pix_key, $this->phone);
     }
 
     public static function normalizePixKey(string $key, string $type): string
