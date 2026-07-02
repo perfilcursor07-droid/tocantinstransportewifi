@@ -42,6 +42,22 @@ class DriverPixProfile extends Model
         return $this->hasMany(DriverPixPayment::class);
     }
 
+    public function latestPendingPayment()
+    {
+        return $this->hasOne(DriverPixPayment::class)->ofMany(
+            ['created_at' => 'max'],
+            fn ($query) => $query->where('status', 'pending')
+        );
+    }
+
+    public function latestPaidPayment()
+    {
+        return $this->hasOne(DriverPixPayment::class)->ofMany(
+            ['paid_at' => 'max'],
+            fn ($query) => $query->where('status', 'paid')
+        );
+    }
+
     public function isApproved(): bool
     {
         return $this->status === 'approved';

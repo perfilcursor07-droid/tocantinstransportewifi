@@ -102,6 +102,67 @@ class PixQRCodeService
     }
 
     /**
+     * Gera PIX estático (chave do recebedor) para pagamento manual a motoristas.
+     */
+    public function generateStaticPixEmv(
+        string $pixKey,
+        string $recipientName,
+        ?float $amount = null,
+        ?string $city = null,
+        ?string $reference = null
+    ): string {
+        $key = $this->formatPixKeyForEmv($pixKey);
+        $name = $this->cleanString($recipientName, 25);
+        $cityClean = $this->cleanString($city ?? config('wifi.pix.merchant_city', 'PALMAS'), 15);
+
+        $merchantInfo = $this->formatField('00', 'br.gov.bcb.pix')
+            . $this->formatField('01', $key);
+
+        $payload = $this->formatField('00', '01');
+        $payload .= $this->formatField('01', '11');
+        $payload .= $this->formatField('26', $merchantInfo);
+        $payload .= $this->formatField('52', $this->merchantCategoryCode);
+        $payload .= $this->formatField('53', $this->currency);
+
+        if ($amount !== null && $amount > 0) {
+            $payload .= $this->formatField('54', number_format($amount, 2, '.', ''));
+        }
+
+        $payload .= $this->formatField('58', $this->countryCode);
+        $payload .= $this->formatField('59', $name);
+        $payload .= $this->formatField('60', $cityClean);
+
+        $ref = $reference ? preg_replace('/[^A-Za-z0-9]/', '', $reference) : '';
+        $ref = substr($ref ?: 'PAG', 0, 25);
+        $payload .= $this->formatField('62', $this->formatField('05', $ref));
+
+        $payload .= '6304';
+        $crc = $this->calculateCRC16($payload);
+
+        return substr($payload, 0, -4) . '6304' . $crc;
+    }
+
+    private function formatPixKeyForEmv(string $key): string
+    {
+        $type = \App\Models\DriverPixProfile::detectPixKeyType($key);
+        $normalized = \App\Models\DriverPixProfile::normalizePixKey($key, $type);
+
+        if ($type === 'phone') {
+            $digits = preg_replace('/\D/', '', $normalized);
+
+            if (strlen($digits) === 11) {
+                return '+55' . $digits;
+            }
+
+            if (strlen($digits) === 13 && str_starts_with($digits, '55')) {
+                return '+' . $digits;
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
      * Formatar campo EMV
      */
     private function formatField(string $id, string $value): string

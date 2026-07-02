@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DriverPixPayment;
 use App\Models\DriverPixProfile;
 use App\Models\DriverPixRegistrationLink;
+use App\Services\PixQRCodeService;
 use Illuminate\Http\Request;
 
 class DriverPixController extends Controller
@@ -19,9 +20,7 @@ class DriverPixController extends Controller
             ->orderByDesc('created_at')
             ->paginate(15, ['*'], 'links_page');
 
-        $profilesQuery = DriverPixProfile::with(['approver', 'registrationLink'])
-            ->withSum(['payments as total_paid' => fn ($q) => $q->where('status', 'paid')], 'amount')
-            ->withCount(['payments as pending_payments_count' => fn ($q) => $q->where('status', 'pending')]);
+        $profilesQuery = $this->driverProfilesQuery();
 
         if ($request->filled('status') && in_array($request->status, ['pending', 'approved', 'rejected'], true)) {
             $profilesQuery->where('status', $request->status);
@@ -31,10 +30,21 @@ class DriverPixController extends Controller
             $profilesQuery->where('bus_number', 'like', '%' . strtoupper(trim($request->bus)) . '%');
         }
 
-        $profiles = $profilesQuery
+        $statusFilter = $request->get('status');
+        $allProfiles = (clone $profilesQuery)
             ->orderByRaw("FIELD(status, 'pending', 'approved', 'rejected')")
-            ->orderByDesc('created_at')
-            ->paginate(20, ['*'], 'profiles_page');
+            ->orderBy('bus_number')
+            ->orderBy('full_name')
+            ->get();
+
+        $pendingProfiles = $allProfiles->where('status', 'pending')->values();
+        $rejectedProfiles = $allProfiles->where('status', 'rejected')->values();
+        $approvedByBus = $allProfiles->where('status', 'approved')
+            ->sortBy('full_name')
+            ->groupBy('bus_number')
+            ->sortKeys();
+
+        $profiles = $allProfiles; // compatibilidade
 
         $payments = DriverPixPayment::with(['profile', 'payer'])
             ->orderByRaw("FIELD(status, 'pending', 'paid', 'cancelled')")
@@ -49,8 +59,43 @@ class DriverPixController extends Controller
         ];
 
         return view('admin.driver-pix.index', compact(
-            'tab', 'links', 'profiles', 'payments', 'stats'
+            'tab', 'links', 'profiles', 'pendingProfiles', 'rejectedProfiles', 'approvedByBus', 'payments', 'stats', 'statusFilter'
         ));
+    }
+
+    private function driverProfilesQuery()
+    {
+        return DriverPixProfile::with([
+            'approver',
+            'registrationLink',
+            'latestPendingPayment',
+            'latestPaidPayment',
+        ])
+            ->withSum(['payments as total_paid' => fn ($q) => $q->where('status', 'paid')], 'amount')
+            ->withCount(['payments as pending_payments_count' => fn ($q) => $q->where('status', 'pending')]);
+    }
+
+    public function pixQr(Request $request, DriverPixProfile $profile, PixQRCodeService $pixQRCodeService)
+    {
+        if (! $profile->isApproved()) {
+            return response()->json(['error' => 'Motorista não aprovado.'], 422);
+        }
+
+        $amount = $request->query('amount');
+        $parsedAmount = is_numeric($amount) && (float) $amount > 0 ? (float) $amount : null;
+
+        $emv = $pixQRCodeService->generateStaticPixEmv(
+            $profile->pix_key,
+            $profile->full_name,
+            $parsedAmount,
+            reference: 'BUS' . $profile->bus_number
+        );
+
+        return response()->json([
+            'emv' => $emv,
+            'qr_url' => $pixQRCodeService->generateQRCodeImageUrl($emv),
+            'amount' => $parsedAmount,
+        ]);
     }
 
     public function storeLink(Request $request)
@@ -134,7 +179,9 @@ class DriverPixController extends Controller
             'status' => 'pending',
         ]);
 
-        return back()->with('success', 'Pagamento registrado como pendente. Marque como pago após enviar o PIX.');
+        return redirect()
+            ->route('admin.driver-pix.index', ['tab' => 'drivers'])
+            ->with('success', 'Pagamento registrado! Clique em "Pagar" para escanear o QR Code e marcar como pago.');
     }
 
     public function markPaymentPaid(DriverPixPayment $payment)
@@ -149,7 +196,9 @@ class DriverPixController extends Controller
             'paid_at' => now(),
         ]);
 
-        return back()->with('success', 'Pagamento marcado como realizado.');
+        return redirect()
+            ->route('admin.driver-pix.index', ['tab' => 'drivers'])
+            ->with('success', 'Pagamento marcado como realizado.');
     }
 
     public function cancelPayment(DriverPixPayment $payment)

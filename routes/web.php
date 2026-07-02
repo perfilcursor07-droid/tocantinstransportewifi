@@ -203,6 +203,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
         Route::post('/pagamentos-motoristas/links', [AdminDriverPixController::class, 'storeLink'])->name('driver-pix.links.store');
         Route::patch('/pagamentos-motoristas/links/{link}/toggle', [AdminDriverPixController::class, 'toggleLink'])->name('driver-pix.links.toggle');
         Route::delete('/pagamentos-motoristas/links/{link}', [AdminDriverPixController::class, 'destroyLink'])->name('driver-pix.links.destroy');
+        Route::get('/pagamentos-motoristas/{profile}/pix-qr', [AdminDriverPixController::class, 'pixQr'])->name('driver-pix.pix-qr');
         Route::patch('/pagamentos-motoristas/{profile}/aprovar', [AdminDriverPixController::class, 'approve'])->name('driver-pix.approve');
         Route::patch('/pagamentos-motoristas/{profile}/rejeitar', [AdminDriverPixController::class, 'reject'])->name('driver-pix.reject');
         Route::delete('/pagamentos-motoristas/{profile}', [AdminDriverPixController::class, 'destroyProfile'])->name('driver-pix.destroy');

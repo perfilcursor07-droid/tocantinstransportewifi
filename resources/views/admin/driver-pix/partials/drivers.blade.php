@@ -1,8 +1,12 @@
+@php
+  $hasDrivers = ($pendingProfiles->count() + $rejectedProfiles->count() + $approvedByBus->flatten()->count()) > 0;
+@endphp
+
 <div class="bg-white rounded-2xl border border-border shadow-card overflow-hidden">
   <div class="p-5 border-b border-border bg-surface/50 flex flex-wrap gap-4 justify-between items-center">
     <div>
       <h3 class="text-base font-bold text-ink">Motoristas</h3>
-      <p class="text-xs text-muted mt-0.5">Aprove cadastros e registre pagamentos</p>
+      <p class="text-xs text-muted mt-0.5">Aprovados agrupados por ônibus · pendentes no topo</p>
     </div>
     <form method="GET" class="flex flex-wrap gap-2 items-center">
       <input type="hidden" name="tab" value="drivers">
@@ -18,95 +22,70 @@
     </form>
   </div>
 
-  @if($profiles->count())
-  <div class="divide-y divide-border">
-    @foreach($profiles as $profile)
-    <div class="p-5 hover:bg-surface/30 transition-colors">
-      <div class="flex flex-col lg:flex-row lg:items-center gap-4">
-        {{-- Info principal --}}
-        <div class="flex-1 min-w-0">
-          <div class="flex flex-wrap items-center gap-2 mb-1">
-            <h4 class="font-bold text-ink text-base">{{ $profile->full_name }}</h4>
-            @php
-              $badge = match($profile->status) {
-                'pending' => 'bg-amber-100 text-amber-800',
-                'approved' => 'bg-green-pale text-green-dark',
-                'rejected' => 'bg-red-pale text-red',
-              };
-              $label = match($profile->status) {
-                'pending' => 'Pendente',
-                'approved' => 'Aprovado',
-                'rejected' => 'Rejeitado',
-              };
-            @endphp
-            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold {{ $badge }}">{{ $label }}</span>
-            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">Ônibus {{ $profile->bus_number }}</span>
+  @if($hasDrivers)
+
+  {{-- Pendentes de aprovação --}}
+  @if($pendingProfiles->count() && (!$statusFilter || $statusFilter === 'pending'))
+  <div class="border-b border-border">
+    <div class="px-5 py-3 bg-amber-50 border-b border-amber-100 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+      <h4 class="text-sm font-bold text-amber-900">Aguardando aprovação ({{ $pendingProfiles->count() }})</h4>
+    </div>
+    <div class="divide-y divide-border">
+      @foreach($pendingProfiles as $profile)
+        @include('admin.driver-pix.partials.driver-row', ['profile' => $profile])
+      @endforeach
+    </div>
+  </div>
+  @endif
+
+  {{-- Aprovados por ônibus --}}
+  @if($approvedByBus->count() && (!$statusFilter || $statusFilter === 'approved'))
+  <div class="border-b border-border">
+    <div class="px-5 py-3 bg-green-pale/50 border-b border-green/10">
+      <h4 class="text-sm font-bold text-green-dark">Aprovados por ônibus</h4>
+    </div>
+    @foreach($approvedByBus as $busNumber => $busProfiles)
+    <div class="border-b border-border last:border-b-0">
+      <div class="px-5 py-3 bg-surface/80 border-b border-border flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="w-10 h-10 rounded-xl bg-green text-white flex items-center justify-center text-sm font-bold shadow-card">
+            {{ $busNumber }}
+          </span>
+          <div>
+            <p class="text-sm font-bold text-ink">Ônibus {{ $busNumber }}</p>
+            <p class="text-[11px] text-muted">{{ $busProfiles->count() }} motorista(s)</p>
           </div>
-          <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted mt-2">
-            @if($profile->phone)
-            <span class="flex items-center gap-1">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-              {{ $profile->formattedPhone() }}
-            </span>
-            @endif
-            <span>Cadastro: {{ $profile->created_at->format('d/m/Y H:i') }}</span>
-          </div>
         </div>
-
-        {{-- PIX --}}
-        <div class="lg:w-48 flex-shrink-0 bg-surface rounded-xl p-3 border border-border">
-          <p class="text-[10px] font-bold uppercase text-muted tracking-wider mb-1">Chave PIX</p>
-          <p class="font-mono text-xs text-ink break-all">{{ $profile->maskedPixKey() }}</p>
-          <p class="text-[10px] text-muted uppercase mt-0.5">{{ $profile->pix_key_type }}</p>
-          @if($profile->status === 'approved')
-          <button type="button" onclick="copyPixKey('{{ $profile->pix_key }}')" class="mt-2 text-[11px] font-bold text-blue hover:underline">Copiar chave</button>
-          @endif
-        </div>
-
-        {{-- Total pago --}}
-        <div class="lg:w-28 flex-shrink-0 text-center lg:text-right">
-          <p class="text-[10px] font-bold uppercase text-muted">Total pago</p>
-          <p class="text-lg font-bold text-green">R$ {{ number_format($profile->total_paid ?? 0, 2, ',', '.') }}</p>
-          @if(($profile->pending_payments_count ?? 0) > 0)
-          <p class="text-[10px] text-amber-600 font-semibold">{{ $profile->pending_payments_count }} pendente(s)</p>
-          @endif
-        </div>
-
-        {{-- Ações --}}
-        <div class="flex flex-wrap gap-2 lg:flex-col lg:w-36 flex-shrink-0">
-          @if($profile->status === 'pending')
-          <form action="{{ route('admin.driver-pix.approve', $profile) }}" method="POST" class="flex-1 lg:flex-none">@csrf @method('PATCH')
-            <button type="submit" class="w-full px-4 py-2.5 bg-green text-white rounded-xl text-sm font-semibold hover:bg-green-dark">Aprovar</button>
-          </form>
-          <form action="{{ route('admin.driver-pix.reject', $profile) }}" method="POST" class="flex-1 lg:flex-none">@csrf @method('PATCH')
-            <input type="hidden" name="rejected_reason" value="Dados incorretos ou incompletos">
-            <button type="submit" class="w-full px-4 py-2.5 bg-white border border-red/30 text-red rounded-xl text-sm font-semibold hover:bg-red-pale">Rejeitar</button>
-          </form>
-          @elseif($profile->status === 'approved')
-          <button type="button"
-                  class="btn-register-payment w-full px-4 py-2.5 bg-blue text-white rounded-xl text-sm font-semibold hover:bg-blue-light"
-                  data-id="{{ $profile->id }}"
-                  data-name="{{ $profile->full_name }}"
-                  data-phone="{{ $profile->formattedPhone() }}"
-                  data-bus="{{ $profile->bus_number }}"
-                  data-pix="{{ $profile->pix_key }}">
-            Registrar pagamento
-          </button>
-          @endif
-          <form action="{{ route('admin.driver-pix.destroy', $profile) }}" method="POST"
-                onsubmit="return confirm('Excluir permanentemente o cadastro de {{ addslashes($profile->full_name) }}?\n\nTodos os pagamentos vinculados também serão removidos.')">
-            @csrf @method('DELETE')
-            <button type="submit" class="w-full px-4 py-2 text-red text-xs font-semibold hover:underline mt-1">Excluir</button>
-          </form>
-        </div>
+        <p class="text-xs font-semibold text-green">
+          R$ {{ number_format($busProfiles->sum('total_paid'), 2, ',', '.') }} pagos
+        </p>
       </div>
-      @if($profile->status === 'rejected' && $profile->rejected_reason)
-      <p class="text-xs text-red mt-3 pl-1">Motivo: {{ $profile->rejected_reason }}</p>
-      @endif
+      <div class="divide-y divide-border/60">
+        @foreach($busProfiles as $profile)
+          @include('admin.driver-pix.partials.driver-row', ['profile' => $profile, 'compact' => true])
+        @endforeach
+      </div>
     </div>
     @endforeach
   </div>
-  <div class="p-4 border-t border-border">{{ $profiles->appends(request()->query())->links() }}</div>
+  @endif
+
+  {{-- Rejeitados --}}
+  @if($rejectedProfiles->count() && (!$statusFilter || $statusFilter === 'rejected'))
+  <div>
+    <div class="px-5 py-3 bg-red-pale/50 border-b border-red/10 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-red"></span>
+      <h4 class="text-sm font-bold text-red">Rejeitados ({{ $rejectedProfiles->count() }})</h4>
+    </div>
+    <div class="divide-y divide-border">
+      @foreach($rejectedProfiles as $profile)
+        @include('admin.driver-pix.partials.driver-row', ['profile' => $profile])
+      @endforeach
+    </div>
+  </div>
+  @endif
+
   @else
   <div class="p-12 text-center">
     <p class="text-muted text-sm">Nenhum motorista cadastrado.</p>
@@ -115,77 +94,198 @@
   @endif
 </div>
 
-{{-- Modal registrar pagamento --}}
-<div id="paymentModal" class="fixed inset-0 z-50 hidden">
-  <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closePaymentModal()"></div>
-  <div class="absolute inset-0 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md relative animate-[fadeIn_0.2s_ease]">
-      <div class="p-6 border-b border-border">
-        <button type="button" onclick="closePaymentModal()" class="absolute top-4 right-4 text-muted hover:text-ink p-1">
+@push('modals')
+<div id="paymentModal" class="fixed inset-0 z-[200] hidden" role="dialog" aria-modal="true">
+  <div class="fixed inset-0 bg-black/55 backdrop-blur-[2px]" onclick="closePaymentModal()"></div>
+  <div class="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
+    <div class="pointer-events-auto bg-white rounded-2xl shadow-modal w-full max-w-sm max-h-[90vh] overflow-y-auto relative">
+      <div class="sticky top-0 bg-white z-10 px-5 py-4 border-b border-border rounded-t-2xl">
+        <button type="button" onclick="closePaymentModal()" class="absolute top-3 right-3 text-muted hover:text-ink p-1 rounded-lg hover:bg-surface">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
-        <h3 class="text-lg font-bold text-ink">Registrar pagamento</h3>
-        <p class="text-sm text-muted mt-1" id="modalDriverName"></p>
+        <h3 class="text-base font-bold text-ink pr-8" id="modalTitle">Registrar pagamento</h3>
+        <p class="text-xs text-muted mt-0.5 truncate" id="modalDriverName"></p>
       </div>
-      <form id="paymentModalForm" method="POST" class="p-6 space-y-4">
-        @csrf
-        <div class="bg-surface rounded-xl p-4 space-y-2 text-sm">
-          <div class="flex justify-between"><span class="text-muted">Ônibus</span><span class="font-bold" id="modalBus"></span></div>
-          <div class="flex justify-between"><span class="text-muted">Telefone</span><span class="font-semibold" id="modalPhone"></span></div>
+
+      <div class="p-5 space-y-4">
+        <div class="bg-surface rounded-xl p-3 space-y-1.5 text-xs">
+          <div class="flex justify-between gap-2"><span class="text-muted">Ônibus</span><span class="font-bold" id="modalBus"></span></div>
+          <div class="flex justify-between gap-2"><span class="text-muted">Telefone</span><span class="font-semibold" id="modalPhone"></span></div>
           <div class="flex justify-between items-start gap-2">
             <span class="text-muted flex-shrink-0">Chave PIX</span>
-            <span class="font-mono text-xs text-right break-all" id="modalPix"></span>
+            <span class="font-mono text-[10px] text-right break-all" id="modalPix"></span>
           </div>
-          <button type="button" onclick="copyModalPix()" class="w-full mt-1 py-2 text-xs font-bold text-blue bg-blue-pale rounded-lg hover:bg-blue/10">Copiar chave PIX</button>
         </div>
-        <div>
-          <label class="block text-sm font-semibold text-ink mb-1.5">Valor (R$) <span class="text-red">*</span></label>
-          <input type="number" name="amount" step="0.01" min="0.01" required placeholder="0,00"
-                 class="w-full px-4 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-green/30 focus:border-green">
+
+        {{-- QR Code --}}
+        <div id="modalQrSection" class="hidden">
+          <div class="bg-white border-2 border-green/20 rounded-xl p-3 text-center">
+            <p class="text-[10px] font-bold uppercase text-green tracking-wider mb-2">Escaneie para pagar</p>
+            <img id="modalQrImg" src="" alt="QR Code PIX" class="w-44 h-44 mx-auto rounded-lg border border-border bg-white object-contain">
+            <p class="text-lg font-bold text-ink mt-2" id="modalQrAmount"></p>
+            <button type="button" onclick="copyModalEmv()" class="mt-2 w-full py-2 text-[11px] font-bold text-blue bg-blue-pale rounded-lg hover:bg-blue/10">Copiar PIX copia e cola</button>
+          </div>
         </div>
-        <div>
-          <label class="block text-sm font-semibold text-ink mb-1.5">Descrição <span class="text-muted font-normal">(opcional)</span></label>
-          <input type="text" name="description" placeholder="Ex: Pagamento semanal"
-                 class="w-full px-4 py-3 border border-border rounded-xl text-sm focus:ring-2 focus:ring-green/30 focus:border-green">
+        <div id="modalQrLoading" class="hidden text-center py-4 text-xs text-muted">Gerando QR Code...</div>
+        <div id="modalQrHint" class="text-[11px] text-muted text-center">Informe o valor abaixo para gerar o QR Code PIX</div>
+
+        {{-- Modo criar pagamento --}}
+        <form id="paymentModalForm" method="POST" class="space-y-3">
+          @csrf
+          <div>
+            <label class="block text-xs font-semibold text-ink mb-1">Valor (R$) <span class="text-red">*</span></label>
+            <input type="number" name="amount" id="modalAmount" step="0.01" min="0.01" required placeholder="0,00"
+                   class="w-full px-3 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-green/30 focus:border-green">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-ink mb-1">Descrição <span class="text-muted font-normal">(opcional)</span></label>
+            <input type="text" name="description" id="modalDescription" placeholder="Ex: Pagamento semanal"
+                   class="w-full px-3 py-2.5 border border-border rounded-xl text-sm focus:ring-2 focus:ring-green/30 focus:border-green">
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button type="button" onclick="closePaymentModal()" class="flex-1 py-2.5 border border-border rounded-xl text-xs font-semibold text-ink2 hover:bg-surface">Cancelar</button>
+            <button type="submit" id="modalSubmitBtn" class="flex-1 py-2.5 bg-green text-white rounded-xl text-xs font-bold hover:bg-green-dark">Criar pagamento</button>
+          </div>
+        </form>
+
+        {{-- Modo pagar pendente --}}
+        <div id="modalPaySection" class="hidden space-y-3">
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900">
+            <p class="font-bold">Pagamento pendente</p>
+            <p id="modalPendingDesc" class="mt-0.5 text-amber-800"></p>
+          </div>
+          <form id="modalPayForm" method="POST">
+            @csrf @method('PATCH')
+            <button type="submit" class="w-full py-3 bg-green text-white rounded-xl text-sm font-bold hover:bg-green-dark">
+              ✓ Marcar como pago
+            </button>
+          </form>
         </div>
-        <div class="flex gap-3 pt-2">
-          <button type="button" onclick="closePaymentModal()" class="flex-1 py-3 border border-border rounded-xl text-sm font-semibold text-ink2 hover:bg-surface">Cancelar</button>
-          <button type="submit" class="flex-1 py-3 bg-green text-white rounded-xl text-sm font-bold hover:bg-green-dark">Criar pagamento</button>
-        </div>
-      </form>
+      </div>
     </div>
   </div>
 </div>
+@endpush
 
+@push('scripts')
 <script>
-let modalPixKey = '';
-document.querySelectorAll('.btn-register-payment').forEach(btn => {
-    btn.addEventListener('click', () => openPaymentModal(
-        btn.dataset.id,
-        btn.dataset.name,
-        btn.dataset.phone,
-        btn.dataset.bus,
-        btn.dataset.pix
-    ));
-});
-function openPaymentModal(id, name, phone, bus, pixKey) {
-    modalPixKey = pixKey;
-    document.getElementById('modalDriverName').textContent = name;
-    document.getElementById('modalPhone').textContent = phone || '—';
-    document.getElementById('modalBus').textContent = bus;
-    document.getElementById('modalPix').textContent = pixKey;
-    document.getElementById('paymentModalForm').action = '{{ url('admin/pagamentos-motoristas') }}/' + id + '/pagamentos';
-    document.getElementById('paymentModal').classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-}
-function closePaymentModal() {
-    document.getElementById('paymentModal').classList.add('hidden');
-    document.body.style.overflow = '';
-}
-function copyModalPix() {
-    if (modalPixKey) navigator.clipboard.writeText(modalPixKey);
-}
-function copyPixKey(key) {
-    navigator.clipboard.writeText(key);
-}
+(function() {
+    let modalPixKey = '';
+    let modalProfileId = null;
+    let qrTimer = null;
+    const pixQrBase = @json(url('admin/pagamentos-motoristas'));
+
+    function bindButtons(selector, handler) {
+        document.querySelectorAll(selector).forEach(btn => btn.addEventListener('click', handler));
+    }
+
+    bindButtons('.btn-register-payment', (e) => {
+        const b = e.currentTarget;
+        openCreateModal(b.dataset.id, b.dataset.name, b.dataset.phone, b.dataset.bus, b.dataset.pix);
+    });
+
+    bindButtons('.btn-pay-pending', (e) => {
+        const b = e.currentTarget;
+        openPayModal(b.dataset);
+    });
+
+    window.openCreateModal = function(id, name, phone, bus, pixKey) {
+        modalProfileId = id;
+        modalPixKey = pixKey;
+        document.getElementById('modalTitle').textContent = 'Registrar pagamento';
+        document.getElementById('modalDriverName').textContent = name;
+        document.getElementById('modalPhone').textContent = phone || '—';
+        document.getElementById('modalBus').textContent = bus;
+        document.getElementById('modalPix').textContent = pixKey;
+        document.getElementById('paymentModalForm').action = pixQrBase + '/' + id + '/pagamentos';
+        document.getElementById('paymentModalForm').classList.remove('hidden');
+        document.getElementById('modalPaySection').classList.add('hidden');
+        document.getElementById('modalAmount').value = '';
+        document.getElementById('modalDescription').value = '';
+        document.getElementById('modalAmount').readOnly = false;
+        resetQr();
+        showModal();
+    };
+
+    window.openPayModal = function(data) {
+        modalProfileId = data.id;
+        modalPixKey = data.pix;
+        const amount = parseFloat(data.amount);
+        document.getElementById('modalTitle').textContent = 'Pagar motorista';
+        document.getElementById('modalDriverName').textContent = data.name;
+        document.getElementById('modalPhone').textContent = data.phone || '—';
+        document.getElementById('modalBus').textContent = data.bus;
+        document.getElementById('modalPix').textContent = data.pix;
+        document.getElementById('paymentModalForm').classList.add('hidden');
+        document.getElementById('modalPaySection').classList.remove('hidden');
+        document.getElementById('modalPendingDesc').textContent =
+            (data.description || 'Pagamento motorista') + ' — R$ ' + amount.toFixed(2).replace('.', ',');
+        document.getElementById('modalPayForm').action = pixQrBase + '/pagamentos/' + data.paymentId + '/pagar';
+        document.getElementById('modalQrHint').classList.add('hidden');
+        updateQr(amount);
+        showModal();
+    };
+
+    function showModal() {
+        document.getElementById('paymentModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    window.closePaymentModal = function() {
+        document.getElementById('paymentModal').classList.add('hidden');
+        document.body.style.overflow = '';
+        clearTimeout(qrTimer);
+    };
+
+    function resetQr() {
+        document.getElementById('modalQrSection').classList.add('hidden');
+        document.getElementById('modalQrLoading').classList.add('hidden');
+        document.getElementById('modalQrHint').classList.remove('hidden');
+        document.getElementById('modalQrImg').src = '';
+    }
+
+    async function updateQr(amount) {
+        if (!modalProfileId || !amount || amount <= 0) {
+            resetQr();
+            return;
+        }
+        document.getElementById('modalQrHint').classList.add('hidden');
+        document.getElementById('modalQrSection').classList.add('hidden');
+        document.getElementById('modalQrLoading').classList.remove('hidden');
+
+        try {
+            const res = await fetch(pixQrBase + '/' + modalProfileId + '/pix-qr?amount=' + amount, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Erro ao gerar QR');
+
+            document.getElementById('modalQrLoading').classList.add('hidden');
+            document.getElementById('modalQrSection').classList.remove('hidden');
+            document.getElementById('modalQrImg').src = data.qr_url;
+            document.getElementById('modalQrImg').dataset.emv = data.emv;
+            document.getElementById('modalQrAmount').textContent = 'R$ ' + amount.toFixed(2).replace('.', ',');
+        } catch (err) {
+            document.getElementById('modalQrLoading').classList.add('hidden');
+            document.getElementById('modalQrHint').textContent = 'Não foi possível gerar o QR Code.';
+            document.getElementById('modalQrHint').classList.remove('hidden');
+        }
+    }
+
+    document.getElementById('modalAmount')?.addEventListener('input', function() {
+        clearTimeout(qrTimer);
+        const val = parseFloat(this.value);
+        qrTimer = setTimeout(() => updateQr(val), 400);
+    });
+
+    window.copyModalEmv = function() {
+        const emv = document.getElementById('modalQrImg')?.dataset.emv;
+        if (emv) navigator.clipboard.writeText(emv);
+    };
+
+    window.copyPixKey = function(key) {
+        navigator.clipboard.writeText(key);
+    };
+})();
 </script>
+@endpush
