@@ -48,11 +48,17 @@
     </div>
 
     {{-- Tabs --}}
-    <div class="flex gap-2 border-b border-border pb-0">
-        @foreach(['drivers' => 'Motoristas', 'links' => 'Links de cadastro', 'payments' => 'Pagamentos'] as $key => $label)
+    <div class="flex gap-1 p-1 bg-surface rounded-2xl border border-border w-fit">
+        @foreach(['drivers' => 'Motoristas', 'links' => 'Links', 'payments' => 'Pagamentos'] as $key => $label)
         <a href="{{ route('admin.driver-pix.index', ['tab' => $key]) }}"
-           class="px-4 py-2.5 text-sm font-semibold rounded-t-xl transition-colors {{ $tab === $key ? 'bg-white border border-border border-b-white -mb-px text-green' : 'text-muted hover:text-ink' }}">
+           class="px-5 py-2.5 text-sm font-semibold rounded-xl transition-all {{ $tab === $key ? 'bg-white text-green shadow-card border border-border' : 'text-muted hover:text-ink' }}">
             {{ $label }}
+            @if($key === 'drivers' && $stats['pending_profiles'] > 0)
+            <span class="ml-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px]">{{ $stats['pending_profiles'] }}</span>
+            @endif
+            @if($key === 'payments' && $stats['pending_payments'] > 0)
+            <span class="ml-1 px-1.5 py-0.5 rounded-full bg-blue-pale text-blue text-[10px]">{{ $stats['pending_payments'] }}</span>
+            @endif
         </a>
         @endforeach
     </div>

@@ -29,16 +29,19 @@ class DriverPixRegistrationController extends Controller
 
         $validated = $request->validate([
             'full_name' => 'required|string|min:3|max:120',
+            'phone' => 'required|string|min:10|max:20',
             'pix_key' => 'required|string|min:5|max:120',
             'pix_key_confirmation' => 'required|same:pix_key',
             'bus_number' => 'required|string|max:20',
         ], [
             'pix_key_confirmation.same' => 'A confirmação da chave PIX deve ser igual à chave informada.',
+            'phone.required' => 'Informe seu telefone com DDD.',
         ]);
 
         $pixKeyType = DriverPixProfile::detectPixKeyType($validated['pix_key']);
         $normalizedPixKey = DriverPixProfile::normalizePixKey($validated['pix_key'], $pixKeyType);
         $busNumber = strtoupper(trim($validated['bus_number']));
+        $phone = preg_replace('/\D/', '', $validated['phone']);
 
         // Evita cadastro duplicado pendente/aprovado com mesma chave PIX
         $duplicate = DriverPixProfile::where('pix_key', $normalizedPixKey)
@@ -54,6 +57,7 @@ class DriverPixRegistrationController extends Controller
         DriverPixProfile::create([
             'registration_link_id' => $link->id,
             'full_name' => mb_strtoupper(trim($validated['full_name']), 'UTF-8'),
+            'phone' => $phone,
             'pix_key' => $normalizedPixKey,
             'pix_key_type' => $pixKeyType,
             'bus_number' => $busNumber,

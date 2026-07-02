@@ -9,6 +9,7 @@ class DriverPixProfile extends Model
     protected $fillable = [
         'registration_link_id',
         'full_name',
+        'phone',
         'pix_key',
         'pix_key_type',
         'bus_number',
@@ -106,5 +107,24 @@ class DriverPixProfile extends Model
         }
 
         return $normalized;
+    }
+
+    public function formattedPhone(): string
+    {
+        if (! $this->phone) {
+            return '—';
+        }
+
+        $digits = preg_replace('/\D/', '', $this->phone);
+
+        if (strlen($digits) === 11) {
+            return '(' . substr($digits, 0, 2) . ') ' . substr($digits, 2, 5) . '-' . substr($digits, 7);
+        }
+
+        if (strlen($digits) === 10) {
+            return '(' . substr($digits, 0, 2) . ') ' . substr($digits, 2, 4) . '-' . substr($digits, 6);
+        }
+
+        return $this->phone;
     }
 }

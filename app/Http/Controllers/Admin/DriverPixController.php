@@ -137,19 +137,14 @@ class DriverPixController extends Controller
         return back()->with('success', 'Pagamento registrado como pendente. Marque como pago após enviar o PIX.');
     }
 
-    public function markPaymentPaid(Request $request, DriverPixPayment $payment)
+    public function markPaymentPaid(DriverPixPayment $payment)
     {
         if ($payment->status !== 'pending') {
             return back()->with('error', 'Este pagamento já foi processado.');
         }
 
-        $validated = $request->validate([
-            'payment_reference' => 'nullable|string|max:120',
-        ]);
-
         $payment->update([
             'status' => 'paid',
-            'payment_reference' => $validated['payment_reference'] ?? null,
             'paid_by' => auth()->id(),
             'paid_at' => now(),
         ]);
