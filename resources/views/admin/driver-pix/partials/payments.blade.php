@@ -42,8 +42,8 @@
         <p class="text-xl font-bold text-green">R$ {{ number_format($payment->amount, 2, ',', '.') }}</p>
       </div>
 
-      @if($payment->status === 'pending')
       <div class="flex flex-wrap gap-2 sm:flex-col sm:w-36 flex-shrink-0">
+      @if($payment->status === 'pending')
         @if($payment->profile)
         <button type="button" onclick="navigator.clipboard.writeText('{{ $payment->profile->pix_key }}')"
                 class="px-4 py-2 bg-blue-pale text-blue rounded-xl text-xs font-bold hover:bg-blue/10">
@@ -58,8 +58,13 @@
         <form action="{{ route('admin.driver-pix.payments.cancel', $payment) }}" method="POST">@csrf @method('PATCH')
           <button type="submit" class="w-full px-4 py-2 text-red text-xs font-semibold hover:underline">Cancelar</button>
         </form>
-      </div>
       @endif
+        <form action="{{ route('admin.driver-pix.payments.destroy', $payment) }}" method="POST"
+              onsubmit="return confirm('Excluir este pagamento de R$ {{ number_format($payment->amount, 2, ',', '.') }} permanentemente?')">
+          @csrf @method('DELETE')
+          <button type="submit" class="w-full px-4 py-2 text-red text-xs font-semibold hover:underline">Excluir</button>
+        </form>
+      </div>
     </div>
     @endforeach
   </div>

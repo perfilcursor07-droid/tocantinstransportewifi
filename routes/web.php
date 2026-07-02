@@ -202,11 +202,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
         Route::get('/pagamentos-motoristas', [AdminDriverPixController::class, 'index'])->name('driver-pix.index');
         Route::post('/pagamentos-motoristas/links', [AdminDriverPixController::class, 'storeLink'])->name('driver-pix.links.store');
         Route::patch('/pagamentos-motoristas/links/{link}/toggle', [AdminDriverPixController::class, 'toggleLink'])->name('driver-pix.links.toggle');
+        Route::delete('/pagamentos-motoristas/links/{link}', [AdminDriverPixController::class, 'destroyLink'])->name('driver-pix.links.destroy');
         Route::patch('/pagamentos-motoristas/{profile}/aprovar', [AdminDriverPixController::class, 'approve'])->name('driver-pix.approve');
         Route::patch('/pagamentos-motoristas/{profile}/rejeitar', [AdminDriverPixController::class, 'reject'])->name('driver-pix.reject');
+        Route::delete('/pagamentos-motoristas/{profile}', [AdminDriverPixController::class, 'destroyProfile'])->name('driver-pix.destroy');
         Route::post('/pagamentos-motoristas/{profile}/pagamentos', [AdminDriverPixController::class, 'storePayment'])->name('driver-pix.payments.store');
         Route::patch('/pagamentos-motoristas/pagamentos/{payment}/pagar', [AdminDriverPixController::class, 'markPaymentPaid'])->name('driver-pix.payments.paid');
         Route::patch('/pagamentos-motoristas/pagamentos/{payment}/cancelar', [AdminDriverPixController::class, 'cancelPayment'])->name('driver-pix.payments.cancel');
+        Route::delete('/pagamentos-motoristas/pagamentos/{payment}', [AdminDriverPixController::class, 'destroyPayment'])->name('driver-pix.payments.destroy');
 
         // Gerenciamento de Usuários
         Route::get('/users', [AdminController::class, 'users'])->name('users');

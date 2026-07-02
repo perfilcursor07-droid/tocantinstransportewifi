@@ -93,6 +93,11 @@
             Registrar pagamento
           </button>
           @endif
+          <form action="{{ route('admin.driver-pix.destroy', $profile) }}" method="POST"
+                onsubmit="return confirm('Excluir permanentemente o cadastro de {{ addslashes($profile->full_name) }}?\n\nTodos os pagamentos vinculados também serão removidos.')">
+            @csrf @method('DELETE')
+            <button type="submit" class="w-full px-4 py-2 text-red text-xs font-semibold hover:underline mt-1">Excluir</button>
+          </form>
         </div>
       </div>
       @if($profile->status === 'rejected' && $profile->rejected_reason)

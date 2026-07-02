@@ -162,4 +162,34 @@ class DriverPixController extends Controller
 
         return back()->with('success', 'Pagamento cancelado.');
     }
+
+    public function destroyProfile(DriverPixProfile $profile)
+    {
+        $name = $profile->full_name;
+        $profile->delete();
+
+        return redirect()
+            ->route('admin.driver-pix.index', ['tab' => 'drivers'])
+            ->with('success', "Cadastro de {$name} excluído permanentemente.");
+    }
+
+    public function destroyLink(DriverPixRegistrationLink $link)
+    {
+        $label = $link->label ?: 'Link sem nome';
+        $link->delete();
+
+        return redirect()
+            ->route('admin.driver-pix.index', ['tab' => 'links'])
+            ->with('success', "Link \"{$label}\" excluído.");
+    }
+
+    public function destroyPayment(DriverPixPayment $payment)
+    {
+        $amount = number_format($payment->amount, 2, ',', '.');
+        $payment->delete();
+
+        return redirect()
+            ->route('admin.driver-pix.index', ['tab' => 'payments'])
+            ->with('success', "Pagamento de R$ {$amount} excluído.");
+    }
 }

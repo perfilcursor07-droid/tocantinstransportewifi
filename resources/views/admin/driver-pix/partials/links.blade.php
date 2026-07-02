@@ -54,6 +54,13 @@
                         {{ $link->is_active ? 'Desativar' : 'Ativar' }}
                     </button>
                 </form>
+                <form action="{{ route('admin.driver-pix.links.destroy', $link) }}" method="POST" class="flex-shrink-0"
+                      onsubmit="return confirm('Excluir este link permanentemente?\n\nOs cadastros já feitos por ele permanecem no sistema.')">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="px-4 py-2 rounded-xl text-xs font-bold border border-red/30 text-red hover:bg-red-pale">
+                        Excluir
+                    </button>
+                </form>
             </div>
             @endforeach
         </div>
