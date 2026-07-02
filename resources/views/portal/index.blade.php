@@ -321,19 +321,66 @@
         <main class="flex-1 px-4 pt-2.5 pb-5 sm:pt-4 sm:pb-8">
             <div class="max-w-lg mx-auto space-y-2.5 sm:space-y-4">
 
-                <!-- Status de conexão: só avisa quando NÃO está na rede do ônibus -->
+                <!-- Status de conexão: dinâmico — re-testa o WiFi do ônibus a cada 5s -->
                 @if(!($on_hotspot ?? false))
-                <section class="bg-amber-50 border-2 border-amber-400 rounded-2xl px-4 py-3 shadow-card animate-slide-up">
+                <section id="wifi-status-card" class="bg-amber-50 border-2 border-amber-400 rounded-2xl px-4 py-3 shadow-card animate-slide-up transition-colors duration-300">
                     <div class="flex items-start gap-3">
-                        <div class="w-9 h-9 rounded-full bg-amber-400 flex items-center justify-center flex-shrink-0">
-                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M6 18L18 6"/></svg>
+                        <div id="wifi-status-icon" class="w-9 h-9 rounded-full bg-amber-400 flex items-center justify-center flex-shrink-0 transition-colors duration-300">
+                            <svg id="wifi-status-icon-off" class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M6 18L18 6"/></svg>
+                            <svg id="wifi-status-icon-on" class="w-5 h-5 text-white hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                         </div>
                         <div class="min-w-0 flex-1">
-                            <p class="text-amber-900 font-extrabold text-sm leading-tight">Conecte no WiFi do ônibus para pagar</p>
-                            <p class="text-amber-800 text-[11px] mt-0.5 leading-snug">Entre na rede <strong>"TocantinsTransporteWiFi"</strong> e depois pague. <button type="button" onclick="showNoWifiWarning()" class="font-bold underline underline-offset-2">Ver como</button></p>
+                            <p id="wifi-status-title" class="text-amber-900 font-extrabold text-sm leading-tight">Conecte no WiFi do ônibus para pagar</p>
+                            <p id="wifi-status-text" class="text-amber-800 text-[11px] mt-0.5 leading-snug">Entre na rede <strong>"TocantinsTransporteWiFi"</strong> e depois pague. <button type="button" onclick="showNoWifiWarning()" class="font-bold underline underline-offset-2">Ver como</button></p>
                         </div>
                     </div>
                 </section>
+                <script>
+                (function() {
+                    let wifiOk = false;
+                    function setWifiCardState(connected) {
+                        if (connected === wifiOk) return;
+                        wifiOk = connected;
+                        const card = document.getElementById('wifi-status-card');
+                        const icon = document.getElementById('wifi-status-icon');
+                        const title = document.getElementById('wifi-status-title');
+                        const text = document.getElementById('wifi-status-text');
+                        const iconOff = document.getElementById('wifi-status-icon-off');
+                        const iconOn = document.getElementById('wifi-status-icon-on');
+                        if (!card) return;
+                        if (connected) {
+                            card.className = 'bg-green-pale border-2 border-green rounded-2xl px-4 py-3 shadow-card transition-colors duration-300';
+                            icon.className = 'w-9 h-9 rounded-full bg-green flex items-center justify-center flex-shrink-0 transition-colors duration-300';
+                            title.className = 'text-green-dark font-extrabold text-sm leading-tight';
+                            title.textContent = '✓ Conectado ao WiFi do ônibus';
+                            text.className = 'text-green-dark/80 text-[11px] mt-0.5 leading-snug';
+                            text.innerHTML = 'Tudo certo! Escolha o plano abaixo e pague no PIX.';
+                            iconOff.classList.add('hidden');
+                            iconOn.classList.remove('hidden');
+                        } else {
+                            card.className = 'bg-amber-50 border-2 border-amber-400 rounded-2xl px-4 py-3 shadow-card transition-colors duration-300';
+                            icon.className = 'w-9 h-9 rounded-full bg-amber-400 flex items-center justify-center flex-shrink-0 transition-colors duration-300';
+                            title.className = 'text-amber-900 font-extrabold text-sm leading-tight';
+                            title.textContent = 'Conecte no WiFi do ônibus para pagar';
+                            text.className = 'text-amber-800 text-[11px] mt-0.5 leading-snug';
+                            text.innerHTML = 'Entre na rede <strong>"TocantinsTransporteWiFi"</strong> e depois pague. <button type="button" onclick="showNoWifiWarning()" class="font-bold underline underline-offset-2">Ver como</button>';
+                            iconOn.classList.add('hidden');
+                            iconOff.classList.remove('hidden');
+                        }
+                    }
+                    function monitorWifi() {
+                        if (typeof probeHotspot !== 'function') return;
+                        probeHotspot(2000).then(function(reachable) {
+                            setWifiCardState(reachable);
+                            // Quando conectar, o usuário some do aviso; continua monitorando
+                            // para voltar ao amarelo se cair do WiFi.
+                        });
+                    }
+                    // Primeiro teste rápido + monitoramento a cada 5s
+                    setTimeout(monitorWifi, 1500);
+                    setInterval(monitorWifi, 5000);
+                })();
+                </script>
                 @endif
 
                 <!-- Card de Planos -->
@@ -432,28 +479,28 @@
                 </section>
 
                 <!-- Como funciona: 3 passos simples -->
-                <section class="bg-white rounded-2xl border border-border shadow-card px-4 py-3 animate-slide-up-delay">
-                    <div class="flex items-start justify-between gap-0.5">
+                <section class="bg-white rounded-2xl border border-border shadow-card px-4 py-4 animate-slide-up-delay">
+                    <div class="flex items-start justify-between gap-1">
                         <div class="flex flex-col items-center text-center flex-1 px-0.5">
-                            <div class="w-9 h-9 rounded-full bg-green-pale text-green-dark flex items-center justify-center mb-1.5 border border-green/20">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
+                            <div class="w-11 h-11 rounded-full bg-green-pale text-green-dark flex items-center justify-center mb-2 border border-green/20">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
                             </div>
-                            <p class="text-[11px] font-bold text-ink leading-tight">Entre no WiFi</p>
-                            <p class="text-[9px] text-muted leading-tight mt-0.5">rede do ônibus</p>
+                            <p class="text-[13px] font-bold text-ink leading-tight">Entre no WiFi</p>
+                            <p class="text-[11px] text-muted leading-tight mt-0.5">rede do ônibus</p>
                         </div>
-                        <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         <div class="flex flex-col items-center text-center flex-1 px-0.5">
-                            <div class="w-9 h-9 rounded-full bg-blue-pale text-blue text-sm font-extrabold flex items-center justify-center mb-1.5 border border-blue/20">2</div>
-                            <p class="text-[11px] font-bold text-ink leading-tight">Pague no PIX</p>
-                            <p class="text-[9px] text-muted leading-tight mt-0.5">copie e cole no banco</p>
+                            <div class="w-11 h-11 rounded-full bg-blue-pale text-blue text-base font-extrabold flex items-center justify-center mb-2 border border-blue/20">2</div>
+                            <p class="text-[13px] font-bold text-ink leading-tight">Pague no PIX</p>
+                            <p class="text-[11px] text-muted leading-tight mt-0.5">copie e cole no banco</p>
                         </div>
-                        <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         <div class="flex flex-col items-center text-center flex-1 px-0.5">
-                            <div class="w-9 h-9 rounded-full bg-green text-white flex items-center justify-center mb-1.5 shadow-sm">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                            <div class="w-11 h-11 rounded-full bg-green text-white flex items-center justify-center mb-2 shadow-sm">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                             </div>
-                            <p class="text-[11px] font-bold text-ink leading-tight">Pronto!</p>
-                            <p class="text-[9px] text-muted leading-tight mt-0.5">internet na hora</p>
+                            <p class="text-[13px] font-bold text-ink leading-tight">Pronto!</p>
+                            <p class="text-[11px] text-muted leading-tight mt-0.5">internet na hora</p>
                         </div>
                     </div>
                 </section>

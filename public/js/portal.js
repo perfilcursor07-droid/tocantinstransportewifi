@@ -673,17 +673,51 @@ class WiFiPortal {
                 console.log('💳 QR Code gerado:', { payment_id: result.payment_id, gateway: result.gateway });
             } else {
                 this.hideLoading();
-                this.showErrorMessage(result.message || 'Erro ao gerar QR Code PIX.');
+                this.showPixErrorWithRetry(result.message || 'Não conseguimos gerar o PIX agora.');
             }
         } catch (error) {
             console.error('Erro no pagamento PIX:', error);
             this.hideLoading();
             if (error.name === 'AbortError') {
-                this.showErrorMessage('Demorou demais para gerar o PIX. Desligue o 4G, confira o WiFi e tente novamente.');
+                this.showPixErrorWithRetry('Demorou demais para gerar o PIX. Verifique se o 4G está desligado e se você está no WiFi do ônibus.');
             } else {
-                this.showErrorMessage('Erro de conexão. Verifique sua internet.');
+                this.showPixErrorWithRetry('Falha de conexão ao gerar o PIX. Confira se está no WiFi "TocantinsTransporteWiFi" com o 4G desligado.');
             }
         }
+    }
+
+    /**
+     * Mostra erro na geração do PIX com botão de tentar novamente,
+     * sem obrigar o usuário a recomeçar do zero.
+     */
+    showPixErrorWithRetry(message) {
+        const existing = document.getElementById('pix-error-modal');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'pix-error-modal';
+        modal.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4';
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl p-5 w-full max-w-sm text-center shadow-2xl">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                </div>
+                <h3 class="text-base font-bold text-gray-900 mb-1.5">Ops, não deu certo</h3>
+                <p class="text-xs text-gray-600 mb-4 leading-relaxed">${message}</p>
+                <button id="pix-error-retry-btn" class="connect-button w-full text-white font-bold py-3 rounded-xl text-sm mb-2">
+                    TENTAR DE NOVO
+                </button>
+                <button id="pix-error-close-btn" class="w-full text-gray-400 text-xs font-semibold py-2">Fechar</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelector('#pix-error-retry-btn').addEventListener('click', () => {
+            modal.remove();
+            this.showLoading();
+            this.processPixPaymentFast();
+        });
+        modal.querySelector('#pix-error-close-btn').addEventListener('click', () => modal.remove());
     }
 
     /**
@@ -1240,7 +1274,7 @@ class WiFiPortal {
                                         </div>
                                     </div>
                                     <p class="text-gray-800 font-bold text-sm">Liberando seu acesso...</p>
-                                    <p class="text-gray-500 text-[11px] mt-0.5">Configurando sua conexão WiFi</p>
+                                    <p class="text-gray-500 text-[11px] mt-0.5">Fique no WiFi do ônibus — leva até 30 segundos</p>
                                 </div>
                                 
                                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
@@ -1251,7 +1285,7 @@ class WiFiPortal {
                                     <div class="w-full bg-blue-100 rounded-full h-2 overflow-hidden">
                                         <div id="release-progress" class="bg-gradient-to-r from-blue-400 to-blue-600 h-2 rounded-full transition-all duration-1000" style="width:0%"></div>
                                     </div>
-                                    <p class="text-blue-500 text-[10px] mt-1.5">Sincronizando com o roteador...</p>
+                                    <p class="text-blue-500 text-[10px] mt-1.5">Não desconecte do WiFi nem feche esta tela</p>
                                 </div>
                                 
                                 <div class="bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
