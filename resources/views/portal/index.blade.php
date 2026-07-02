@@ -15,7 +15,10 @@
         $loginUrl = config('wifi.mikrotik.login_url', 'http://10.5.50.1/login');
     @endphp
     @if ($forceLogin && !$skipLogin && !$hasContext)
-        <meta http-equiv="refresh" content="0;url={{ $loginUrl }}?dst={{ urlencode(request()->fullUrl()) }}">
+        {{-- Não usar meta refresh cego: quem acessa via 4G não alcança 10.5.50.1
+             e recebe ERR_CONNECTION_TIMED_OUT antes da página carregar.
+             O redirect é feito via JS somente se o roteador responder. --}}
+        <script>window._TRY_HOTSPOT_LOGIN = @json($loginUrl . '?dst=' . urlencode(request()->fullUrl()));</script>
     @endif
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -209,9 +212,43 @@
             window._noWifiBlocked = false;
             return;
         }
+
+        // Se o servidor pediu redirect para o login do hotspot, só redireciona
+        // se o roteador (10.5.50.1) responder — quem está no 4G não alcança
+        // esse IP e ficaria travado em ERR_CONNECTION_TIMED_OUT.
+        if (window._TRY_HOTSPOT_LOGIN) {
+            probeHotspot(2500).then(function(reachable) {
+                if (reachable) {
+                    window.location.href = window._TRY_HOTSPOT_LOGIN;
+                } else {
+                    showNoWifiWarning();
+                }
+            });
+            return;
+        }
+
         // Backend não detectou hotspot → mostrar aviso direto (sem fetch lento/falso positivo)
         showNoWifiWarning();
     });
+
+    // Testa se o roteador do ônibus responde dentro do timeout informado.
+    function probeHotspot(timeoutMs) {
+        return new Promise(function(resolve) {
+            let done = false;
+            const finish = function(result) {
+                if (!done) { done = true; resolve(result); }
+            };
+            const img = new Image();
+            img.onload = function() { finish(true); };
+            img.onerror = function() {
+                fetch('http://10.5.50.1', { mode: 'no-cors', cache: 'no-cache' })
+                    .then(function() { finish(true); })
+                    .catch(function() { finish(false); });
+            };
+            img.src = 'http://10.5.50.1/favicon.ico?t=' + Date.now();
+            setTimeout(function() { finish(false); }, timeoutMs);
+        });
+    }
     </script>
 
     <!-- Loading Overlay -->

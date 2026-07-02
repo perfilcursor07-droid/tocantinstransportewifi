@@ -8,9 +8,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('driver_pix_profiles', function (Blueprint $table) {
-            $table->string('phone', 20)->nullable()->after('full_name');
-        });
+        if (Schema::hasTable('driver_pix_profiles') && ! Schema::hasColumn('driver_pix_profiles', 'phone')) {
+            Schema::table('driver_pix_profiles', function (Blueprint $table) {
+                $table->string('phone', 20)->nullable()->after('full_name');
+            });
+        }
     }
 
     public function down(): void

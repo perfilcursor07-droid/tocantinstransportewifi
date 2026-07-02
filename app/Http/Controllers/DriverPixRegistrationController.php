@@ -5,11 +5,18 @@ namespace App\Http\Controllers;
 use App\Models\DriverPixProfile;
 use App\Models\DriverPixRegistrationLink;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class DriverPixRegistrationController extends Controller
 {
     public function show(string $token)
     {
+        if (! Schema::hasTable('driver_pix_registration_links')) {
+            return view('driver-pix.invalid', [
+                'reason' => 'Cadastro temporariamente indisponível. O administrador precisa atualizar o sistema. Tente novamente em alguns minutos.',
+            ]);
+        }
+
         $link = DriverPixRegistrationLink::where('token', $token)->firstOrFail();
 
         if (! $link->isUsable()) {
@@ -21,6 +28,14 @@ class DriverPixRegistrationController extends Controller
 
     public function store(Request $request, string $token)
     {
+        if (! Schema::hasTable('driver_pix_registration_links') || ! Schema::hasTable('driver_pix_profiles')) {
+            return back()->withErrors(['link' => 'Cadastro temporariamente indisponível. Tente novamente em alguns minutos.']);
+        }
+
+        if (! Schema::hasColumn('driver_pix_profiles', 'phone')) {
+            return back()->withErrors(['link' => 'Sistema desatualizado. Avise o administrador para rodar as migrations no servidor.']);
+        }
+
         $link = DriverPixRegistrationLink::where('token', $token)->firstOrFail();
 
         if (! $link->isUsable()) {
@@ -38,10 +53,10 @@ class DriverPixRegistrationController extends Controller
             'phone.required' => 'Informe seu telefone com DDD.',
         ]);
 
-        $pixKeyType = DriverPixProfile::detectPixKeyType($validated['pix_key'], $phone);
-        $normalizedPixKey = DriverPixProfile::normalizePixKey($validated['pix_key'], $pixKeyType);
         $busNumber = strtoupper(trim($validated['bus_number']));
         $phone = preg_replace('/\D/', '', $validated['phone']);
+        $pixKeyType = DriverPixProfile::detectPixKeyType($validated['pix_key'], $phone);
+        $normalizedPixKey = DriverPixProfile::normalizePixKey($validated['pix_key'], $pixKeyType);
 
         // Evita cadastro duplicado pendente/aprovado com mesma chave PIX
         $duplicate = DriverPixProfile::where('pix_key', $normalizedPixKey)
