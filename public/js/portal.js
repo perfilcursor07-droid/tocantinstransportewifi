@@ -291,6 +291,13 @@ class WiFiPortal {
 
             this.deviceMac = '';
             console.warn('⚠️ Não foi possível confirmar MAC — usuário deve estar no WiFi sem 4G');
+
+            // Mostrar o aviso "Desligue os dados móveis" imediatamente,
+            // em vez de fechar o overlay em silêncio e deixar o usuário perdido.
+            // Não mostra se o backend já confirmou que está no WiFi do ônibus.
+            if (!window._ON_HOTSPOT && typeof showNoWifiWarning === 'function') {
+                showNoWifiWarning();
+            }
         } finally {
             this.hideDeviceIdentificationLoading();
         }
