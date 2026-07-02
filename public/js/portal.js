@@ -316,7 +316,9 @@ class WiFiPortal {
     }
 
     /**
-     * Testa se o roteador do ônibus responde (mesma lógica do probe do blade).
+     * Testa se está no WiFi do ônibus via servidor (HTTPS, sem mixed content).
+     * O probe direto ao 10.5.50.1 é bloqueado pelo navegador em páginas HTTPS,
+     * então a fonte de verdade é o /api/connection-check (IP público do ônibus).
      */
     probeHotspotQuick(timeoutMs = 2500) {
         return new Promise((resolve) => {
@@ -324,15 +326,23 @@ class WiFiPortal {
             const finish = (result) => {
                 if (!done) { done = true; resolve(result); }
             };
-            const img = new Image();
-            img.onload = () => finish(true);
-            img.onerror = () => {
-                fetch('http://10.5.50.1', { mode: 'no-cors', cache: 'no-cache' })
-                    .then(() => finish(true))
-                    .catch(() => finish(false));
-            };
-            img.src = 'http://10.5.50.1/favicon.ico?t=' + Date.now();
-            setTimeout(() => finish(false), timeoutMs);
+
+            const controller = new AbortController();
+            const abortTimer = setTimeout(() => controller.abort(), timeoutMs);
+
+            fetch('/api/connection-check', { headers: { 'Accept': 'application/json' }, signal: controller.signal, cache: 'no-store' })
+                .then(r => r.json())
+                .then(data => {
+                    clearTimeout(abortTimer);
+                    finish(!!(data && data.on_hotspot));
+                })
+                .catch(() => {
+                    clearTimeout(abortTimer);
+                    // Falha na API não prova que está no 4G — não bloquear.
+                    finish(true);
+                });
+
+            setTimeout(() => finish(true), timeoutMs + 500);
         });
     }
 

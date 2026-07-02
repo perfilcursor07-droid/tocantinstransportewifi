@@ -187,24 +187,15 @@
         const btn = document.getElementById('no-wifi-retry-btn');
         btn.innerHTML = '<span class="animate-pulse">Verificando...</span>';
         btn.disabled = true;
-        const img = new Image();
-        let responded = false;
-        img.onload = function() { responded = true; hideNoWifiWarning(); window.location.href = 'http://10.5.50.1'; };
-        img.onerror = function() {
-            fetch('http://10.5.50.1', { mode: 'no-cors', cache: 'no-cache' })
-                .then(() => { responded = true; hideNoWifiWarning(); window.location.href = 'http://10.5.50.1'; })
-                .catch(() => {
-                    btn.innerHTML = 'WIFI NÃO DETECTADO!'; btn.classList.remove('connect-button'); btn.classList.add('bg-red-500');
-                    setTimeout(() => { btn.innerHTML = 'JÁ CONECTEI, VERIFICAR'; btn.classList.add('connect-button'); btn.classList.remove('bg-red-500'); btn.disabled = false; }, 2500);
-                });
-        };
-        img.src = 'http://10.5.50.1/favicon.ico?t=' + Date.now();
-        setTimeout(function() {
-            if (!responded) {
+        probeHotspot(3000).then(function(reachable) {
+            if (reachable) {
+                hideNoWifiWarning();
+                window.location.reload();
+            } else {
                 btn.innerHTML = 'WIFI NÃO DETECTADO!'; btn.classList.remove('connect-button'); btn.classList.add('bg-red-500');
                 setTimeout(() => { btn.innerHTML = 'JÁ CONECTEI, VERIFICAR'; btn.classList.add('connect-button'); btn.classList.remove('bg-red-500'); btn.disabled = false; }, 2500);
             }
-        }, 4000);
+        });
     }
     document.addEventListener('DOMContentLoaded', function() {
         // Se o backend já confirmou que está no WiFi do ônibus, não mostra aviso.
@@ -231,8 +222,41 @@
         showNoWifiWarning();
     });
 
-    // Testa se o roteador do ônibus responde dentro do timeout informado.
+    // Testa se está no WiFi do ônibus.
+    // 1º: pergunta ao servidor (HTTPS, sempre funciona) se o IP público do
+    //     visitante é de um roteador de ônibus.
+    // 2º fallback: probe local ao 10.5.50.1 (pode ser bloqueado por mixed
+    //     content em HTTPS, por isso não é mais o método principal).
     function probeHotspot(timeoutMs) {
+        return new Promise(function(resolve) {
+            let done = false;
+            const finish = function(result) {
+                if (!done) { done = true; resolve(result); }
+            };
+
+            const controller = new AbortController();
+            const abortTimer = setTimeout(function() { controller.abort(); }, timeoutMs);
+
+            fetch('/api/connection-check', { headers: { 'Accept': 'application/json' }, signal: controller.signal, cache: 'no-store' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    clearTimeout(abortTimer);
+                    if (data && data.on_hotspot) {
+                        finish(true);
+                    } else {
+                        probeHotspotLocal(1500).then(finish);
+                    }
+                })
+                .catch(function() {
+                    clearTimeout(abortTimer);
+                    probeHotspotLocal(1500).then(finish);
+                });
+
+            setTimeout(function() { finish(false); }, timeoutMs + 1600);
+        });
+    }
+
+    function probeHotspotLocal(timeoutMs) {
         return new Promise(function(resolve) {
             let done = false;
             const finish = function(result) {
@@ -240,11 +264,7 @@
             };
             const img = new Image();
             img.onload = function() { finish(true); };
-            img.onerror = function() {
-                fetch('http://10.5.50.1', { mode: 'no-cors', cache: 'no-cache' })
-                    .then(function() { finish(true); })
-                    .catch(function() { finish(false); });
-            };
+            img.onerror = function() { finish(false); };
             img.src = 'http://10.5.50.1/favicon.ico?t=' + Date.now();
             setTimeout(function() { finish(false); }, timeoutMs);
         });

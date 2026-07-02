@@ -258,6 +258,40 @@ class PortalController extends Controller
     }
 
     /**
+     * Verifica se o visitante está atrás de um roteador de ônibus.
+     * Substitui o probe JS a http://10.5.50.1, que é bloqueado como
+     * mixed content quando o portal é servido via HTTPS.
+     *
+     * Sinal principal: IP público do visitante == IP público de um MikroTik
+     * (cache mikrotik_ip_{ip}, renovado a cada sync de 15s).
+     */
+    public function connectionCheck(Request $request)
+    {
+        $ip = $request->ip();
+
+        $viaBusRouter = cache()->has('mikrotik_ip_' . $ip);
+
+        $sessionVerified = false;
+        if ($request->hasSession()) {
+            $sessionVerified = (bool) $request->session()->get('mikrotik_context_verified', false);
+        }
+
+        $onHotspot = $viaBusRouter
+            || $sessionVerified
+            || $this->ipMatchesHotspotSubnets($ip);
+
+        if ($viaBusRouter && $request->hasSession()) {
+            $this->markMikrotikContextVerified($request);
+        }
+
+        return response()->json([
+            'on_hotspot' => $onHotspot,
+            'via_bus_router' => $viaBusRouter,
+            'mikrotik_id' => $viaBusRouter ? cache()->get('mikrotik_ip_' . $ip) : null,
+        ]);
+    }
+
+    /**
      * Tenta todas as fontes confiáveis de MAC (report, URL, header, ARP).
      * Retorna null se nenhuma produzir MAC real — sem gerar MOCK.
      */
