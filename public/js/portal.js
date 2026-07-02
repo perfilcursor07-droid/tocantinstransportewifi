@@ -176,6 +176,7 @@ class WiFiPortal {
             if (macFromUrl && this.isValidMacAddress(macFromUrl)) {
                 this.deviceMac = macFromUrl.toUpperCase();
                 console.log('🎯 MAC capturado da URL:', this.deviceMac);
+                sessionStorage.removeItem('hotspotLoginTried');
                 if (this.isRandomizedMac(this.deviceMac)) {
                     console.log('ℹ️ MAC é randomizado (normal em dispositivos modernos)');
                 }
@@ -318,19 +319,22 @@ class WiFiPortal {
      * - Não está no ônibus: mostra o aviso "Desligue os dados móveis".
      */
     async handleMacDetectionFailure() {
-        let onHotspot = false;
+        let viaBusRouter = false;
         try {
             const res = await this.fetchWithTimeout('/api/connection-check', {
                 headers: { 'Accept': 'application/json' },
                 cache: 'no-store'
             }, 5000);
             const data = await res.json();
-            onHotspot = !!(data && data.on_hotspot);
+            // Sinal FORTE apenas: IP público do visitante = IP público de um
+            // MikroTik ativo. Sinais fracos (sessão antiga, cookie) causavam
+            // redirect para 10.5.50.1 em quem não está no ônibus.
+            viaBusRouter = !!(data && data.via_bus_router);
         } catch (e) {
             console.warn('connection-check falhou:', e);
         }
 
-        if (onHotspot) {
+        if (viaBusRouter) {
             if (!sessionStorage.getItem('hotspotLoginTried')) {
                 sessionStorage.setItem('hotspotLoginTried', '1');
                 this.setLoadingMessage('Confirmando seu aparelho...', 'Passando pelo WiFi do ônibus, aguarde');
@@ -343,8 +347,12 @@ class WiFiPortal {
             return;
         }
 
-        if (!window._ON_HOTSPOT && typeof showNoWifiWarning === 'function') {
+        // Sem MAC e fora da rede de um ônibus: sempre orientar o usuário
+        // (mesmo com _ON_HOTSPOT de sessão antiga — sem MAC não há pagamento).
+        if (typeof showNoWifiWarning === 'function') {
             showNoWifiWarning();
+        } else {
+            this.showErrorMessage('Conecte ao WiFi "TocantinsTransporteWiFi" com os dados móveis desligados e tente de novo.');
         }
     }
 
