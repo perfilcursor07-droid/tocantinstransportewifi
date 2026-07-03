@@ -240,13 +240,16 @@
     // Pergunta ao servidor se este aparelho é conhecido e tem acesso ativo.
     // Retorna: 'active' (MAC conhecido + acesso ativo), 'known' (MAC conhecido
     // sem acesso) ou 'unknown' (servidor não identificou o MAC).
+    // Fontes de MAC, em ordem: URL → localStorage (salvo em visita/pagamento
+    // anterior neste navegador) → detect-device no servidor.
     function checkDeviceActiveOnServer(timeoutMs) {
         return new Promise(function(resolve) {
             let done = false;
             const finish = function(r) { if (!done) { done = true; resolve(r); } };
             setTimeout(function() { finish('unknown'); }, timeoutMs);
 
-            const checkMac = function(mac) {
+            const macRegex = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i;
+            const checkMacOnServer = function(mac) {
                 return fetch('/api/user/check-mac/' + encodeURIComponent(mac), { cache: 'no-store' })
                     .then(function(r) { return r.json(); })
                     .then(function(info) {
@@ -254,17 +257,16 @@
                     });
             };
 
-            // 1º: MAC salvo pelo navegador na última visita/pagamento
-            //     (quem pagou está em bypass e o servidor pode não identificá-lo,
-            //     mas o navegador dele lembra o próprio MAC).
-            let storedMac = null;
-            try { storedMac = localStorage.getItem('real_mac'); } catch (e) {}
-            if (storedMac && /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i.test(storedMac)) {
-                checkMac(storedMac).catch(function() { finish('unknown'); });
+            const params = new URLSearchParams(window.location.search);
+            let mac = params.get('mac') || params.get('mikrotik_mac') || params.get('client_mac') || '';
+            if (!macRegex.test(mac)) {
+                mac = localStorage.getItem('real_mac') || '';
+            }
+            if (macRegex.test(mac)) {
+                checkMacOnServer(mac).catch(function() { finish('unknown'); });
                 return;
             }
 
-            // 2º: identificação pelo servidor (URL/report do MikroTik)
             const csrf = document.querySelector('meta[name="csrf-token"]');
             fetch('/api/detect-device', {
                 method: 'POST',
@@ -277,9 +279,10 @@
             })
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
-                    const mac = data && data.mac_address;
-                    if (!mac) { finish('unknown'); return; }
-                    return checkMac(mac);
+                    const detected = data && data.mac_address;
+                    if (!detected || !macRegex.test(detected)) { finish('unknown'); return; }
+                    try { localStorage.setItem('real_mac', detected.toUpperCase()); } catch (e) {}
+                    return checkMacOnServer(detected);
                 })
                 .catch(function() { finish('unknown'); });
         });

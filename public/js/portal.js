@@ -317,34 +317,9 @@ class WiFiPortal {
         if (viaBusRouter) {
             // ⚠️ Sem atalho "internet já ativa" por probe genérico (gstatic):
             // dava falso positivo quando os dados móveis ainda estavam ativos e
-            // mostrava "já liberado" pra quem nem pagou.
-
-            // Antes de redirecionar ao 10.5.50.1/login (que RECUSA conexão para
-            // quem está em bypass), tenta o MAC lembrado pelo navegador: quem
-            // pagou/usou o bypass neste navegador tem o real_mac salvo.
-            let storedMac = null;
-            try { storedMac = localStorage.getItem('real_mac'); } catch (e) {}
-            if (storedMac && this.isValidMacAddress(storedMac)) {
-                try {
-                    const r = await this.fetchWithTimeout('/api/user/check-mac/' + encodeURIComponent(storedMac), { cache: 'no-store' }, 4000);
-                    const info = await r.json();
-                    this.deviceMac = storedMac.toUpperCase();
-                    if (info && info.already_active) {
-                        this.hideLoading();
-                        if (typeof window.showAlreadyActiveNotice === 'function') {
-                            window.showAlreadyActiveNotice();
-                        } else {
-                            this.showSuccessMessage('✅ Sua internet já está ativa! Pode navegar normalmente.');
-                        }
-                        return;
-                    }
-                    // MAC conhecido sem acesso ativo: segue o fluxo de pagamento
-                    // com esse MAC, sem precisar do redirect.
-                    return;
-                } catch (e) {
-                    console.warn('check-mac com MAC salvo falhou:', e);
-                }
-            }
+            // mostrava "já liberado" pra quem nem pagou. Quem está realmente em
+            // bypass tem o MAC reportado pelo MikroTik e o detect-device o
+            // encontra antes de chegar aqui.
 
             // Trava anti-loop com JANELA DE TEMPO: só bloqueia novo redirect se a
             // última tentativa foi há menos de 2 min. Antes era permanente e
@@ -2513,12 +2488,6 @@ class WiFiPortal {
         // Decide entre redirecionar pelo hotspot (está no ônibus) ou avisar sobre 4G
         this.hideLoading();
         await this.handleMacDetectionFailure();
-
-        // handleMacDetectionFailure pode ter recuperado o MAC salvo do navegador
-        // (usuário que já pagou/tentou antes) — nesse caso o fluxo pode seguir.
-        if (this.deviceMac && this.isValidMacAddress(this.deviceMac)) {
-            return true;
-        }
         return false;
     }
 }
