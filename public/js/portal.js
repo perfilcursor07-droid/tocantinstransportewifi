@@ -9,6 +9,7 @@ class WiFiPortal {
         this.deviceIp = '';
         this.connectionCheckInterval = null;
         this.paymentCheckInterval = null;
+        this.manualCheckInterval = null;
         this.loadingOverlay = null;
         this.paymentModal = null;
         this.registrationModal = null;
@@ -1123,6 +1124,10 @@ class WiFiPortal {
             clearInterval(this.paymentCheckInterval);
             this.paymentCheckInterval = null;
         }
+        if (this.manualCheckInterval) {
+            clearInterval(this.manualCheckInterval);
+            this.manualCheckInterval = null;
+        }
 
         this.updatePixTimerDisplay('⏱️ Tempo esgotado');
         this.updatePixStatusHint('O QR Code expirou. Gere um novo pagamento.');
@@ -1514,8 +1519,15 @@ class WiFiPortal {
         document.getElementById('step-1-content').classList.add('hidden');
         document.getElementById('step-2-content').classList.remove('hidden');
         
-        // Verificar pagamento imediatamente
-        this.checkPaymentStatus(paymentId || this.currentPaymentId);
+        // Verificação MANUAL (com limite de tentativas → "não encontrado").
+        // O polling automático de fundo continua rodando em paralelo e também
+        // confirma sozinho quando o PIX cair.
+        this._manualCheckCount = 0;
+        this.checkPaymentStatus(paymentId || this.currentPaymentId, true);
+        if (this.manualCheckInterval) clearInterval(this.manualCheckInterval);
+        this.manualCheckInterval = setInterval(() => {
+            this.checkPaymentStatus(this.currentPaymentId, true);
+        }, 5000);
     }
     
     /**
@@ -1526,10 +1538,14 @@ class WiFiPortal {
         this.pixPaymentConfirmed = true;
         this.stopPixCountdown();
         
-        // Parar verificação automática
+        // Parar verificação automática e manual
         if (this.paymentCheckInterval) {
             clearInterval(this.paymentCheckInterval);
             this.paymentCheckInterval = null;
+        }
+        if (this.manualCheckInterval) {
+            clearInterval(this.manualCheckInterval);
+            this.manualCheckInterval = null;
         }
         
         // Garantir que step-1-content está escondido (caso auto-check detectou antes do clique)
@@ -1787,13 +1803,9 @@ class WiFiPortal {
     /**
      * Verifica status do pagamento - Usa o novo fluxo de 3 passos
      */
-    async checkPaymentStatus(paymentId) {
-        console.log('🔄 Verificando status do pagamento:', paymentId);
-        
-        // Contador de tentativas manuais (quando clicou "JÁ PAGUEI")
-        if (!this._manualCheckCount) this._manualCheckCount = 0;
-        this._manualCheckCount++;
-        
+    async checkPaymentStatus(paymentId, isManual = false) {
+        console.log('🔄 Verificando status do pagamento:', paymentId, isManual ? '(manual)' : '(auto)');
+
         try {
             const response = await fetch(`/api/payment/pix/status?payment_id=${paymentId}`);
             const result = await response.json();
@@ -1806,10 +1818,17 @@ class WiFiPortal {
                 
                 // Ir para confirmação (passo 2 sub-estado "pago") → depois passo 3
                 this.showPaymentConfirmed();
-            } else {
-                console.log('⏱️ Pagamento ainda pendente (tentativa ' + this._manualCheckCount + ')');
-                
-                // Após 6 tentativas (30s) sem confirmação, mostrar "não encontrado"
+                return;
+            }
+
+            console.log('⏱️ Pagamento ainda pendente');
+
+            // ⚠️ Só o fluxo MANUAL ("JÁ PAGUEI") tem limite de tentativas e mostra
+            // "não encontrado". A verificação AUTOMÁTICA nunca desiste — ela segue
+            // rodando e confirma sozinha assim que o PIX cair (era esse o bug: o
+            // contador era compartilhado e o auto se matava após 30s).
+            if (isManual) {
+                this._manualCheckCount = (this._manualCheckCount || 0) + 1;
                 if (this._manualCheckCount >= 6) {
                     this._manualCheckCount = 0;
                     this.showPaymentNotFound();
@@ -1817,10 +1836,12 @@ class WiFiPortal {
             }
         } catch (error) {
             console.error('❌ Erro ao verificar status do pagamento:', error);
-            this._manualCheckCount++;
-            if (this._manualCheckCount >= 6) {
-                this._manualCheckCount = 0;
-                this.showPaymentNotFound();
+            if (isManual) {
+                this._manualCheckCount = (this._manualCheckCount || 0) + 1;
+                if (this._manualCheckCount >= 6) {
+                    this._manualCheckCount = 0;
+                    this.showPaymentNotFound();
+                }
             }
         }
     }
@@ -1829,10 +1850,11 @@ class WiFiPortal {
      * Mostra mensagem de pagamento não encontrado e volta para o QR Code
      */
     showPaymentNotFound() {
-        // Parar verificação automática
-        if (this.paymentCheckInterval) {
-            clearInterval(this.paymentCheckInterval);
-            this.paymentCheckInterval = null;
+        // Para APENAS o polling manual. O automático de fundo continua rodando,
+        // então mesmo nesta tela o pagamento é confirmado sozinho quando cair.
+        if (this.manualCheckInterval) {
+            clearInterval(this.manualCheckInterval);
+            this.manualCheckInterval = null;
         }
         
         const checkingEl = document.getElementById('step-2-checking');
