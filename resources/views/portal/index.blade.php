@@ -581,7 +581,7 @@
                     FECHAR
                 </button>
             </div>
-            <video id="tutorial-video-desktop" class="w-full max-h-[70vh] object-contain bg-black" autoplay controls playsinline preload="none">
+            <video id="tutorial-video-desktop" class="w-full max-h-[70vh] object-contain bg-black" controls playsinline preload="none">
                 <source src="{{ asset('videos/CaptivePortalVideo.mp4') }}" type="video/mp4">
             </video>
         </div>
@@ -594,7 +594,7 @@
                 </button>
             </div>
             <div class="flex-1 flex items-center justify-center bg-black">
-                <video id="tutorial-video" class="w-full h-full object-contain" autoplay controls playsinline preload="none">
+                <video id="tutorial-video" class="w-full h-full object-contain" controls playsinline preload="none">
                     <source src="{{ asset('videos/CaptivePortalVideo.mp4') }}" type="video/mp4">
                 </video>
             </div>
