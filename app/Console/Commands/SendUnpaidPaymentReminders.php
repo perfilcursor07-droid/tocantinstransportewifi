@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\Payment;
-use App\Models\TempBypassLog;
 use App\Models\User;
 use App\Models\WhatsappMessage;
 use App\Models\WhatsappOptOut;
@@ -18,11 +17,12 @@ use Illuminate\Support\Facades\Log;
  *
  * Fluxo:
  * 1. Busca pagamentos pendentes há 5+ minutos sem lembrete enviado
- * 2. Para cada um, libera 3 minutos de bypass no MikroTik (pra ele conseguir
- *    abrir o WhatsApp e o portal)
- * 3. Envia 2 mensagens WhatsApp: (a) aviso de pagamento não identificado +
- *    (b) o código PIX copia-e-cola separado
- * 4. Marca payment.unpaid_reminder_sent_at pra não enviar de novo
+ * 2. Envia 2 mensagens WhatsApp: (a) aviso de pagamento não identificado +
+ *    (b) o código PIX copia-e-cola separado (chega pelo 4G)
+ * 3. Marca payment.unpaid_reminder_sent_at pra não enviar de novo
+ *
+ * IMPORTANTE: este comando NÃO libera bypass/WiFi. A internet temporária de
+ * 3 min só é concedida quando o usuário copia o código PIX no portal.
  *
  * Esse comando NÃO afeta o fluxo de pagamento normal — só age depois de 5min
  * que o usuário gerou o QR Code e não pagou.
@@ -116,18 +116,22 @@ class SendUnpaidPaymentReminders extends Command
                 continue;
             }
 
-            // 1. Libera 3 minutos de bypass para o cara abrir o WhatsApp/portal
-            $this->grantTempBypass($user, $payment);
+            // ⚠️ NÃO libera mais bypass automático aqui: a internet temporária de
+            // 3 min só é liberada quando o usuário clica em "copiar código PIX"
+            // no portal. O lembrete é apenas a mensagem WhatsApp (chega pelo 4G).
 
-            // 2. Envia mensagem (2 partes: aviso + código PIX)
+            // Envia mensagem (2 partes: aviso + código PIX)
             $ok = $this->sendReminderMessage($user, $payment);
 
             // 🛡️ SEMPRE marca como enviado, mesmo se falhar — evita reenvio infinito
             // pro mesmo número (ex: número inválido tentando a cada 5 min).
             $this->markReminderSent($payment);
 
+            // 🛡️ Trava diária SEMPRE gravada (mesmo com falha no envio): antes,
+            // falha no WhatsApp fazia o cron reprocessar o telefone sem parar.
+            Cache::put($cacheKey, true, now()->addHours(24));
+
             if ($ok) {
-                Cache::put($cacheKey, true, now()->addHours(24));
                 $sent++;
             } else {
                 $failed++;
@@ -147,53 +151,6 @@ class SendUnpaidPaymentReminders extends Command
         ]);
 
         return 0;
-    }
-
-    /**
-     * Libera bypass temporário de 3 minutos para o usuário poder abrir o WhatsApp e o portal.
-     * Não conta no limite de bypasses regulares (não persiste em cache de bypass count).
-     */
-    protected function grantTempBypass(User $user, Payment $payment): void
-    {
-        try {
-            // Não rebaixar quem já está conectado
-            if (in_array($user->status, ['connected', 'active'])) {
-                return;
-            }
-
-            $expiresAt = now()->addMinutes(3);
-            $user->update([
-                'status' => 'temp_bypass',
-                'expires_at' => $expiresAt,
-            ]);
-
-            // Registrar no log de bypass
-            TempBypassLog::create([
-                'user_id' => $user->id,
-                'payment_id' => $payment->id,
-                'mac_address' => $user->mac_address,
-                'phone' => $user->phone,
-                'ip_address' => $user->ip_address,
-                'bypass_number' => 0,
-                'expires_at' => $expiresAt,
-                'was_denied' => false,
-                'deny_reason' => 'unpaid_reminder_15min',
-            ]);
-
-            // Forçar próximo sync do MikroTik a pegar esse bypass
-            Cache::forget('mikrotik_sync_lists_all');
-
-            Log::info('🏦 Bypass de 3min liberado para lembrete de pagamento pendente', [
-                'user_id' => $user->id,
-                'payment_id' => $payment->id,
-                'mac' => $user->mac_address,
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('❌ Erro ao liberar bypass para lembrete', [
-                'payment_id' => $payment->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
     }
 
     /**

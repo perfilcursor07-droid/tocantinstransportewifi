@@ -229,7 +229,9 @@ class WiFiPortal {
      */
     async waitForRealMac() {
         console.log('🔍 Aguardando MAC real...');
-        const maxAttempts = 4;
+        // 2 tentativas rápidas: se o MikroTik não reportou o MAC de primeira,
+        // esperar mais não ajuda — o redirect pelo 10.5.50.1/login resolve na hora.
+        const maxAttempts = 2;
 
         // ⚡ Teste rápido: se o roteador do ônibus (10.5.50.1) não responde,
         // o usuário está no 4G — mostra o aviso NA HORA, sem as 4 tentativas.
@@ -256,7 +258,7 @@ class WiFiPortal {
                             'X-CSRF-TOKEN': this.getCSRFToken()
                         },
                         body: JSON.stringify(this.getPortalContextPayload())
-                    }, 12000);
+                    }, 6000);
 
                     const data = await response.json();
                     const mac = data.mac_address || '';
@@ -272,36 +274,14 @@ class WiFiPortal {
                     }
                     
                     console.log(`⏳ Tentativa ${i + 1}/${maxAttempts} — aguardando MikroTik reportar MAC...`);
-                    await new Promise(resolve => setTimeout(resolve, 3000));
-                    
+                    await new Promise(resolve => setTimeout(resolve, 1200));
+
                 } catch (error) {
                     console.error('Erro na tentativa', i + 1, ':', error);
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             }
             
-            try {
-                this.showDeviceIdentificationLoading(maxAttempts, maxAttempts);
-                const response = await this.fetchWithTimeout('/api/detect-device', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': this.getCSRFToken()
-                    },
-                    body: JSON.stringify(this.getPortalContextPayload())
-                }, 12000);
-                const data = await response.json();
-                if (data.mac_address && this.isValidMacAddress(data.mac_address)) {
-                    this.deviceMac = data.mac_address.toUpperCase();
-                    if (data.client_ip || data.ip_address) {
-                        this.deviceIp = data.client_ip || data.ip_address;
-                    }
-                    return;
-                }
-            } catch (e) {
-                console.error('Falha na tentativa final:', e);
-            }
-
             this.deviceMac = '';
             console.warn('⚠️ Não foi possível confirmar MAC');
             await this.handleMacDetectionFailure();
@@ -324,7 +304,7 @@ class WiFiPortal {
             const res = await this.fetchWithTimeout('/api/connection-check', {
                 headers: { 'Accept': 'application/json' },
                 cache: 'no-store'
-            }, 5000);
+            }, 3500);
             const data = await res.json();
             // Sinal FORTE apenas: IP público do visitante = IP público de um
             // MikroTik ativo. Sinais fracos (sessão antiga, cookie) causavam
@@ -338,7 +318,7 @@ class WiFiPortal {
             // Quem já foi liberado (pagou ou bypass de 3 min) não passa mais pelo
             // hotspot: o 10.5.50.1/login recusa a conexão. Se o aparelho já tem
             // internet, avisa que a conexão está ativa em vez de redirecionar.
-            const hasInternet = await this.probeInternetAccess(3000);
+            const hasInternet = await this.probeInternetAccess(2000);
             if (hasInternet) {
                 this.hideLoading();
                 if (typeof window.showAlreadyActiveNotice === 'function') {
