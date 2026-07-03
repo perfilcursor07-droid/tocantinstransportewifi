@@ -349,14 +349,19 @@ class WiFiPortal {
                 return;
             }
 
-            if (!sessionStorage.getItem('hotspotLoginTried')) {
-                sessionStorage.setItem('hotspotLoginTried', '1');
+            // Trava anti-loop com JANELA DE TEMPO: só bloqueia novo redirect se a
+            // última tentativa foi há menos de 2 min. Antes era permanente e
+            // impedia o usuário de voltar a pagar depois do bypass expirar.
+            const lastTry = parseInt(sessionStorage.getItem('hotspotLoginTried') || '0', 10);
+            const twoMinutes = 2 * 60 * 1000;
+            if (!lastTry || (Date.now() - lastTry) > twoMinutes) {
+                sessionStorage.setItem('hotspotLoginTried', String(Date.now()));
                 this.setLoadingMessage('Confirmando seu aparelho...', 'Passando pelo WiFi do ônibus, aguarde');
                 const dst = window.location.origin + '/?from_login=1&captive=true';
                 window.location.href = 'http://10.5.50.1/login?dst=' + encodeURIComponent(dst);
                 return;
             }
-            // Já passou pelo login do hotspot e mesmo assim sem MAC
+            // Redirecionou há menos de 2 min e mesmo assim voltou sem MAC
             this.showErrorMessage('Não conseguimos confirmar seu aparelho. Desligue e ligue o WiFi do celular, reconecte na rede e tente de novo.');
             return;
         }
