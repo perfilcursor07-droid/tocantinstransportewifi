@@ -307,34 +307,21 @@
     <div class="min-h-screen flex flex-col">
 
         <!-- Header -->
-        <div class="hero-copa pt-3 pb-2.5 px-4 text-center">
-            <div class="flex items-center justify-center gap-1.5 mb-1">
-                <span class="inline-flex items-center gap-1 bg-yellow-400/95 text-green-900 text-[9px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full">
-                    ⚽ Copa 2026
-                </span>
-                <span class="text-white/50 text-[9px]">·</span>
-                <span class="text-white/80 text-[9px] font-semibold">Starlink 100+ Mbps</span>
-            </div>
-            <p class="text-white font-extrabold text-[15px] leading-tight">Assista todos os jogos na viagem</p>
-            <p class="text-white/70 text-[10px] mt-0.5">Pague no PIX · libera em segundos · sem cadastro</p>
+        <div class="hero-copa pt-4 pb-4 px-4 text-center">
+            <h1 class="text-white font-black text-xl leading-tight">WiFi no ônibus</h1>
+            <p class="text-white/85 text-[13px] mt-1 font-medium">Pague no PIX e navegue na hora · sem cadastro</p>
             @php
                 $reviewAverage = $review_average ?? 0;
                 $reviewCount = $review_count ?? 0;
                 $passengersMonth = $passengers_30d ?? 0;
             @endphp
-            @if($reviewCount >= 3 || $passengersMonth >= 20)
-            <p class="mt-1.5 text-[9px] text-white/85 font-medium">
+            <div class="flex items-center justify-center gap-2 mt-2 flex-wrap">
+                <span class="inline-flex items-center gap-1 bg-white/15 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">⚽ Copa 2026</span>
+                <span class="inline-flex items-center gap-1 bg-white/15 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">🛰️ Starlink 100+ Mbps</span>
                 @if($reviewCount >= 3)
-                    ⭐ {{ number_format($reviewAverage, 1, ',', '.') }} ({{ number_format($reviewCount, 0, ',', '.') }} avaliações)
+                <span class="inline-flex items-center gap-1 bg-white/15 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">⭐ {{ number_format($reviewAverage, 1, ',', '.') }} ({{ number_format($reviewCount, 0, ',', '.') }})</span>
                 @endif
-                @if($reviewCount >= 3 && $passengersMonth >= 20)
-                    <span class="text-white/40 mx-1">·</span>
-                @endif
-                @if($passengersMonth >= 20)
-                    +{{ number_format($passengersMonth, 0, ',', '.') }} conectados/mês
-                @endif
-            </p>
-            @endif
+            </div>
         </div>
 
         <!-- Conteudo Principal -->
@@ -403,11 +390,40 @@
                 </script>
                 @endif
 
+                <!-- Como funciona: 3 passos (antes dos planos, guia o usuário) -->
+                <section class="bg-white rounded-2xl border border-border shadow-card px-4 py-3.5 animate-slide-up">
+                    <div class="flex items-start justify-between gap-1">
+                        <div class="flex flex-col items-center text-center flex-1 px-0.5">
+                            <div class="w-10 h-10 rounded-full bg-green-pale text-green-dark flex items-center justify-center mb-1.5 border border-green/20">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
+                            </div>
+                            <p class="text-[13px] font-bold text-ink leading-tight">1. Entre no WiFi</p>
+                            <p class="text-[11px] text-muted leading-tight mt-0.5">rede do ônibus</p>
+                        </div>
+                        <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <div class="flex flex-col items-center text-center flex-1 px-0.5">
+                            <div class="w-10 h-10 rounded-full bg-blue-pale text-blue flex items-center justify-center mb-1.5 border border-blue/20">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg>
+                            </div>
+                            <p class="text-[13px] font-bold text-ink leading-tight">2. Pague no PIX</p>
+                            <p class="text-[11px] text-muted leading-tight mt-0.5">copie e cole no banco</p>
+                        </div>
+                        <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <div class="flex flex-col items-center text-center flex-1 px-0.5">
+                            <div class="w-10 h-10 rounded-full bg-green text-white flex items-center justify-center mb-1.5 shadow-sm">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                            <p class="text-[13px] font-bold text-ink leading-tight">3. Pronto!</p>
+                            <p class="text-[11px] text-muted leading-tight mt-0.5">internet na hora</p>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Card de Planos -->
                 <section class="bg-white rounded-2xl border border-border shadow-card overflow-hidden animate-slide-up">
                     <div class="px-4 py-3 sm:px-5 sm:py-4">
                         <div class="flex items-center justify-between mb-2.5">
-                            <p class="text-xs font-bold text-ink">Escolha seu plano</p>
+                            <p class="text-sm font-bold text-ink">Escolha seu plano</p>
                             <span class="text-[9px] font-bold text-green-dark bg-green-pale px-2 py-0.5 rounded-full">PIX instantâneo</span>
                         </div>
 
@@ -469,111 +485,78 @@
                             </button>
                         </div>
 
-                        <p class="mt-1.5 text-center text-[9px] text-muted leading-tight">
+                        <p class="mt-2 text-center text-[10px] text-muted leading-tight">
                             🔒 Pagamento seguro · ⚡ libera em ~30s · 📱 suporte WhatsApp
                         </p>
 
-                        <!-- Apps compatíveis (prova visual abaixo do CTA) -->
-                        <p class="text-center text-[9px] text-muted font-medium mt-2.5 mb-1.5 uppercase tracking-wider">Assista onde quiser</p>
-                        <div class="flex justify-center items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: linear-gradient(135deg, #833AB4, #E1306C, #F77737);" title="Instagram">
-                                <svg class="w-[16px] h-[16px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 01-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 017.8 2m-.2 2A3.6 3.6 0 004 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 003.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 110 2.5 1.25 1.25 0 010-2.5M12 7a5 5 0 110 10 5 5 0 010-10m0 2a3 3 0 100 6 3 3 0 000-6z"/></svg>
+                        <!-- Apps compatíveis (discreto) -->
+                        <div class="flex justify-center items-center gap-2 mt-2.5 opacity-80">
+                            <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background: linear-gradient(135deg, #833AB4, #E1306C, #F77737);" title="Instagram">
+                                <svg class="w-[12px] h-[12px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 01-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 017.8 2m-.2 2A3.6 3.6 0 004 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 003.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 110 2.5 1.25 1.25 0 010-2.5M12 7a5 5 0 110 10 5 5 0 010-10m0 2a3 3 0 100 6 3 3 0 000-6z"/></svg>
                             </div>
-                            <div class="w-8 h-8 rounded-lg bg-[#25D366] flex items-center justify-center" title="WhatsApp">
-                                <svg class="w-[16px] h-[16px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                            <div class="w-6 h-6 rounded-md bg-[#25D366] flex items-center justify-center" title="WhatsApp">
+                                <svg class="w-[12px] h-[12px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                             </div>
-                            <div class="w-8 h-8 rounded-lg bg-[#FF0000] flex items-center justify-center" title="YouTube">
-                                <svg class="w-[16px] h-[16px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                            <div class="w-6 h-6 rounded-md bg-[#FF0000] flex items-center justify-center" title="YouTube">
+                                <svg class="w-[12px] h-[12px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
                             </div>
-                            <div class="w-8 h-8 rounded-lg bg-[#1877F2] flex items-center justify-center" title="Facebook">
-                                <svg class="w-[16px] h-[16px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                            <div class="w-6 h-6 rounded-md bg-[#1877F2] flex items-center justify-center" title="Facebook">
+                                <svg class="w-[12px] h-[12px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                             </div>
-                            <div class="w-8 h-8 rounded-lg bg-black flex items-center justify-center" title="TikTok">
-                                <svg class="w-[16px] h-[16px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.46V13a8.28 8.28 0 005.58 2.17V11.7a4.83 4.83 0 01-3.77-1.24V6.69h3.77z"/></svg>
+                            <div class="w-6 h-6 rounded-md bg-black flex items-center justify-center" title="TikTok">
+                                <svg class="w-[12px] h-[12px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.46V13a8.28 8.28 0 005.58 2.17V11.7a4.83 4.83 0 01-3.77-1.24V6.69h3.77z"/></svg>
                             </div>
-                            <div class="w-8 h-8 rounded-lg bg-black flex items-center justify-center" title="Netflix">
-                                <svg class="w-[14px] h-[14px]" fill="#E50914" viewBox="0 0 24 24"><path d="M5.398 0v.006c3.028 8.556 5.37 15.175 8.348 23.596 2.344.058 4.85.398 4.854.398-2.8-7.924-5.923-16.747-8.487-24zm8.489 0v9.63L18.6 22.951c-.043-7.86-.004-15.913.002-22.95zM5.398 1.05V24c1.873-.225 2.81-.312 4.715-.398v-9.22z"/></svg>
+                            <div class="w-6 h-6 rounded-md bg-black flex items-center justify-center" title="Netflix">
+                                <svg class="w-[10px] h-[10px]" fill="#E50914" viewBox="0 0 24 24"><path d="M5.398 0v.006c3.028 8.556 5.37 15.175 8.348 23.596 2.344.058 4.85.398 4.854.398-2.8-7.924-5.923-16.747-8.487-24zm8.489 0v9.63L18.6 22.951c-.043-7.86-.004-15.913.002-22.95zM5.398 1.05V24c1.873-.225 2.81-.312 4.715-.398v-9.22z"/></svg>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <!-- Como funciona: 3 passos simples -->
-                <section class="bg-white rounded-2xl border border-border shadow-card px-4 py-4 animate-slide-up-delay">
-                    <div class="flex items-start justify-between gap-1">
-                        <div class="flex flex-col items-center text-center flex-1 px-0.5">
-                            <div class="w-11 h-11 rounded-full bg-green-pale text-green-dark flex items-center justify-center mb-2 border border-green/20">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
+                <!-- Ajuda: tudo em um card só -->
+                <section class="bg-white rounded-2xl border border-border shadow-card animate-slide-up-delay overflow-hidden">
+                    <p class="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted">Precisa de ajuda?</p>
+                    <div class="divide-y divide-gray-100">
+                        <button onclick="openVideoTutorial()" class="flex items-center justify-between px-4 py-3 w-full group">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 bg-red-pale rounded-xl flex items-center justify-center border border-red/20 flex-shrink-0">
+                                    <svg class="w-4 h-4 text-red" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                                </div>
+                                <div class="text-left">
+                                    <p class="text-[13px] font-bold text-ink">Como se conectar?</p>
+                                    <p class="text-[11px] text-muted">Vídeo passo a passo</p>
+                                </div>
                             </div>
-                            <p class="text-[13px] font-bold text-ink leading-tight">Entre no WiFi</p>
-                            <p class="text-[11px] text-muted leading-tight mt-0.5">rede do ônibus</p>
-                        </div>
-                        <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        <div class="flex flex-col items-center text-center flex-1 px-0.5">
-                            <div class="w-11 h-11 rounded-full bg-blue-pale text-blue text-base font-extrabold flex items-center justify-center mb-2 border border-blue/20">2</div>
-                            <p class="text-[13px] font-bold text-ink leading-tight">Pague no PIX</p>
-                            <p class="text-[11px] text-muted leading-tight mt-0.5">copie e cole no banco</p>
-                        </div>
-                        <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        <div class="flex flex-col items-center text-center flex-1 px-0.5">
-                            <div class="w-11 h-11 rounded-full bg-green text-white flex items-center justify-center mb-2 shadow-sm">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                            <svg class="w-4 h-4 text-gray-300 group-hover:text-red group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </button>
+
+                        <button type="button" onclick="openRecoveryModal()" class="flex items-center justify-between px-4 py-3 w-full group">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center border border-amber-200 flex-shrink-0">
+                                    <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                </div>
+                                <div class="text-left">
+                                    <p class="text-[13px] font-bold text-ink">Já paguei mas sem internet?</p>
+                                    <p class="text-[11px] text-muted">Recuperar com seu telefone</p>
+                                </div>
                             </div>
-                            <p class="text-[13px] font-bold text-ink leading-tight">Pronto!</p>
-                            <p class="text-[11px] text-muted leading-tight mt-0.5">internet na hora</p>
-                        </div>
+                            <svg class="w-4 h-4 text-gray-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </button>
+
+                        <a href="{{ route('voucher.activate') }}{{ request()->has('mac') ? '?source=mikrotik&mac=' . request('mac') . '&ip=' . request('ip') : '' }}" class="flex items-center justify-between px-4 py-3 group">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 bg-gold-pale rounded-xl flex items-center justify-center border border-gold/20 flex-shrink-0">
+                                    <svg class="w-4 h-4 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+                                </div>
+                                <div class="text-left">
+                                    <p class="text-[13px] font-bold text-ink">Motorista? Ative seu voucher</p>
+                                    <p class="text-[11px] text-muted">Acesso gratuito com código</p>
+                                </div>
+                            </div>
+                            <svg class="w-4 h-4 text-gray-300 group-hover:text-green group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </a>
                     </div>
                 </section>
-
-                <!-- Tutorial em vídeo -->
-                <section class="bg-white rounded-xl border border-border shadow-card animate-slide-up-delay">
-                    <button onclick="openVideoTutorial()" class="flex items-center justify-between p-3 w-full group">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-9 h-9 bg-red-pale rounded-xl flex items-center justify-center border border-red/20">
-                                <svg class="w-4 h-4 text-red" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-bold text-ink">Como se conectar?</p>
-                                <p class="text-[10px] text-muted">Vídeo passo a passo</p>
-                            </div>
-                        </div>
-                        <svg class="w-4 h-4 text-gray-300 group-hover:text-red group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                    </button>
-                </section>
-
-                <!-- Já paguei mas sem internet? (recuperação rápida) -->
-                <section class="bg-white rounded-xl border border-amber-200 shadow-card animate-slide-up-delay">
-                    <button type="button" onclick="openRecoveryModal()" class="flex items-center justify-between p-3 w-full group">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center border border-amber-200">
-                                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            </div>
-                            <div class="text-left">
-                                <p class="text-sm font-bold text-ink">Já paguei mas sem internet?</p>
-                                <p class="text-[10px] text-muted">Recuperar com seu telefone</p>
-                            </div>
-                        </div>
-                        <svg class="w-4 h-4 text-gray-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                    </button>
-                </section>
-
-                <!-- Voucher do motorista -->
-                <section class="bg-white rounded-xl border border-border shadow-card animate-slide-up-delay">
-                    <a href="{{ route('voucher.activate') }}{{ request()->has('mac') ? '?source=mikrotik&mac=' . request('mac') . '&ip=' . request('ip') : '' }}" class="flex items-center justify-between p-3 group">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-9 h-9 bg-gold-pale rounded-xl flex items-center justify-center border border-gold/20">
-                                <svg class="w-4 h-4 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
-                            </div>
-                            <div>
-                                <p class="text-sm font-bold text-ink">Motorista? Ative seu voucher</p>
-                                <p class="text-[10px] text-muted">Acesso gratuito com código</p>
-                            </div>
-                        </div>
-                        <svg class="w-4 h-4 text-gray-300 group-hover:text-green group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                    </a>
-                </section>
-
-                
 
             </div>
         </main>
