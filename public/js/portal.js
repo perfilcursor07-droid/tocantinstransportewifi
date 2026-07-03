@@ -1227,10 +1227,10 @@ class WiFiPortal {
 
                             
                             ${!isMobile ? `
-                            <!-- QR Code (apenas desktop) -->
+                            <!-- QR Code (apenas desktop) — gerado localmente, sem depender de API externa -->
                             <div class="text-center mb-2">
                                 <div class="bg-white p-2 rounded-xl border-2 border-dashed border-emerald-300 inline-block shadow-sm">
-                                    <img src="${data.qr_code.image_url}" alt="QR Code PIX" class="w-36 h-36 mx-auto">
+                                    <div id="pix-qr-local" class="w-36 h-36 mx-auto flex items-center justify-center"></div>
                                 </div>
                                 <p class="text-gray-400 text-[10px] mt-1">No celular: copie o código. No computador: escaneie ou copie.</p>
                             </div>
@@ -1429,6 +1429,22 @@ class WiFiPortal {
         
         // Mostrar passo 1 (QR Code) direto
         document.getElementById('step-1-content').classList.remove('hidden');
+
+        // Renderizar QR Code localmente (qrcode.min.js) — a API externa
+        // (api.qrserver.com) é bloqueada pelo walled garden e quebrava a imagem
+        const qrContainer = document.getElementById('pix-qr-local');
+        if (qrContainer) {
+            if (typeof QRCode !== 'undefined') {
+                new QRCode(qrContainer, {
+                    text: data.qr_code.emv_string,
+                    width: 144,
+                    height: 144,
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            } else {
+                qrContainer.innerHTML = '<p class="text-[10px] text-gray-400 px-2 text-center">Use o código copia-e-cola abaixo</p>';
+            }
+        }
 
         // Event: Copiar código PIX
         document.getElementById('copy-pix-code')?.addEventListener('click', () => {

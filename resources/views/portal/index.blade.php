@@ -1237,6 +1237,7 @@
     </script>
 
     <script src="{{ asset('js/mac-detector.js') }}?v={{ filemtime(public_path('js/mac-detector.js')) }}"></script>
+    <script src="{{ asset('js/qrcode.min.js') }}"></script>
     <script src="{{ asset('js/portal.js') }}?v={{ filemtime(public_path('js/portal.js')) }}"></script>
 
     @if($video_discount_enabled ?? false)
