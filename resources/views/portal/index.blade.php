@@ -246,6 +246,25 @@
             const finish = function(r) { if (!done) { done = true; resolve(r); } };
             setTimeout(function() { finish('unknown'); }, timeoutMs);
 
+            const checkMac = function(mac) {
+                return fetch('/api/user/check-mac/' + encodeURIComponent(mac), { cache: 'no-store' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(info) {
+                        finish(info && info.already_active ? 'active' : 'known');
+                    });
+            };
+
+            // 1º: MAC salvo pelo navegador na última visita/pagamento
+            //     (quem pagou está em bypass e o servidor pode não identificá-lo,
+            //     mas o navegador dele lembra o próprio MAC).
+            let storedMac = null;
+            try { storedMac = localStorage.getItem('real_mac'); } catch (e) {}
+            if (storedMac && /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i.test(storedMac)) {
+                checkMac(storedMac).catch(function() { finish('unknown'); });
+                return;
+            }
+
+            // 2º: identificação pelo servidor (URL/report do MikroTik)
             const csrf = document.querySelector('meta[name="csrf-token"]');
             fetch('/api/detect-device', {
                 method: 'POST',
@@ -260,15 +279,7 @@
                 .then(function(data) {
                     const mac = data && data.mac_address;
                     if (!mac) { finish('unknown'); return; }
-                    return fetch('/api/user/check-mac/' + encodeURIComponent(mac), { cache: 'no-store' })
-                        .then(function(r) { return r.json(); })
-                        .then(function(info) {
-                            if (info && info.already_active) {
-                                finish('active');
-                            } else {
-                                finish('known');
-                            }
-                        });
+                    return checkMac(mac);
                 })
                 .catch(function() { finish('unknown'); });
         });
