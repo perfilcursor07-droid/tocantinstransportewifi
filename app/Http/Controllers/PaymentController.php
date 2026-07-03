@@ -310,14 +310,8 @@ class PaymentController extends Controller
 
             DB::commit();
 
-            // 🚌 Detectar ônibus pelo IP público (MikroTik cacheia IP→serial a cada sync)
-            if (!$user->last_mikrotik_id) {
-                $publicIp = $request->ip();
-                $mikrotikId = cache()->get('mikrotik_ip_' . $publicIp);
-                if ($mikrotikId) {
-                    $user->update(['last_mikrotik_id' => $mikrotikId]);
-                }
-            }
+            // 🚌 Detectar ônibus pelo MAC report (registrarMacs) — confiável com CGNAT Starlink
+            HotspotIdentity::assignMikrotikToUser($user, $request->ip());
 
             // 🎯 LOG COMPLETO DO PAGAMENTO CRIADO
             Log::info('💳 PAGAMENTO PIX CRIADO COM SUCESSO', [

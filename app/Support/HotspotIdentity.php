@@ -201,4 +201,71 @@ class HotspotIdentity
             'orphaned_mac' => $normalized,
         ]);
     }
+
+    /**
+     * Resolve o serial do MikroTik (ônibus) para um dispositivo.
+     * Prioriza report MAC (registrarMacs com mid) — confiável mesmo com CGNAT Starlink.
+     */
+    public static function resolveMikrotikId(?string $mac, ?string $internalIp, ?string $publicIp = null): ?string
+    {
+        $mac = self::normalizeMac($mac);
+
+        $fromReport = MikrotikMacReport::resolveMikrotikIdForDevice($mac, $internalIp);
+        if ($fromReport) {
+            return $fromReport;
+        }
+
+        if (! $publicIp) {
+            return null;
+        }
+
+        $mapKey = 'mikrotik_ips_' . $publicIp;
+        $map = cache()->get($mapKey, []);
+        $cutoff = now()->subMinutes(20)->timestamp;
+        $activeIds = array_keys(array_filter($map, fn ($ts) => $ts >= $cutoff));
+
+        if (count($activeIds) === 1) {
+            return $activeIds[0];
+        }
+
+        if (count($activeIds) > 1) {
+            \Illuminate\Support\Facades\Log::warning('⚠️ CGNAT: múltiplos ônibus no mesmo IP público — ônibus não atribuído pelo cache', [
+                'public_ip' => $publicIp,
+                'active_buses' => $activeIds,
+                'mac' => $mac,
+                'internal_ip' => $internalIp,
+            ]);
+
+            return null;
+        }
+
+        return cache()->get('mikrotik_ip_' . $publicIp) ?: null;
+    }
+
+    /**
+     * Atualiza last_mikrotik_id do usuário quando o ônibus atual for identificado.
+     */
+    public static function assignMikrotikToUser(\App\Models\User $user, ?string $publicIp = null): ?string
+    {
+        $mikrotikId = self::resolveMikrotikId(
+            $user->mac_address,
+            $user->ip_address,
+            $publicIp
+        );
+
+        if ($mikrotikId && $user->last_mikrotik_id !== $mikrotikId) {
+            $previous = $user->last_mikrotik_id;
+            $user->update(['last_mikrotik_id' => $mikrotikId]);
+
+            \Illuminate\Support\Facades\Log::info('🚌 Ônibus atribuído ao usuário', [
+                'user_id' => $user->id,
+                'mac_address' => $user->mac_address,
+                'ip_address' => $user->ip_address,
+                'previous_mikrotik_id' => $previous,
+                'mikrotik_id' => $mikrotikId,
+            ]);
+        }
+
+        return $mikrotikId;
+    }
 }

@@ -59,4 +59,42 @@ class MikrotikMacReport extends Model
     {
         return static::where('reported_at', '<', Carbon::now()->subHour())->delete();
     }
+
+    /**
+     * Resolve o serial do MikroTik (ônibus) a partir do MAC ou IP interno do hotspot.
+     * Fonte confiável — cada report vem do script registrarMacs com parâmetro mid.
+     */
+    public static function resolveMikrotikIdForDevice(?string $macAddress, ?string $internalIp = null): ?string
+    {
+        if ($macAddress) {
+            $normalized = strtoupper(str_replace('-', ':', trim($macAddress)));
+
+            $report = static::where('mac_address', $normalized)
+                ->whereNotNull('mikrotik_id')
+                ->where('mikrotik_id', '!=', '')
+                ->recent()
+                ->orderByDesc('reported_at')
+                ->first();
+
+            if ($report) {
+                return $report->mikrotik_id;
+            }
+        }
+
+        if ($internalIp && str_starts_with($internalIp, '10.5.50.')) {
+            $ids = static::where('ip_address', $internalIp)
+                ->whereNotNull('mikrotik_id')
+                ->where('mikrotik_id', '!=', '')
+                ->recent()
+                ->pluck('mikrotik_id')
+                ->unique()
+                ->filter();
+
+            if ($ids->count() === 1) {
+                return $ids->first();
+            }
+        }
+
+        return null;
+    }
 }

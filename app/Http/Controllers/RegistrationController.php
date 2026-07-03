@@ -247,6 +247,7 @@ class RegistrationController extends Controller
                 }
 
                 $existingUserByMac->update($updateData);
+                HotspotIdentity::assignMikrotikToUser($existingUserByMac->fresh(), $request->ip());
 
                 \Log::info('🔄 Reutilizando usuário existente pelo MAC', [
                     'user_id' => $existingUserByMac->id,
@@ -314,6 +315,7 @@ class RegistrationController extends Controller
                 }
 
                 $user->update($updateData);
+                HotspotIdentity::assignMikrotikToUser($user->fresh(), $request->ip());
 
                 // 🔧 FIX: Verificar se o usuário já tem sessão ativa
                 $hasActiveAccess = in_array($user->status, ['connected', 'active'])
@@ -381,6 +383,7 @@ class RegistrationController extends Controller
                     && $existingUserByPhone->expires_at > now();
 
                 $existingUserByPhone->update($updateData);
+                HotspotIdentity::assignMikrotikToUser($existingUserByPhone->fresh(), $request->ip());
                 
                 if ($hasActiveAccess) {
                     \Log::info('✅ Usuário com sessão ativa reconectou com MAC diferente', [
@@ -421,6 +424,7 @@ class RegistrationController extends Controller
             if ($ipAddress) $userData['ip_address'] = $ipAddress;
 
             $user = User::create($userData);
+            HotspotIdentity::assignMikrotikToUser($user, $request->ip());
 
             \Log::info('📱 NOVO USUÁRIO SIMPLIFICADO', [
                 'user_id' => $user->id,
