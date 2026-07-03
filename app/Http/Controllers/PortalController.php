@@ -657,7 +657,11 @@ class PortalController extends Controller
 
     private function markMikrotikContextVerified(Request $request): void
     {
-        if (!$request->session()->get('mikrotik_context_verified')) {
+        if (! $request->hasSession()) {
+            return;
+        }
+
+        if (! $request->session()->get('mikrotik_context_verified')) {
             $request->session()->put('mikrotik_context_verified', true);
         }
     }
