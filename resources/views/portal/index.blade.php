@@ -209,20 +209,26 @@
         // esse IP e ficaria travado em ERR_CONNECTION_TIMED_OUT.
         if (window._TRY_HOTSPOT_LOGIN) {
             probeHotspot(2500).then(function(reachable) {
-                if (reachable) {
-                    // Quem JÁ PAGOU está em bypass: o hotspot não intercepta mais
-                    // e o 10.5.50.1/login recusa a conexão (ERR_CONNECTION_REFUSED).
-                    // Se o aparelho já navega na internet, mostra aviso em vez de redirecionar.
-                    probeInternet(3000).then(function(hasInternet) {
-                        if (hasInternet) {
-                            showAlreadyActiveNotice();
-                        } else {
-                            window.location.href = window._TRY_HOTSPOT_LOGIN;
-                        }
-                    });
-                } else {
+                if (!reachable) {
                     showNoWifiWarning();
+                    return;
                 }
+                // Está no WiFi do ônibus. Antes de redirecionar ao 10.5.50.1/login,
+                // pergunta ao SERVIDOR se este aparelho já é conhecido e está ativo
+                // (quem pagou está em bypass e o /login recusaria a conexão).
+                // ⚠️ Não usar probe de internet genérico aqui: dava falso positivo
+                // (ex.: dados móveis ainda ativos) e mostrava "já ativa" pra quem
+                // nem pagou.
+                checkDeviceActiveOnServer(6000).then(function(state) {
+                    if (state === 'active') {
+                        showAlreadyActiveNotice();
+                    } else if (state === 'known') {
+                        // MAC identificado mas sem acesso: segue o fluxo normal
+                        // de pagamento (sem redirect, o portal já tem o MAC).
+                    } else {
+                        window.location.href = window._TRY_HOTSPOT_LOGIN;
+                    }
+                });
             });
             return;
         }
@@ -231,16 +237,40 @@
         showNoWifiWarning();
     });
 
-    // Testa se o aparelho tem internet LIBERADA (fora do walled garden).
-    // Quem não pagou não alcança gstatic; quem pagou (bypass) alcança.
-    function probeInternet(timeoutMs) {
+    // Pergunta ao servidor se este aparelho é conhecido e tem acesso ativo.
+    // Retorna: 'active' (MAC conhecido + acesso ativo), 'known' (MAC conhecido
+    // sem acesso) ou 'unknown' (servidor não identificou o MAC).
+    function checkDeviceActiveOnServer(timeoutMs) {
         return new Promise(function(resolve) {
             let done = false;
             const finish = function(r) { if (!done) { done = true; resolve(r); } };
-            fetch('https://www.gstatic.com/generate_204?_=' + Date.now(), { mode: 'no-cors', cache: 'no-store' })
-                .then(function() { finish(true); })
-                .catch(function() { finish(false); });
-            setTimeout(function() { finish(false); }, timeoutMs);
+            setTimeout(function() { finish('unknown'); }, timeoutMs);
+
+            const csrf = document.querySelector('meta[name="csrf-token"]');
+            fetch('/api/detect-device', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf ? csrf.content : ''
+                },
+                cache: 'no-store',
+                body: JSON.stringify({})
+            })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    const mac = data && data.mac_address;
+                    if (!mac) { finish('unknown'); return; }
+                    return fetch('/api/user/check-mac/' + encodeURIComponent(mac), { cache: 'no-store' })
+                        .then(function(r) { return r.json(); })
+                        .then(function(info) {
+                            if (info && info.already_active) {
+                                finish('active');
+                            } else {
+                                finish('known');
+                            }
+                        });
+                })
+                .catch(function() { finish('unknown'); });
         });
     }
 
@@ -264,7 +294,7 @@
         document.body.appendChild(el);
     }
     window.showAlreadyActiveNotice = showAlreadyActiveNotice;
-    window.probeInternet = probeInternet;
+    window.checkDeviceActiveOnServer = checkDeviceActiveOnServer;
 
     // Testa se está no WiFi do ônibus.
     // 1º: pergunta ao servidor (HTTPS, sempre funciona) se o IP público do

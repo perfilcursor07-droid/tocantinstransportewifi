@@ -315,19 +315,11 @@ class WiFiPortal {
         }
 
         if (viaBusRouter) {
-            // Quem já foi liberado (pagou ou bypass de 3 min) não passa mais pelo
-            // hotspot: o 10.5.50.1/login recusa a conexão. Se o aparelho já tem
-            // internet, avisa que a conexão está ativa em vez de redirecionar.
-            const hasInternet = await this.probeInternetAccess(2000);
-            if (hasInternet) {
-                this.hideLoading();
-                if (typeof window.showAlreadyActiveNotice === 'function') {
-                    window.showAlreadyActiveNotice();
-                } else {
-                    this.showSuccessMessage('✅ Sua internet já está ativa! Pode navegar normalmente.');
-                }
-                return;
-            }
+            // ⚠️ Sem atalho "internet já ativa" por probe genérico (gstatic):
+            // dava falso positivo quando os dados móveis ainda estavam ativos e
+            // mostrava "já liberado" pra quem nem pagou. Quem está realmente em
+            // bypass tem o MAC reportado pelo MikroTik e o detect-device o
+            // encontra antes de chegar aqui.
 
             // Trava anti-loop com JANELA DE TEMPO: só bloqueia novo redirect se a
             // última tentativa foi há menos de 2 min. Antes era permanente e
