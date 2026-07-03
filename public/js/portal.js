@@ -335,6 +335,20 @@ class WiFiPortal {
         }
 
         if (viaBusRouter) {
+            // Quem já foi liberado (pagou ou bypass de 3 min) não passa mais pelo
+            // hotspot: o 10.5.50.1/login recusa a conexão. Se o aparelho já tem
+            // internet, avisa que a conexão está ativa em vez de redirecionar.
+            const hasInternet = await this.probeInternetAccess(3000);
+            if (hasInternet) {
+                this.hideLoading();
+                if (typeof window.showAlreadyActiveNotice === 'function') {
+                    window.showAlreadyActiveNotice();
+                } else {
+                    this.showSuccessMessage('✅ Sua internet já está ativa! Pode navegar normalmente.');
+                }
+                return;
+            }
+
             if (!sessionStorage.getItem('hotspotLoginTried')) {
                 sessionStorage.setItem('hotspotLoginTried', '1');
                 this.setLoadingMessage('Confirmando seu aparelho...', 'Passando pelo WiFi do ônibus, aguarde');
@@ -354,6 +368,21 @@ class WiFiPortal {
         } else {
             this.showErrorMessage('Conecte ao WiFi "TocantinsTransporteWiFi" com os dados móveis desligados e tente de novo.');
         }
+    }
+
+    /**
+     * Testa se o aparelho tem internet liberada (fora do walled garden).
+     * Não pagou → gstatic bloqueado; pagou/bypass → alcança.
+     */
+    probeInternetAccess(timeoutMs = 3000) {
+        return new Promise((resolve) => {
+            let done = false;
+            const finish = (r) => { if (!done) { done = true; resolve(r); } };
+            fetch('https://www.gstatic.com/generate_204?_=' + Date.now(), { mode: 'no-cors', cache: 'no-store' })
+                .then(() => finish(true))
+                .catch(() => finish(false));
+            setTimeout(() => finish(false), timeoutMs);
+        });
     }
 
     /**

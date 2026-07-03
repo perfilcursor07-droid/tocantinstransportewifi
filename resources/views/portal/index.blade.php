@@ -210,7 +210,16 @@
         if (window._TRY_HOTSPOT_LOGIN) {
             probeHotspot(2500).then(function(reachable) {
                 if (reachable) {
-                    window.location.href = window._TRY_HOTSPOT_LOGIN;
+                    // Quem JÁ PAGOU está em bypass: o hotspot não intercepta mais
+                    // e o 10.5.50.1/login recusa a conexão (ERR_CONNECTION_REFUSED).
+                    // Se o aparelho já navega na internet, mostra aviso em vez de redirecionar.
+                    probeInternet(3000).then(function(hasInternet) {
+                        if (hasInternet) {
+                            showAlreadyActiveNotice();
+                        } else {
+                            window.location.href = window._TRY_HOTSPOT_LOGIN;
+                        }
+                    });
                 } else {
                     showNoWifiWarning();
                 }
@@ -221,6 +230,41 @@
         // Backend não detectou hotspot → mostrar aviso direto (sem fetch lento/falso positivo)
         showNoWifiWarning();
     });
+
+    // Testa se o aparelho tem internet LIBERADA (fora do walled garden).
+    // Quem não pagou não alcança gstatic; quem pagou (bypass) alcança.
+    function probeInternet(timeoutMs) {
+        return new Promise(function(resolve) {
+            let done = false;
+            const finish = function(r) { if (!done) { done = true; resolve(r); } };
+            fetch('https://www.gstatic.com/generate_204?_=' + Date.now(), { mode: 'no-cors', cache: 'no-store' })
+                .then(function() { finish(true); })
+                .catch(function() { finish(false); });
+            setTimeout(function() { finish(false); }, timeoutMs);
+        });
+    }
+
+    // Aviso amigável para quem já está liberado (pagamento ou liberação de 3 min):
+    // substitui o redirect ao 10.5.50.1/login, que recusa conexão para quem tem bypass.
+    function showAlreadyActiveNotice() {
+        if (document.getElementById('already-active-notice')) return;
+        const el = document.createElement('div');
+        el.id = 'already-active-notice';
+        el.className = 'fixed inset-0 bg-black/70 z-[70] flex items-center justify-center p-5';
+        el.innerHTML =
+            '<div class="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl">' +
+                '<div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">' +
+                    '<svg class="w-9 h-9 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>' +
+                '</div>' +
+                '<h2 class="text-lg font-extrabold text-gray-900">Sua internet já está ativa!</h2>' +
+                '<p class="text-sm text-gray-600 mt-2 leading-relaxed">Seu aparelho já está liberado no WiFi do ônibus. Pode navegar normalmente.</p>' +
+                '<p class="text-[11px] text-gray-400 mt-3 leading-relaxed">Se você usou a liberação rápida de 3 minutos para pagar, o acesso completo libera sozinho assim que o PIX for confirmado.</p>' +
+                '<button onclick="document.getElementById(\'already-active-notice\').remove()" class="mt-4 w-full connect-button text-white font-extrabold py-3 rounded-xl text-sm">COMEÇAR A NAVEGAR</button>' +
+            '</div>';
+        document.body.appendChild(el);
+    }
+    window.showAlreadyActiveNotice = showAlreadyActiveNotice;
+    window.probeInternet = probeInternet;
 
     // Testa se está no WiFi do ônibus.
     // 1º: pergunta ao servidor (HTTPS, sempre funciona) se o IP público do
