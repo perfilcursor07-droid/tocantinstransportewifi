@@ -1416,12 +1416,13 @@ class WiFiPortal {
         // Mostrar passo 1 (QR Code) direto
         document.getElementById('step-1-content').classList.remove('hidden');
 
-        // Verificar bypass / limite e liberar internet se necessário (sem mostrar passo 2 antes de copiar)
-        this.detectAndBypass(data.payment_id);
-        
         // Event: Copiar código PIX
         document.getElementById('copy-pix-code')?.addEventListener('click', () => {
             this.copyPixCode(data.qr_code.emv_string);
+
+            // Liberação temporária de 3 min SÓ quando o usuário copia o código
+            // (não ao abrir o modal — evita gastar o limite de liberações à toa)
+            this.detectAndBypass(data.payment_id);
             const btn = document.getElementById('copy-pix-code');
             if (btn) {
                 btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> COPIADO!';
