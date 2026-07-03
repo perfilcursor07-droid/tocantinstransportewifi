@@ -268,11 +268,8 @@ class PortalController extends Controller
     public function connectionCheck(Request $request)
     {
         $ip = $request->ip();
-        $mac = \App\Support\HotspotIdentity::normalizeMac($request->query('mac'));
-        $internalIp = $request->query('ip') ?: $request->query('ip_address');
 
-        $mapKey = 'mikrotik_ips_' . $ip;
-        $viaBusRouter = cache()->has($mapKey) || cache()->has('mikrotik_ip_' . $ip);
+        $viaBusRouter = cache()->has('mikrotik_ip_' . $ip);
 
         $sessionVerified = false;
         if ($request->hasSession()) {
@@ -287,12 +284,10 @@ class PortalController extends Controller
             $this->markMikrotikContextVerified($request);
         }
 
-        $mikrotikId = \App\Support\HotspotIdentity::resolveMikrotikId($mac, $internalIp, $ip);
-
         return response()->json([
             'on_hotspot' => $onHotspot,
             'via_bus_router' => $viaBusRouter,
-            'mikrotik_id' => $mikrotikId,
+            'mikrotik_id' => $viaBusRouter ? cache()->get('mikrotik_ip_' . $ip) : null,
         ]);
     }
 
@@ -726,18 +721,16 @@ class PortalController extends Controller
                     // (gravado em MikrotikApiController quando cada ônibus sincroniza),
                     // atualiza o last_mikrotik_id do usuário e invalida a lista global
                     // de MACs para o próximo sync (≤15s) já pegar no ônibus certo.
-                    $previousMikrotikId = $cookieUser->last_mikrotik_id;
-                    $currentMikrotikId = \App\Support\HotspotIdentity::assignMikrotikToUser(
-                        $cookieUser,
-                        request()->ip()
-                    );
-                    if ($currentMikrotikId && $previousMikrotikId !== $currentMikrotikId) {
+                    $publicIp = request()->ip();
+                    $currentMikrotikId = \Illuminate\Support\Facades\Cache::get('mikrotik_ip_' . $publicIp);
+                    if ($currentMikrotikId && $cookieUser->last_mikrotik_id !== $currentMikrotikId) {
+                        $cookieUser->update(['last_mikrotik_id' => $currentMikrotikId]);
                         \Illuminate\Support\Facades\Cache::forget('mikrotik_sync_lists_all');
                         Log::info('🚌 Usuário reassociado a novo ônibus via cookie', [
                             'user_id' => $cookieUser->id,
-                            'old_mikrotik_id' => $previousMikrotikId,
+                            'old_mikrotik_id' => $cookieUser->getOriginal('last_mikrotik_id'),
                             'new_mikrotik_id' => $currentMikrotikId,
-                            'public_ip' => request()->ip(),
+                            'public_ip' => $publicIp,
                         ]);
                     }
                 } catch (\Exception $e) {

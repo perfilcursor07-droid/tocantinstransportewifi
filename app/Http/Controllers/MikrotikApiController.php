@@ -60,17 +60,8 @@ class MikrotikApiController extends Controller
                     'last_public_ip' => $request->ip(),
                     'last_sync_at' => now(),
                 ]);
-                // Cachear mapeamentos IP público → serial(es) — Starlink CGNAT pode compartilhar IP
-                $publicIp = $request->ip();
-                cache()->put('mikrotik_sync_' . $mikrotikId . '_' . $publicIp, now(), now()->addMinutes(20));
-
-                $mapKey = 'mikrotik_ips_' . $publicIp;
-                $map = cache()->get($mapKey, []);
-                $map[$mikrotikId] = now()->timestamp;
-                cache()->put($mapKey, $map, now()->addHours(6));
-
-                // Legado: último sync (não usar sozinho para atribuir pagamentos)
-                cache()->put('mikrotik_ip_' . $publicIp, $mikrotikId, now()->addHours(6));
+                // Cachear: IP público deste MikroTik → serial (para associar pagamentos)
+                cache()->put('mikrotik_ip_' . $request->ip(), $mikrotikId, now()->addHours(6));
             }
 
             // 🔄 Atualizar status de usuários que acabaram de expirar ANTES de buscar
