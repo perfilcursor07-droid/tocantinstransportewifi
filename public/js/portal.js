@@ -733,22 +733,7 @@ class WiFiPortal {
             }
 
             this.setLoadingMessage('Gerando QR Code PIX...', 'Isso pode levar alguns segundos');
-            const response = await this.fetchWithTimeout('/api/payment/pix/generate-qr', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': this.getCSRFToken()
-                },
-                body: JSON.stringify({
-                    amount: window.WIFI_PRICE || 5.99,
-                    mac_address: this.deviceMac,
-                    user_id: this.currentUserId,
-                    ip_address: this.deviceIp,
-                    plan_duration: window.WIFI_SELECTED_PLAN?.duration || window.SESSION_DURATION || 12,
-                    plan_name: window.WIFI_SELECTED_PLAN?.name || 'Viagem completa',
-                    plan_suffix: window.WIFI_SELECTED_PLAN?.suffix || '/ viagem'
-                })
-            }, 40000);
+            const response = await this.fetchPixQRWithRetry();
 
             if (response.status === 422) {
                 this.showNoWifiWarning();
@@ -772,6 +757,54 @@ class WiFiPortal {
                 this.showPixErrorWithRetry('Demorou demais para gerar o PIX. Verifique se o 4G está desligado e se você está no WiFi do ônibus.');
             } else {
                 this.showPixErrorWithRetry('Falha de conexão ao gerar o PIX. Confira se está no WiFi "TocantinsTransporteWiFi" com o 4G desligado.');
+            }
+        }
+    }
+
+    /**
+     * Gera o QR Code PIX com retry automático (até 3 tentativas, timeout 12s cada).
+     * Se a Starlink estiver oscilando, a segunda tentativa costuma ser bem mais rápida.
+     * Retorna o response do fetch (compatível com o fluxo existente).
+     */
+    async fetchPixQRWithRetry(maxRetries = 3, timeoutMs = 12000) {
+        const payload = {
+            amount: window.WIFI_PRICE || 5.99,
+            mac_address: this.deviceMac,
+            user_id: this.currentUserId,
+            ip_address: this.deviceIp,
+            plan_duration: window.WIFI_SELECTED_PLAN?.duration || window.SESSION_DURATION || 12,
+            plan_name: window.WIFI_SELECTED_PLAN?.name || 'Viagem completa',
+            plan_suffix: window.WIFI_SELECTED_PLAN?.suffix || '/ viagem'
+        };
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                console.log(`🔄 Gerando PIX (tentativa ${attempt}/${maxRetries})...`);
+                if (attempt > 1) {
+                    this.setLoadingMessage('Gerando QR Code PIX...', `Tentativa ${attempt} de ${maxRetries}`);
+                }
+
+                const response = await this.fetchWithTimeout('/api/payment/pix/generate-qr', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': this.getCSRFToken()
+                    },
+                    body: JSON.stringify(payload)
+                }, timeoutMs);
+
+                // Qualquer resposta do servidor (200, 422, 500) = a rede funcionou, retorna
+                return response;
+            } catch (error) {
+                console.warn(`⚠️ Tentativa ${attempt} falhou:`, error.message);
+
+                if (attempt === maxRetries) {
+                    // Esgotou tentativas — lança o erro pro handler tratar
+                    throw error;
+                }
+
+                // Pausa curta antes de tentar de novo (Starlink pode ter voltado)
+                await new Promise(r => setTimeout(r, 1500));
             }
         }
     }
@@ -1015,22 +1048,7 @@ class WiFiPortal {
             }
 
             this.setLoadingMessage('Gerando QR Code PIX...', 'Isso pode levar alguns segundos');
-            const response = await this.fetchWithTimeout('/api/payment/pix/generate-qr', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': this.getCSRFToken()
-                },
-                body: JSON.stringify({
-                    amount: window.WIFI_PRICE || 5.99,
-                    mac_address: this.deviceMac,
-                    user_id: this.currentUserId,
-                    ip_address: this.deviceIp,
-                    plan_duration: window.WIFI_SELECTED_PLAN?.duration || window.SESSION_DURATION || 12,
-                    plan_name: window.WIFI_SELECTED_PLAN?.name || 'Viagem completa',
-                    plan_suffix: window.WIFI_SELECTED_PLAN?.suffix || '/ viagem'
-                })
-            }, 40000);
+            const response = await this.fetchPixQRWithRetry();
 
             if (response.status === 422) {
                 this.showNoWifiWarning();
