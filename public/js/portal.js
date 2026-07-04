@@ -48,7 +48,13 @@ class WiFiPortal {
     init() {
         this.setupElements();
         this.setupEventListeners();
-        this.detectDevice();
+        this.detectDevice().then(() => {
+            // 🚀 PREFETCH: se já temos MAC, começar a gerar o QR em background
+            // Assim quando o usuário clicar, o QR já está pronto (ou quase).
+            if (this.deviceMac && this.isValidMacAddress(this.deviceMac)) {
+                this.prefetchPixQR();
+            }
+        });
         this.checkConnectionStatus();
     }
 
@@ -762,11 +768,65 @@ class WiFiPortal {
     }
 
     /**
-     * Gera o QR Code PIX com retry automático (até 3 tentativas, timeout 12s cada).
+     * 🚀 PREFETCH: Gera o QR Code PIX em background assim que o MAC é detectado.
+     * Se o usuário já existe (check-mac) e não tem acesso ativo, chama a API de
+     * geração do QR e guarda em this._prefetchedQR. Quando o usuário clicar
+     * CONECTAR, o QR aparece instantaneamente.
+     *
+     * Não bloqueia nada, não mostra loading, roda silencioso em paralelo.
+     * Se falhar, o fluxo normal (com retry) pega na hora do clique.
+     */
+    async prefetchPixQR() {
+        try {
+            // 1. Verificar se o usuário existe e não está ativo
+            const checkResp = await fetch(`/api/user/check-mac/${this.deviceMac}`);
+            const checkData = await checkResp.json();
+
+            if (!checkData.exists || !checkData.user_id || checkData.already_active) {
+                // Usuário novo (vai precisar cadastrar telefone) ou já ativo — não prefetch
+                return;
+            }
+
+            this.currentUserId = checkData.user_id;
+            console.log('🚀 Prefetch: usuário encontrado, gerando QR em background...');
+
+            // 2. Gerar o QR Code em background (timeout generoso, sem retry aqui)
+            const response = await this.fetchWithTimeout('/api/payment/pix/generate-qr', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': this.getCSRFToken()
+                },
+                body: JSON.stringify({
+                    amount: window.WIFI_PRICE || 5.99,
+                    mac_address: this.deviceMac,
+                    user_id: this.currentUserId,
+                    ip_address: this.deviceIp,
+                    plan_duration: window.WIFI_SELECTED_PLAN?.duration || window.SESSION_DURATION || 12,
+                    plan_name: window.WIFI_SELECTED_PLAN?.name || 'Viagem completa',
+                    plan_suffix: window.WIFI_SELECTED_PLAN?.suffix || '/ viagem'
+                })
+            }, 25000);
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.qr_code) {
+                    this._prefetchedQR = result;
+                    console.log('🚀 Prefetch: QR Code pronto! payment_id:', result.payment_id);
+                }
+            }
+        } catch (e) {
+            // Silencioso — se falhar, o fluxo normal gera na hora do clique
+            console.log('🚀 Prefetch falhou (sem problema, gera na hora do clique):', e.message);
+        }
+    }
+
+    /**
+     * Gera o QR Code PIX com retry automático (até 2 tentativas, timeout 20s cada).
      * Se a Starlink estiver oscilando, a segunda tentativa costuma ser bem mais rápida.
      * Retorna o response do fetch (compatível com o fluxo existente).
      */
-    async fetchPixQRWithRetry(maxRetries = 3, timeoutMs = 12000) {
+    async fetchPixQRWithRetry(maxRetries = 2, timeoutMs = 20000) {
         const payload = {
             amount: window.WIFI_PRICE || 5.99,
             mac_address: this.deviceMac,
@@ -1013,6 +1073,14 @@ class WiFiPortal {
                 }
                 
                 console.log('✅ Usuário já cadastrado, gerando QR Code PIX direto...');
+                // 🚀 Se prefetch já está pronto, mostra instantâneo sem loading
+                if (this._prefetchedQR && this._prefetchedQR.success && this._prefetchedQR.qr_code) {
+                    console.log('🚀 Usando QR pré-gerado (instantâneo)!');
+                    const result = this._prefetchedQR;
+                    this._prefetchedQR = null;
+                    this.showPixQRCode(result);
+                    return;
+                }
                 this.processPixPayment();
             } else {
                 // Usuário novo - mostrar cadastro simplificado (apenas telefone)
@@ -1044,6 +1112,22 @@ class WiFiPortal {
 
             if (!this.currentUserId) {
                 this.showErrorMessage('Erro: Dados do usuário não encontrados. Faça o registro novamente.');
+                return;
+            }
+
+            // 🚀 Se o prefetch já gerou o QR, mostra INSTANTANEAMENTE
+            if (this._prefetchedQR && this._prefetchedQR.success && this._prefetchedQR.qr_code) {
+                console.log('🚀 Usando QR pré-gerado (instantâneo)!');
+                const result = this._prefetchedQR;
+                this._prefetchedQR = null; // Consumido — próximo clique gera novo
+                this.hideLoading();
+                this.showPixQRCode(result);
+                console.log('💳 Pagamento PIX criado (prefetch):', {
+                    payment_id: result.payment_id,
+                    mac_address: this.deviceMac,
+                    user_id: this.currentUserId,
+                    gateway: result.gateway
+                });
                 return;
             }
 
