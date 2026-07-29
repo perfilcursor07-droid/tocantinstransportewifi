@@ -78,14 +78,22 @@ class ChatAIService
             $decision = $this->callApi($messages);
 
             if (!$decision || !in_array($decision['action'] ?? null, self::ACTIONS, true)) {
-                $decision = [
-                    'action' => 'escalate',
-                    'message' => 'Vou passar pro meu colega que consegue te ajudar melhor. Aguarda só um minutinho!',
-                    'reason' => 'IA não retornou decisão válida',
-                ];
+                if (!$this->visitorHasActiveAccess($conv) && !$this->visitorAskedForHuman($conv)) {
+                    $decision = [
+                        'action' => 'reply',
+                        'message' => $this->paymentStepsMessage(),
+                    ];
+                } else {
+                    $decision = [
+                        'action' => 'escalate',
+                        'message' => 'Vou passar pro meu colega que consegue te ajudar melhor. Aguarda só um minutinho!',
+                        'reason' => 'IA não retornou decisão válida',
+                    ];
+                }
             }
 
             $decision = $this->guardPaidWithoutReceipt($conv, $decision);
+            $decision = $this->guardPaymentHelpWithoutEscalate($conv, $decision);
 
             return $this->executeAction($conv, $decision);
         } catch (\Throwable $e) {
@@ -93,6 +101,15 @@ class ChatAIService
                 'conversation_id' => $conv->id,
                 'error' => $e->getMessage(),
             ]);
+
+            // Sem acesso ativo e sem pedido de atendente: manda o passo a passo em vez de escalar
+            if (!$this->visitorHasActiveAccess($conv) && !$this->visitorAskedForHuman($conv)) {
+                return $this->executeAction($conv, [
+                    'action' => 'reply',
+                    'message' => $this->paymentStepsMessage(),
+                ]);
+            }
+
             return $this->escalateFallback($conv, 'Erro na chamada da IA');
         }
     }
@@ -254,13 +271,18 @@ O sistema não vê pagamento ativo, mas o usuário *afirma* que pagou.
 4. **Se disser que NÃO pagou / se confundiu:** use o **PASSO A PASSO DE PAGAMENTO**.
 
 ## CENÁRIO C: Status = "SEM CADASTRO" ou "EXPIRADO" + usuário NÃO afirma ter pago
-(Casos tipo "Wifi", "Conexão do celular", "Não estou conseguindo", "sem internet".)
-**NUNCA use request_probe.** O problema é acesso/pagamento.
+(Casos tipo "Wifi", "quero wifi", "Conexão do celular", "Não estou conseguindo", "sem internet", "como pago".)
+**NUNCA use request_probe. NUNCA escalate neste cenário** — o usuário só quer informação/orientação pra pagar.
 
 **Primeiro turno — seja direto e ofereça ajuda pra pagar:**
+action: **reply**
 "Oi {$conv->visitor_name}! Não encontrei pagamento ativo pra esse dispositivo. Quer que eu te passe o passo a passo pra pagar e liberar o WiFi?"
 
-**Se o usuário pedir ajuda / confirmar / continuar reclamando:** use o **PASSO A PASSO DE PAGAMENTO** completo. Não fique só perguntando se conectou — já oriente a solução.
+**Segundo turno — se o usuário confirmar** (ex.: "sim", "quero sim", "pode", "manda", "quero", "passa", "ok", "isso"):
+action: **reply** com o **PASSO A PASSO DE PAGAMENTO** completo.
+**PROIBIDO escalate.** Ele pediu informação, não atendente humano.
+
+**Se continuar reclamando / pedindo ajuda:** mande de novo o **PASSO A PASSO DE PAGAMENTO**. Não escale.
 
 ## PASSO A PASSO DE PAGAMENTO (use sempre que for orientar a conectar/pagar)
 Mande EXATAMENTE neste estilo (texto puro, cada passo em linha nova, SEM asteriscos):
@@ -299,7 +321,9 @@ use o **PASSO A PASSO DE PAGAMENTO** (lembre de desligar o 4G no passo 1).
 "O teste mostrou que tá tudo certo com pagamento e conexão! Se ainda não navega, desliga e liga o WiFi (sem esquecer a rede) ou fecha e abre o navegador. Funcionou?"
 
 ## CENÁRIO D: Pediu atendente humano
-Escale IMEDIATAMENTE: "Claro, {$conv->visitor_name}! Já vou passar pro meu colega. Aguarda só um minutinho."
+Só escale se o usuário pediu EXPLICITAMENTE atendente/humano (ex.: "quero falar com atendente", "chama um humano").
+"sim", "quero sim", "pode", "manda o passo a passo" NÃO é pedido de atendente — nesse caso mande o PASSO A PASSO.
+Se pediu atendente de verdade: "Claro, {$conv->visitor_name}! Já vou passar pro meu colega. Aguarda só um minutinho."
 
 ## CENÁRIO E: Quer pagar pra outro celular
 "O pagamento fica vinculado ao celular conectado no WiFi do ônibus. Pra liberar outro aparelho, a pessoa precisa conectar AQUELE celular no TocantinsTransporteWiFi, abrir o navegador, acessar {$portalHost} e pagar por lá. Não tem como pagar de um e liberar em outro, infelizmente."
@@ -743,6 +767,51 @@ PROMPT;
             'action' => 'request_receipt',
             'message' => 'Pra eu localizar seu pagamento, me manda o comprovante do PIX (foto ou print). Use o botão abaixo pra enviar.',
         ];
+    }
+
+    /**
+     * Usuário sem pagamento pediu só orientação (wifi / passo a passo / "sim").
+     * A IA NÃO deve escalar — deve mandar o passo a passo.
+     */
+    private function guardPaymentHelpWithoutEscalate(ChatConversation $conv, array $decision): array
+    {
+        $action = $decision['action'] ?? 'reply';
+        if ($action !== 'escalate' && $action !== 'request_probe') {
+            return $decision;
+        }
+
+        if ($this->visitorHasActiveAccess($conv)) {
+            return $decision;
+        }
+
+        if ($this->visitorAskedForHuman($conv)) {
+            return $decision;
+        }
+
+        // Se insiste que pagou, o outro guard já trata (comprovante)
+        if ($this->visitorClaimsPaid($conv)) {
+            return $decision;
+        }
+
+        Log::info('🤖 Guard: forçando passo a passo (pedido de informação, sem escalar)', [
+            'conversation_id' => $conv->id,
+            'was_action' => $action,
+        ]);
+
+        return [
+            'action' => 'reply',
+            'message' => $this->paymentStepsMessage(),
+        ];
+    }
+
+    private function paymentStepsMessage(): string
+    {
+        return "Beleza! Faz assim:\n\n"
+            . "1) Esquece a rede TocantinsTransporteWiFi no celular e conecta de novo (com os dados móveis desligados). Veja se abre sozinha a página pra pagar.\n\n"
+            . "2) Se não abrir: leia o QR Code do ônibus ou abra o navegador em www.tocantinstransportewifi.com.br (no WiFi do ônibus, 4G desligado).\n\n"
+            . "3) Escolha o plano, pague no PIX e aguarde até 15 segundos — libera sozinho.\n\n"
+            . "4) Se nada disso funcionar, peça ajuda ao motorista.\n\n"
+            . "Me fala em qual passo você parou!";
     }
 
     private function visitorClaimsPaid(ChatConversation $conv): bool
