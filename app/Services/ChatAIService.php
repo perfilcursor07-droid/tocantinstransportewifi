@@ -78,22 +78,12 @@ class ChatAIService
             $decision = $this->callApi($messages);
 
             if (!$decision || !in_array($decision['action'] ?? null, self::ACTIONS, true)) {
-                if (!$this->visitorHasActiveAccess($conv) && !$this->visitorAskedForHuman($conv)) {
-                    $decision = [
-                        'action' => 'reply',
-                        'message' => $this->paymentStepsMessage(),
-                    ];
-                } else {
-                    $decision = [
-                        'action' => 'escalate',
-                        'message' => 'Vou passar pro meu colega que consegue te ajudar melhor. Aguarda só um minutinho!',
-                        'reason' => 'IA não retornou decisão válida',
-                    ];
-                }
+                $decision = $this->fallbackDecision($conv);
             }
 
             $decision = $this->guardPaidWithoutReceipt($conv, $decision);
             $decision = $this->guardPaymentHelpWithoutEscalate($conv, $decision);
+            $decision = $this->guardNoRepeatPaymentSteps($conv, $decision);
 
             return $this->executeAction($conv, $decision);
         } catch (\Throwable $e) {
@@ -102,15 +92,7 @@ class ChatAIService
                 'error' => $e->getMessage(),
             ]);
 
-            // Sem acesso ativo e sem pedido de atendente: manda o passo a passo em vez de escalar
-            if (!$this->visitorHasActiveAccess($conv) && !$this->visitorAskedForHuman($conv)) {
-                return $this->executeAction($conv, [
-                    'action' => 'reply',
-                    'message' => $this->paymentStepsMessage(),
-                ]);
-            }
-
-            return $this->escalateFallback($conv, 'Erro na chamada da IA');
+            return $this->executeAction($conv, $this->fallbackDecision($conv, 'Erro na chamada da IA'));
         }
     }
 
@@ -272,17 +254,19 @@ O sistema não vê pagamento ativo, mas o usuário *afirma* que pagou.
 
 ## CENÁRIO C: Status = "SEM CADASTRO" ou "EXPIRADO" + usuário NÃO afirma ter pago
 (Casos tipo "Wifi", "quero wifi", "Conexão do celular", "Não estou conseguindo", "sem internet", "como pago".)
-**NUNCA use request_probe. NUNCA escalate neste cenário** — o usuário só quer informação/orientação pra pagar.
+**NUNCA use request_probe.**
 
-**Primeiro turno — seja direto e ofereça ajuda pra pagar:**
-action: **reply**
-"Oi {$conv->visitor_name}! Não encontrei pagamento ativo pra esse dispositivo. Quer que eu te passe o passo a passo pra pagar e liberar o WiFi?"
+**Primeiro turno — se ainda NÃO mandou o passo a passo nesta conversa:**
+action: **reply** com o **PASSO A PASSO DE PAGAMENTO** (pode perguntar antes OU já mandar direto se ele pediu "como pago").
 
-**Segundo turno — se o usuário confirmar** (ex.: "sim", "quero sim", "pode", "manda", "quero", "passa", "ok", "isso"):
-action: **reply** com o **PASSO A PASSO DE PAGAMENTO** completo.
-**PROIBIDO escalate.** Ele pediu informação, não atendente humano.
+**Se o usuário confirmar** (ex.: "sim", "quero sim", "pode", "manda") e você ainda NÃO mandou o passo a passo:
+action: **reply** com o **PASSO A PASSO DE PAGAMENTO**. Não escalate.
 
-**Se continuar reclamando / pedindo ajuda:** mande de novo o **PASSO A PASSO DE PAGAMENTO**. Não escale.
+**DEPOIS que o passo a passo JÁ FOI ENVIADO nesta conversa:**
+Se o usuário disser que tentou / não abre / não funciona / nada deu certo / fiz tudo e nada:
+→ action: **escalate** IMEDIATAMENTE.
+Mensagem: "Poxa, {$conv->visitor_name}, desculpa que não resolveu por aqui. Vou passar pro meu colega que consegue te ajudar direto. Aguarda só um minutinho!"
+**PROIBIDO repetir o mesmo passo a passo.** Repetir irrita o cliente.
 
 ## PASSO A PASSO DE PAGAMENTO (use sempre que for orientar a conectar/pagar)
 Mande EXATAMENTE neste estilo (texto puro, cada passo em linha nova, SEM asteriscos):
@@ -300,7 +284,8 @@ Beleza! Faz assim:
 Me fala em qual passo você parou!
 
 ## CENÁRIO F: Portal não abre / "não consigo pagar" / "não consigo conectar"
-Use o **PASSO A PASSO DE PAGAMENTO**. Não mande só "desliga o 4G e abre o site" — sempre inclua: esquecer rede → captive portal → QR do ônibus → site → motorista.
+- Se o passo a passo **ainda não** foi enviado nesta conversa: mande o **PASSO A PASSO DE PAGAMENTO**.
+- Se o passo a passo **já foi** enviado e o usuário ainda não consegue: **escalate**. NÃO repita os mesmos 4 passos.
 
 **Se portal abre mas trava no PIX/cadastro:**
 "Qual parte trava? É na hora de gerar o PIX, na tela de cadastro ou depois de pagar? Me descreve o que aparece que eu te guio."
@@ -771,7 +756,8 @@ PROMPT;
 
     /**
      * Usuário sem pagamento pediu só orientação (wifi / passo a passo / "sim").
-     * A IA NÃO deve escalar — deve mandar o passo a passo.
+     * A IA NÃO deve escalar cedo — manda o passo a passo UMA vez.
+     * Se já mandou e o usuário diz que não funcionou, deixa escalar.
      */
     private function guardPaymentHelpWithoutEscalate(ChatConversation $conv, array $decision): array
     {
@@ -785,6 +771,20 @@ PROMPT;
         }
 
         if ($this->visitorAskedForHuman($conv)) {
+            return $decision;
+        }
+
+        // Já mandou o passo a passo e o usuário diz que falhou → pode escalar
+        if ($this->alreadySentPaymentSteps($conv) && $this->visitorSaysStepsFailed($conv)) {
+            return $decision;
+        }
+
+        // Já mandou o passo a passo (mesmo sem "falhou" explícito) e tenta escalar cedo
+        // só bloqueia se for a primeira confirmação ("sim"/"quero") — aí manda os passos
+        if ($this->alreadySentPaymentSteps($conv)) {
+            // Se não reclamou de falha, ainda pode ser cedo demais pra escalar
+            // em "sim/ok" após oferta — mas se já mandou passos, deixa a IA decidir escalate
+            // Apenas bloqueia escalate prematuro quando ainda NÃO mandou os passos
             return $decision;
         }
 
@@ -804,6 +804,97 @@ PROMPT;
         ];
     }
 
+    /**
+     * Nunca repetir o mesmo passo a passo quando o usuário já tentou e falhou.
+     */
+    private function guardNoRepeatPaymentSteps(ChatConversation $conv, array $decision): array
+    {
+        if ($this->visitorHasActiveAccess($conv)) {
+            return $decision;
+        }
+
+        if (!$this->alreadySentPaymentSteps($conv)) {
+            return $decision;
+        }
+
+        if (!$this->visitorSaysStepsFailed($conv)) {
+            return $decision;
+        }
+
+        // Insistiu que pagou → comprovante tem prioridade
+        if ($this->visitorClaimsPaid($conv)) {
+            $alreadyUploaded = ChatMessage::where('conversation_id', $conv->id)
+                ->where('type', 'receipt_upload')
+                ->where('created_at', '>=', now()->subHours(6))
+                ->exists();
+
+            if (!$alreadyUploaded) {
+                return [
+                    'action' => 'request_receipt',
+                    'message' => 'Pra eu localizar seu pagamento, me manda o comprovante do PIX (foto ou print). Use o botão abaixo pra enviar.',
+                ];
+            }
+        }
+
+        $action = $decision['action'] ?? 'reply';
+        $msg = mb_strtolower((string) ($decision['message'] ?? ''));
+        $looksLikeSteps = str_contains($msg, '1)') && (
+            str_contains($msg, 'esquece a rede')
+            || str_contains($msg, 'tocantinstransportewifi')
+            || str_contains($msg, 'passo')
+        );
+
+        if ($action === 'escalate' && !$looksLikeSteps) {
+            return $decision;
+        }
+
+        // reply/probe/steps de novo → força humano
+        Log::info('🤖 Guard: passos já falharam — escalando (sem repetir)', [
+            'conversation_id' => $conv->id,
+            'was_action' => $action,
+        ]);
+
+        return [
+            'action' => 'escalate',
+            'message' => 'Poxa, desculpa que não resolveu por aqui. Vou passar pro meu colega que consegue te ajudar direto. Aguarda só um minutinho!',
+            'reason' => 'passo a passo já enviado e usuário disse que não funcionou',
+        ];
+    }
+
+    private function fallbackDecision(ChatConversation $conv, ?string $reason = null): array
+    {
+        if ($this->visitorAskedForHuman($conv)) {
+            return [
+                'action' => 'escalate',
+                'message' => 'Claro! Vou passar pro meu colega. Aguarda só um minutinho!',
+                'reason' => $reason ?? 'pediu atendente',
+            ];
+        }
+
+        if (!$this->visitorHasActiveAccess($conv)) {
+            if ($this->alreadySentPaymentSteps($conv) && $this->visitorSaysStepsFailed($conv)) {
+                return [
+                    'action' => 'escalate',
+                    'message' => 'Poxa, desculpa que não resolveu por aqui. Vou passar pro meu colega que consegue te ajudar direto. Aguarda só um minutinho!',
+                    'reason' => $reason ?? 'passos falharam / fallback',
+                ];
+            }
+
+            if (!$this->alreadySentPaymentSteps($conv) && !$this->visitorClaimsPaid($conv)) {
+                return [
+                    'action' => 'reply',
+                    'message' => $this->paymentStepsMessage(),
+                ];
+            }
+        }
+
+        return [
+            'action' => 'escalate',
+            'message' => 'Vou passar pro meu colega que consegue te ajudar melhor. Aguarda só um minutinho!',
+            'reason' => $reason ?? 'IA não retornou decisão válida',
+        ];
+    }
+
     private function paymentStepsMessage(): string
     {
         return "Beleza! Faz assim:\n\n"
@@ -812,6 +903,48 @@ PROMPT;
             . "3) Escolha o plano, pague no PIX e aguarde até 15 segundos — libera sozinho.\n\n"
             . "4) Se nada disso funcionar, peça ajuda ao motorista.\n\n"
             . "Me fala em qual passo você parou!";
+    }
+
+    private function alreadySentPaymentSteps(ChatConversation $conv): bool
+    {
+        $adminMsgs = ChatMessage::where('conversation_id', $conv->id)
+            ->where('sender_type', 'admin')
+            ->whereNull('admin_id')
+            ->orderByDesc('id')
+            ->limit(12)
+            ->pluck('message');
+
+        foreach ($adminMsgs as $msg) {
+            $t = mb_strtolower((string) $msg);
+            if (
+                str_contains($t, '1)')
+                && str_contains($t, 'esquece a rede')
+                && str_contains($t, 'tocantinstransportewifi')
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function visitorSaysStepsFailed(ChatConversation $conv): bool
+    {
+        $last = ChatMessage::where('conversation_id', $conv->id)
+            ->where('sender_type', 'visitor')
+            ->orderByDesc('id')
+            ->value('message');
+
+        if (!$last) {
+            return false;
+        }
+
+        $normalized = mb_strtolower($last);
+
+        return (bool) preg_match(
+            '/(n[aã]o\s*abre|nao\s*abre|n[aã]o\s*funcion|nao\s*funcion|nada\s*deu\s*certo|nada\s*funciona|fiz\s*(isso\s*)?tudo|tentei|n[aã]o\s*deu|nao\s*deu|mesmo\s*assim|continua\s*sem|ainda\s*n[aã]o|ainda\s*nao|sem\s*p[aá]gina|n[aã]o\s*aparec|nao\s*aparec)/u',
+            $normalized
+        );
     }
 
     private function visitorClaimsPaid(ChatConversation $conv): bool

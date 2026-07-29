@@ -404,7 +404,6 @@
                 $passengersMonth = $passengers_30d ?? 0;
             @endphp
             <div class="flex items-center justify-center gap-2 mt-2 flex-wrap">
-                <span class="inline-flex items-center gap-1 bg-white/15 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">⚽ Copa 2026</span>
                 <span class="inline-flex items-center gap-1 bg-white/15 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">🛰️ Starlink 100+ Mbps</span>
                 @if($reviewCount >= 3)
                 <span class="inline-flex items-center gap-1 bg-white/15 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">⭐ {{ number_format($reviewAverage, 1, ',', '.') }} ({{ number_format($reviewCount, 0, ',', '.') }})</span>
@@ -533,7 +532,7 @@
                             <!-- Plano Viagem Completa (PRÉ-SELECIONADO) -->
                             <button type="button" data-plan-option data-plan-price="{{ $wifi_price_full ?? 6.99 }}" data-plan-duration="{{ $session_duration ?? 12 }}" data-plan-name="Viagem completa" data-plan-suffix="/ viagem" data-plan-default="true"
                                 class="wifi-plan-card plan-card-selected relative flex w-full rounded-xl border-2 border-green text-left transition-all duration-200 hover:shadow-hover focus:outline-none focus:ring-2 focus:ring-green/20">
-                                <span class="absolute -top-2 right-3 price-pill text-[8px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm z-10">⚽ Melhor p/ Copa</span>
+                                <span class="absolute -top-2 right-3 price-pill text-[8px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm z-10">Melhor p/ Conexão</span>
                                 <div class="flex items-center gap-2.5 px-3 py-2.5">
                                     <span data-plan-radio class="h-4 w-4 rounded-full border-[4px] border-green bg-white flex-shrink-0 transition-all duration-200"></span>
                                     <div class="min-w-0 flex-1">
