@@ -6,6 +6,7 @@ use App\Models\ChatConversation;
 use App\Models\ChatMessage;
 use App\Services\ChatAIService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ChatApiController extends Controller
@@ -248,6 +249,102 @@ class ChatApiController extends Controller
             'has_new' => $newMessages->count() > 0,
             'messages' => $newMessages,
             'status' => $conversation->status,
+        ]);
+    }
+
+    /**
+     * Visitante envia comprovante do PIX (só depois da Ana pedir via receipt_request).
+     */
+    public function uploadReceipt(Request $request)
+    {
+        $request->validate([
+            'session_id' => 'required|string',
+            'receipt' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:5120',
+        ]);
+
+        $conversation = ChatConversation::where('session_id', $request->session_id)->first();
+
+        if (!$conversation) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Conversa não encontrada.',
+            ], 404);
+        }
+
+        if ($conversation->status === 'closed') {
+            return response()->json([
+                'success' => false,
+                'closed' => true,
+                'error' => 'Esta conversa foi encerrada.',
+            ]);
+        }
+
+        $recentRequest = ChatMessage::where('conversation_id', $conversation->id)
+            ->where('type', 'receipt_request')
+            ->where('created_at', '>=', now()->subHours(6))
+            ->exists();
+
+        if (!$recentRequest) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Aguarde a Ana pedir o comprovante antes de enviar.',
+            ], 422);
+        }
+
+        $file = $request->file('receipt');
+        $path = $file->store('chat-receipts/' . $conversation->id, 'public');
+        $url = Storage::disk('public')->url($path);
+
+        $message = ChatMessage::create([
+            'conversation_id' => $conversation->id,
+            'sender_type' => 'visitor',
+            'type' => 'receipt_upload',
+            'message' => '📎 Enviou comprovante de pagamento',
+            'metadata' => [
+                'receipt_path' => $path,
+                'receipt_url' => $url,
+                'receipt_mime' => $file->getMimeType(),
+                'receipt_name' => $file->getClientOriginalName(),
+            ],
+            'is_read' => false,
+        ]);
+
+        $conversation->update([
+            'last_message_at' => now(),
+            'unread_count' => $conversation->unread_count + 1,
+            'status' => 'pending', // humano precisa conferir
+        ]);
+
+        // Confirmação automática da Ana + escala pro humano
+        $aiAck = ChatMessage::create([
+            'conversation_id' => $conversation->id,
+            'sender_type' => 'admin',
+            'admin_id' => null,
+            'type' => 'text',
+            'message' => 'Recebi seu comprovante! Vou passar pro meu colega conferir e liberar se estiver tudo certo. Aguarda só um minutinho.',
+            'metadata' => [
+                'ai' => true,
+                'ai_name' => 'Ana',
+                'escalated' => true,
+                'reason' => 'comprovante PIX enviado',
+            ],
+            'is_read' => true,
+        ]);
+
+        try {
+            app(\App\Services\NtfyService::class)->send(
+                '📎 Comprovante PIX no chat',
+                "{$conversation->visitor_name} ({$conversation->visitor_phone})\nEnviou comprovante — conferir e liberar se válido.",
+                'high',
+                ['receipt', 'warning']
+            );
+        } catch (\Exception $e) {
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'ai_reply' => $aiAck,
         ]);
     }
 }

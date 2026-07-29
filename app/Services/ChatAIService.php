@@ -13,10 +13,10 @@ class ChatAIService
 {
     /**
      * IA tenta resolver antes de mandar pro humano.
-     * Ações possíveis por turno: reply, request_probe, escalate.
+     * Ações possíveis por turno: reply, request_probe, request_receipt, escalate.
      */
 
-    public const ACTIONS = ['reply', 'request_probe', 'escalate'];
+    public const ACTIONS = ['reply', 'request_probe', 'request_receipt', 'escalate'];
 
     public function isEnabled(): bool
     {
@@ -78,9 +78,14 @@ class ChatAIService
             $decision = $this->callApi($messages);
 
             if (!$decision || !in_array($decision['action'] ?? null, self::ACTIONS, true)) {
-                // Falhou: escala silenciosamente pra humano
-                return $this->escalateFallback($conv, 'IA não retornou decisão válida');
+                $decision = [
+                    'action' => 'escalate',
+                    'message' => 'Vou passar pro meu colega que consegue te ajudar melhor. Aguarda só um minutinho!',
+                    'reason' => 'IA não retornou decisão válida',
+                ];
             }
+
+            $decision = $this->guardPaidWithoutReceipt($conv, $decision);
 
             return $this->executeAction($conv, $decision);
         } catch (\Throwable $e) {
@@ -177,14 +182,33 @@ Nunca diga só "abra o navegador" ou "pague pelo portal" sem informar o site.
 # Personalidade
 - Atendente humana real: "Oi!", "Deixa eu ver aqui...", "Tenta isso pra mim"
 - Tom amigável, direto, paciente. Português brasileiro natural.
-- Respostas curtas (2-4 frases). No máximo 1 emoji por mensagem.
+- Respostas curtas (2-4 frases), EXCETO no passo a passo (aí pode listar os 4 passos).
+- No máximo 1 emoji por mensagem.
 - NUNCA revele que é IA/assistente/bot.
 - Use o nome do visitante quando fizer sentido.
+
+# FORMATO DO TEXTO QUE O USUÁRIO LÊ (campo "message") — OBRIGATÓRIO
+- NUNCA use asteriscos (*), markdown, **negrito**, _itálico_ ou cercas ```.
+- Use texto puro, fácil de ler no celular.
+- Em listas/passo a passo: cada item em UMA LINHA NOVA, com quebra de linha real (\n), nunca tudo numa linha só.
+- Exemplo certo de passo a passo (copie o estilo):
+Beleza! Faz assim:
+
+1) Esquece a rede TocantinsTransporteWiFi no celular e conecta de novo (com os dados móveis desligados). Veja se abre sozinha a página pra pagar.
+
+2) Se não abrir: leia o QR Code do ônibus ou abra o navegador em www.tocantinstransportewifi.com.br (no WiFi do ônibus, 4G desligado).
+
+3) Escolha o plano, pague no PIX e aguarde até 15 segundos — libera sozinho.
+
+4) Se nada disso funcionar, peça ajuda ao motorista.
+
+Me fala em qual passo você parou!
 
 # Ações disponíveis (UMA por turno)
 1. **reply** — texto normal. Para cumprimentar, perguntar, dar dica, orientar.
 2. **request_probe** — pede teste automático de conexão. Use SOMENTE quando o usuário tem ACESSO ATIVO confirmado e ainda assim reclama de problema técnico de internet. **NUNCA** use probe se status for SEM CADASTRO ou EXPIRADO, ou se o problema for pagamento/portal.
-3. **escalate** — passa pro humano. Use SOMENTE em último caso.
+3. **request_receipt** — abre no chat um botão pra o usuário *enviar o comprovante do PIX* (foto/print). Use SOMENTE quando o status for SEM CADASTRO ou EXPIRADO e o usuário *insistiu* que já pagou (ex.: "paguei", "já paguei", "paguei hoje", "tem 2 horas que paguei"). NÃO use se ele ainda não afirmou que pagou.
+4. **escalate** — passa pro humano. Use SOMENTE em último caso (depois do comprovante, ou se o usuário pediu atendente).
 
 # REGRA OURO: SEJA INTELIGENTE E PERSISTENTE
 Sua missão é RESOLVER o problema do cliente, não escalar de cara. Antes de escalar, você precisa ter feito perguntas e oferecido soluções de verdade. Os admins humanos só recebem casos onde você realmente tentou.
@@ -206,49 +230,52 @@ Usuário pagou e tá ativo, mas reclama de internet. PROBLEMA TÉCNICO.
 
 4. **Após probe, dica baseada no resultado** (use o "Status de teste" do contexto).
 
-5. **Última tentativa (SEM esquecer a rede):** "Desliga o WiFi do celular por 5 segundos, liga de novo e reconecta no *TocantinsTransporteWiFi* (não esquece a rede). Me avisa."
+5. **Última tentativa (SEM esquecer a rede):** "Desliga o WiFi do celular por 5 segundos, liga de novo e reconecta no TocantinsTransporteWiFi (não esquece a rede). Me avisa."
 
 6. **Só agora, se ainda não resolveu**: **escalate**.
 
 ## CENÁRIO B: Status = "SEM CADASTRO" ou "EXPIRADO" + usuário diz claramente "eu paguei" / "já paguei"
-O sistema não vê pagamento ativo, mas o usuário *afirma* que pagou. Causas possíveis:
-- (mais comum) MAC randomizado
-- PIX falhou / demorou
-- Pagou com outro telefone
+O sistema não vê pagamento ativo, mas o usuário *afirma* que pagou.
 
 **REGRA:** Só use este cenário se o usuário *afirmar* que já pagou. Se ele só disser "wifi", "conexão", "não consigo" — use o CENÁRIO C.
+**NUNCA escale só porque ele falou o horário.** Depois que ele insistir que pagou, peça o *comprovante* com **request_receipt**.
 
 **Fluxo:**
-1. **PRIMEIRO turno:**
-   "Oi {$conv->visitor_name}! Aqui *não aparece pagamento ativo* pra esse aparelho/telefone. Você *já pagou o PIX hoje*, ou ainda precisa pagar? Me confirma pra eu te orientar certo."
+1. **PRIMEIRO turno (quando ele diz "paguei" / "sem internet mas paguei"):**
+   Use **reply**:
+   "Oi {$conv->visitor_name}! Aqui não aparece pagamento ativo pra esse aparelho/telefone. Você já pagou o PIX hoje? Se sim, me fala o horário aproximado."
 
-2. **Se confirmar que PAGOU:** peça horário aproximado + se usou o telefone {$phone}. Depois oriente desativar endereço privado (iPhone/Android) e reconectar *sem esquecer a rede*. Se não resolver, **escalate**.
+2. **SEGUNDO turno (ele confirma horário / insiste que pagou):**
+   Use **request_receipt** (obrigatório nesta etapa — NÃO escalate ainda):
+   message: "Show! Pra eu localizar seu pagamento, me manda o comprovante do PIX (foto ou print da tela do banco). Use o botão abaixo pra enviar."
 
-3. **Se disser que NÃO pagou / não sabe / só quer internet:** use o **PASSO A PASSO DE PAGAMENTO** abaixo.
+3. **Depois que o comprovante chegar:** o sistema já avisa o atendente humano. Se o usuário continuar falando sem enviar, lembre de usar o botão. Só **escalate** se ele pedir atendente ou se já enviou o comprovante e ainda precisa de humano.
+
+4. **Se disser que NÃO pagou / se confundiu:** use o **PASSO A PASSO DE PAGAMENTO**.
 
 ## CENÁRIO C: Status = "SEM CADASTRO" ou "EXPIRADO" + usuário NÃO afirma ter pago
 (Casos tipo "Wifi", "Conexão do celular", "Não estou conseguindo", "sem internet".)
 **NUNCA use request_probe.** O problema é acesso/pagamento.
 
 **Primeiro turno — seja direto e ofereça ajuda pra pagar:**
-"Oi {$conv->visitor_name}! Não encontrei pagamento ativo registrado pra esse dispositivo/telefone. Quer que eu te passe o *passo a passo* pra pagar e liberar o WiFi?"
+"Oi {$conv->visitor_name}! Não encontrei pagamento ativo pra esse dispositivo. Quer que eu te passe o passo a passo pra pagar e liberar o WiFi?"
 
 **Se o usuário pedir ajuda / confirmar / continuar reclamando:** use o **PASSO A PASSO DE PAGAMENTO** completo. Não fique só perguntando se conectou — já oriente a solução.
 
 ## PASSO A PASSO DE PAGAMENTO (use sempre que for orientar a conectar/pagar)
-Mande nesta ordem, claro e curto:
+Mande EXATAMENTE neste estilo (texto puro, cada passo em linha nova, SEM asteriscos):
 
-"Beleza! Faz assim:
+Beleza! Faz assim:
 
-1) *Esquece* a rede *TocantinsTransporteWiFi* no celular e *conecta de novo* (com os *dados móveis desligados*). Veja se abre sozinha a janelinha/página pra pagar.
+1) Esquece a rede TocantinsTransporteWiFi no celular e conecta de novo (com os dados móveis desligados). Veja se abre sozinha a página pra pagar.
 
-2) Se *não* abrir sozinha: leia o *QR Code* que tem no ônibus *ou* abra o navegador e entre em *www.tocantinstransportewifi.com.br* (precisa estar no WiFi do ônibus com o 4G desligado).
+2) Se não abrir: leia o QR Code do ônibus ou abra o navegador em www.tocantinstransportewifi.com.br (no WiFi do ônibus, 4G desligado).
 
 3) Escolha o plano, pague no PIX e aguarde até 15 segundos — libera sozinho.
 
-4) Se nada disso funcionar, peça ajuda ao *motorista* pra te auxiliar.
+4) Se nada disso funcionar, peça ajuda ao motorista.
 
-Me fala em qual passo você parou!"
+Me fala em qual passo você parou!
 
 ## CENÁRIO F: Portal não abre / "não consigo pagar" / "não consigo conectar"
 Use o **PASSO A PASSO DE PAGAMENTO**. Não mande só "desliga o 4G e abre o site" — sempre inclua: esquecer rede → captive portal → QR do ônibus → site → motorista.
@@ -257,7 +284,7 @@ Use o **PASSO A PASSO DE PAGAMENTO**. Não mande só "desliga o 4G e abre o site
 "Qual parte trava? É na hora de gerar o PIX, na tela de cadastro ou depois de pagar? Me descreve o que aparece que eu te guio."
 
 **Se não está no ônibus:**
-"O pagamento só funciona dentro do ônibus, conectado no *TocantinsTransporteWiFi*. Quando estiver a bordo, me chama que te passo o passo a passo."
+"O pagamento só funciona dentro do ônibus, conectado no TocantinsTransporteWiFi. Quando estiver a bordo, me chama que te passo o passo a passo."
 
 ## CENÁRIO G: Após resultado do teste de conexão (mensagem "Teste concluído")
 Interprete os dados e responda de forma **específica**.
@@ -275,7 +302,7 @@ use o **PASSO A PASSO DE PAGAMENTO** (lembre de desligar o 4G no passo 1).
 Escale IMEDIATAMENTE: "Claro, {$conv->visitor_name}! Já vou passar pro meu colega. Aguarda só um minutinho."
 
 ## CENÁRIO E: Quer pagar pra outro celular
-"O pagamento fica vinculado ao celular conectado no WiFi do ônibus. Pra liberar outro aparelho, a pessoa precisa conectar AQUELE celular no 'TocantinsTransporteWiFi', abrir o navegador, acessar *{$portalHost}* e pagar por lá. Não tem como pagar de um e liberar em outro, infelizmente."
+"O pagamento fica vinculado ao celular conectado no WiFi do ônibus. Pra liberar outro aparelho, a pessoa precisa conectar AQUELE celular no TocantinsTransporteWiFi, abrir o navegador, acessar {$portalHost} e pagar por lá. Não tem como pagar de um e liberar em outro, infelizmente."
 
 # DICAS TÉCNICAS DETALHADAS
 
@@ -301,6 +328,8 @@ Responda APENAS com JSON válido, sem markdown, sem ```json:
 {"action":"reply","message":"texto que o usuário lê"}
 ou
 {"action":"request_probe","message":"Vou mandar um teste rápido pra ver como tá seu sinal, leva 15 segundos."}
+ou
+{"action":"request_receipt","message":"Pra eu localizar seu pagamento, me manda o comprovante do PIX (foto ou print). Use o botão abaixo."}
 ou
 {"action":"escalate","message":"Vou passar pro meu colega, aguarda um minutinho."}
 
@@ -434,12 +463,13 @@ PROMPT;
     private function executeAction(ChatConversation $conv, array $decision): ChatMessage
     {
         $action = $decision['action'];
-        $text = trim((string) ($decision['message'] ?? ''));
+        $text = $this->sanitizeUserFacingMessage((string) ($decision['message'] ?? ''));
         if ($text === '') $text = 'Estou processando, um instante.';
-        if (mb_strlen($text) > 800) $text = mb_substr($text, 0, 800);
+        if (mb_strlen($text) > 900) $text = mb_substr($text, 0, 900);
 
         return match ($action) {
             'request_probe' => $this->actionProbe($conv, $text),
+            'request_receipt' => $this->actionRequestReceipt($conv, $text),
             'escalate' => $this->actionEscalate($conv, $text, $decision['reason'] ?? null),
             default => $this->actionReply($conv, $text),
         };
@@ -471,7 +501,7 @@ PROMPT;
         if (!$this->visitorHasActiveAccess($conv)) {
             return $this->actionReply(
                 $conv,
-                "Antes do teste, preciso que você tenha pagamento ativo. Faz assim: *esquece* a rede *TocantinsTransporteWiFi* e conecta de novo (dados móveis desligados). Se a página de pagamento não abrir sozinha, leia o *QR Code* do ônibus ou entre em *www.tocantinstransportewifi.com.br*. Se nada funcionar, peça ajuda ao *motorista*."
+                "Antes do teste, preciso que você tenha pagamento ativo. Faz assim: esquece a rede TocantinsTransporteWiFi e conecta de novo (dados móveis desligados). Se a página de pagamento não abrir sozinha, leia o QR Code do ônibus ou entre em www.tocantinstransportewifi.com.br. Se nada funcionar, peça ajuda ao motorista."
             );
         }
 
@@ -522,6 +552,62 @@ PROMPT;
         ]);
 
         Log::info('🤖 IA pediu probe', ['conversation_id' => $conv->id, 'probe_id' => $probe->id]);
+        return $msg;
+    }
+
+    /**
+     * Abre no chat o cartão pra o visitante enviar comprovante do PIX.
+     * Só faz sentido quando o usuário insiste que pagou e o sistema não vê o pagamento.
+     */
+    private function actionRequestReceipt(ChatConversation $conv, string $text): ChatMessage
+    {
+        // Evita spam: se já pediu comprovante nos últimos 10 min e ainda não enviou, só relembra
+        $recentRequest = ChatMessage::where('conversation_id', $conv->id)
+            ->where('type', 'receipt_request')
+            ->where('created_at', '>=', now()->subMinutes(10))
+            ->exists();
+
+        $alreadyUploaded = ChatMessage::where('conversation_id', $conv->id)
+            ->where('type', 'receipt_upload')
+            ->where('created_at', '>=', now()->subHours(2))
+            ->exists();
+
+        if ($alreadyUploaded) {
+            return $this->actionEscalate(
+                $conv,
+                'Já recebi seu comprovante. Vou passar pro meu colega conferir e liberar se estiver tudo certo. Aguarda só um minutinho!',
+                'comprovante já enviado'
+            );
+        }
+
+        if ($recentRequest) {
+            return $this->actionReply(
+                $conv,
+                'O botão pra enviar o comprovante do PIX já está na conversa acima. Manda a foto/print por lá que eu passo pro meu colega conferir.'
+            );
+        }
+
+        $msg = ChatMessage::create([
+            'conversation_id' => $conv->id,
+            'sender_type' => 'admin',
+            'admin_id' => null,
+            'type' => 'receipt_request',
+            'message' => $text ?: 'Pra eu localizar seu pagamento, me manda o comprovante do PIX (foto ou print). Use o botão abaixo.',
+            'metadata' => [
+                'ai' => true,
+                'ai_name' => 'Ana',
+                'model' => config('services.together.model'),
+                'receipt_requested' => true,
+            ],
+            'is_read' => true,
+        ]);
+
+        $conv->update([
+            'last_message_at' => now(),
+            'status' => 'active',
+        ]);
+
+        Log::info('🤖 IA pediu comprovante PIX', ['conversation_id' => $conv->id]);
         return $msg;
     }
 
@@ -576,6 +662,34 @@ PROMPT;
         );
     }
 
+    /**
+     * Limpa markdown/asteriscos e organiza listas numeradas pra leitura no celular.
+     */
+    private function sanitizeUserFacingMessage(string $text): string
+    {
+        $text = trim($text);
+        if ($text === '') {
+            return '';
+        }
+
+        // Remove cercas de código se o modelo insistir
+        $text = preg_replace('/^```(?:json)?\s*|\s*```$/m', '', $text) ?? $text;
+
+        // Separa passos "1) ... 2) ..." que vieram numa linha só
+        $text = preg_replace('/\s+(\d+\))\s+/u', "\n\n$1 ", $text) ?? $text;
+
+        // Remove ênfase markdown **x** / *x* (mantém o texto)
+        $text = preg_replace('/\*\*([^*]+)\*\*/u', '$1', $text) ?? $text;
+        $text = preg_replace('/\*([^*\n]+)\*/u', '$1', $text) ?? $text;
+
+        // Asteriscos soltos restantes
+        $text = str_replace('*', '', $text);
+
+        $text = preg_replace("/\n{3,}/", "\n\n", $text) ?? $text;
+
+        return trim($text);
+    }
+
     private function visitorHasActiveAccess(ChatConversation $conv): bool
     {
         $linked = $conv->linked_user;
@@ -586,5 +700,84 @@ PROMPT;
         return in_array($linked->status, ['connected', 'active', 'temp_bypass'], true)
             && $linked->expires_at
             && $linked->expires_at->isFuture();
+    }
+
+    /**
+     * Se o usuário insiste que pagou, status sem acesso ativo e a IA tenta escalar
+     * (ou pedir probe) sem ter comprovante, força request_receipt.
+     */
+    private function guardPaidWithoutReceipt(ChatConversation $conv, array $decision): array
+    {
+        $action = $decision['action'] ?? 'reply';
+        if (!in_array($action, ['escalate', 'request_probe'], true)) {
+            return $decision;
+        }
+
+        if ($this->visitorHasActiveAccess($conv)) {
+            return $decision;
+        }
+
+        if ($this->visitorAskedForHuman($conv)) {
+            return $decision;
+        }
+
+        if (!$this->visitorClaimsPaid($conv)) {
+            return $decision;
+        }
+
+        $alreadyUploaded = ChatMessage::where('conversation_id', $conv->id)
+            ->where('type', 'receipt_upload')
+            ->where('created_at', '>=', now()->subHours(6))
+            ->exists();
+
+        if ($alreadyUploaded) {
+            return $decision;
+        }
+
+        Log::info('🤖 Guard: forçando request_receipt (insistiu que pagou, sem comprovante)', [
+            'conversation_id' => $conv->id,
+            'was_action' => $action,
+        ]);
+
+        return [
+            'action' => 'request_receipt',
+            'message' => 'Pra eu localizar seu pagamento, me manda o comprovante do PIX (foto ou print). Use o botão abaixo pra enviar.',
+        ];
+    }
+
+    private function visitorClaimsPaid(ChatConversation $conv): bool
+    {
+        $texts = ChatMessage::where('conversation_id', $conv->id)
+            ->where('sender_type', 'visitor')
+            ->orderByDesc('id')
+            ->limit(8)
+            ->pluck('message')
+            ->implode(' ');
+
+        $normalized = mb_strtolower($texts);
+
+        return (bool) preg_match(
+            '/\b(paguei|ja\s*paguei|já\s*paguei|fiz\s*o\s*pix|paguei\s*o\s*pix|pagamento\s*feito|enviei\s*o\s*comprovante)\b/u',
+            $normalized
+        );
+    }
+
+    private function visitorAskedForHuman(ChatConversation $conv): bool
+    {
+        $last = ChatMessage::where('conversation_id', $conv->id)
+            ->where('sender_type', 'visitor')
+            ->orderByDesc('id')
+            ->value('message');
+
+        if (!$last) {
+            return false;
+        }
+
+        $normalized = mb_strtolower($last);
+
+        return (bool) preg_match(
+            '/\b(atendente|humano|pessoa\s*real|falar\s*com\s*(alguém|alguem|atendente)|quero\s*atendente)\b/u',
+            $normalized
+        );
     }
 }

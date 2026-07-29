@@ -253,6 +253,55 @@
                     </div>
                 </div>
 
+            {{-- 📎 Ana pediu comprovante PIX --}}
+            @elseif($msgType === 'receipt_request')
+                <div class="flex justify-center chat-message-enter">
+                    <div class="max-w-md w-full bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl p-4 shadow-sm">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-9 h-9 rounded-lg bg-amber-500 flex items-center justify-center text-white text-xl shadow">📎</div>
+                            <div class="flex-1">
+                                <p class="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Pedido de comprovante</p>
+                                <p class="text-sm font-bold text-amber-900">Ana pediu o comprovante do PIX</p>
+                            </div>
+                            <p class="text-[10px] text-gray-500">{{ $message->created_at->format('H:i') }}</p>
+                        </div>
+                        <p class="text-sm text-gray-700">{{ $message->message }}</p>
+                        <p class="text-[10px] text-gray-400 mt-2 italic">Aguardando o cliente enviar a foto/print</p>
+                    </div>
+                </div>
+
+            {{-- 📎 Cliente enviou comprovante --}}
+            @elseif($msgType === 'receipt_upload')
+                @php
+                    $receiptUrl = $message->metadata['receipt_url'] ?? null;
+                    $receiptMime = $message->metadata['receipt_mime'] ?? '';
+                    $isPdf = str_contains($receiptMime, 'pdf') || str_ends_with(strtolower($receiptUrl ?? ''), '.pdf');
+                @endphp
+                <div class="flex justify-start chat-message-enter">
+                    <div class="max-w-md w-full bg-white border-2 border-emerald-300 rounded-2xl p-4 shadow-sm">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xl shadow">🧾</div>
+                            <div class="flex-1">
+                                <p class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Comprovante PIX</p>
+                                <p class="text-sm font-bold text-emerald-900">{{ $conversation->visitor_name }} enviou</p>
+                            </div>
+                            <p class="text-[10px] text-gray-500">{{ $message->created_at->format('H:i') }}</p>
+                        </div>
+                        @if($receiptUrl)
+                            @if($isPdf)
+                                <a href="{{ $receiptUrl }}" target="_blank" class="block text-center text-sm font-semibold text-emerald-700 underline py-4 bg-emerald-50 rounded-xl">📄 Abrir PDF do comprovante</a>
+                            @else
+                                <a href="{{ $receiptUrl }}" target="_blank" class="block">
+                                    <img src="{{ $receiptUrl }}" alt="Comprovante" class="max-h-72 mx-auto rounded-xl border border-emerald-200 object-contain bg-gray-50">
+                                </a>
+                            @endif
+                        @else
+                            <p class="text-sm text-gray-500">Arquivo indisponível</p>
+                        @endif
+                        <p class="text-[10px] text-amber-700 mt-2 font-semibold">⚠ Conferir e liberar manualmente se o PIX for válido</p>
+                    </div>
+                </div>
+
             {{-- Mensagem texto padrão --}}
             @else
                 <div class="flex {{ $message->sender_type === 'admin' ? 'justify-end' : 'justify-start' }} chat-message-enter">
@@ -262,7 +311,7 @@
                             {{ strtoupper(substr($conversation->visitor_name, 0, 1)) }}
                         </div>
                         <div class="bg-white rounded-2xl rounded-bl-md px-3 lg:px-4 py-2 lg:py-3 shadow-md border border-gray-100">
-                            <p class="text-sm text-gray-800 leading-relaxed break-words">{{ $message->message }}</p>
+                            <p class="text-sm text-gray-800 leading-relaxed break-words whitespace-pre-line">{{ $message->message }}</p>
                             <p class="text-xs text-gray-400 mt-1 lg:mt-2">{{ $message->created_at->format('H:i') }}</p>
                         </div>
                     </div>
@@ -271,7 +320,7 @@
                         @if($isAI)
                         <div class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl rounded-br-md px-3 lg:px-4 py-2 lg:py-3 shadow-md relative">
                             <div class="absolute -top-2 -left-2 w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center text-sm" title="Resposta automática da IA">🤖</div>
-                            <p class="text-sm leading-relaxed break-words">{{ $message->message }}</p>
+                            <p class="text-sm leading-relaxed break-words whitespace-pre-line">{{ preg_replace(['/\*\*([^*]+)\*\*/u', '/\*([^*\n]+)\*/u', '/\*/'], ['$1', '$1', ''], $message->message) }}</p>
                             <div class="flex items-center justify-end space-x-2 mt-1 lg:mt-2 flex-wrap">
                                 <span class="text-xs text-indigo-100 hidden sm:inline font-semibold">Assistente IA</span>
                                 @if(!empty($message->metadata['escalated']))
@@ -283,7 +332,7 @@
                         </div>
                         @else
                         <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl rounded-br-md px-3 lg:px-4 py-2 lg:py-3 shadow-md">
-                            <p class="text-sm leading-relaxed break-words">{{ $message->message }}</p>
+                            <p class="text-sm leading-relaxed break-words whitespace-pre-line">{{ $message->message }}</p>
                             <div class="flex items-center justify-end space-x-2 mt-1 lg:mt-2 flex-wrap">
                                 @if($message->admin)
                                 <span class="text-xs text-emerald-100 hidden sm:inline">{{ $message->admin->name }}</span>

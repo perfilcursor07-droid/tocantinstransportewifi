@@ -32,7 +32,7 @@
     </div>
 
     <!-- Chat Box -->
-    <div id="chat-box" class="hidden absolute bottom-16 right-0 w-[320px] sm:w-[340px] bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
+    <div id="chat-box" class="hidden absolute bottom-16 right-0 w-[340px] sm:w-[380px] bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
         <!-- Header compacto -->
         <div class="bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-3 text-white">
             <div class="flex items-center space-x-3">
@@ -42,8 +42,8 @@
                 <div class="flex-1">
                     <h4 class="font-semibold text-sm">WiFi Tocantins</h4>
                     <div class="flex items-center space-x-1.5">
-                        <span class="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse"></span>
-                        <p class="text-xs text-emerald-100">Online</p>
+                        <span id="chat-status-dot" class="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse"></span>
+                        <p id="chat-status-text" class="text-xs text-emerald-100">Online</p>
                     </div>
                 </div>
                 <button onclick="toggleChatWidget()" class="w-7 h-7 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors">
@@ -107,7 +107,7 @@
         </div>
 
         <!-- Área de Mensagens Compacta -->
-        <div id="chat-messages-container" class="hidden flex flex-col" style="height: 300px;">
+        <div id="chat-messages-container" class="hidden flex flex-col" style="height: 380px;">
             <!-- Mensagens -->
             <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">
                 <!-- Mensagem de boas-vindas -->
@@ -317,6 +317,35 @@
     }
 }
 
+.chat-msg-body {
+    white-space: pre-line;
+    word-break: break-word;
+    line-height: 1.45;
+}
+
+.chat-typing-bubble {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 10px 14px;
+}
+
+.chat-typing-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 9999px;
+    background: #94a3b8;
+    animation: chatTypingBounce 1.2s infinite ease-in-out;
+}
+
+.chat-typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.chat-typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes chatTypingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+    30% { transform: translateY(-4px); opacity: 1; }
+}
+
 /* Tooltip animation */
 #chat-widget:hover #chat-tooltip {
     opacity: 1;
@@ -372,6 +401,114 @@
     let chatOpen = false;
     let lastMessageId = 0;
     let pollingInterval = null;
+    let typingTimer = null;
+    let isShowingTyping = false;
+
+    function escapeHtml(text) {
+        return String(text ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    /** Formata texto do chat: limpa *markdown*, quebra passos e preserva linhas. */
+    function formatChatText(text) {
+        let s = String(text ?? '');
+
+        // Separa "1) ... 2) ..." colados numa linha
+        s = s.replace(/\s+(\d+\))\s+/g, '\n\n$1 ');
+
+        // Remove **negrito** / *ênfase* markdown, mantendo o texto
+        s = s.replace(/\*\*([^*]+)\*\*/g, '$1');
+        s = s.replace(/\*([^*\n]+)\*/g, '$1');
+        s = s.replace(/\*/g, '');
+
+        s = s.replace(/\n{3,}/g, '\n\n').trim();
+
+        return escapeHtml(s);
+    }
+
+    function setChatStatus(typing) {
+        const textEl = document.getElementById('chat-status-text');
+        const dotEl = document.getElementById('chat-status-dot');
+        if (!textEl) return;
+        if (typing) {
+            textEl.textContent = 'digitando...';
+            if (dotEl) dotEl.classList.add('animate-pulse');
+        } else {
+            textEl.textContent = 'Online';
+        }
+    }
+
+    function showTypingIndicator() {
+        const messagesDiv = document.getElementById('chat-messages');
+        if (!messagesDiv) return;
+
+        isShowingTyping = true;
+        setChatStatus(true);
+
+        let el = document.getElementById('chat-typing-indicator');
+        if (el) {
+            messagesDiv.appendChild(el);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return;
+        }
+
+        el = document.createElement('div');
+        el.id = 'chat-typing-indicator';
+        el.className = 'flex justify-start chat-message-enter';
+        el.innerHTML = `
+            <div class="flex items-end space-x-2 max-w-[85%]">
+                <div class="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-md">A</div>
+                <div class="bg-white rounded-2xl rounded-bl-md shadow-sm border border-gray-100 chat-typing-bubble">
+                    <span class="chat-typing-dot"></span>
+                    <span class="chat-typing-dot"></span>
+                    <span class="chat-typing-dot"></span>
+                </div>
+            </div>
+        `;
+        messagesDiv.appendChild(el);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function hideTypingIndicator() {
+        isShowingTyping = false;
+        setChatStatus(false);
+        if (typingTimer) {
+            clearTimeout(typingTimer);
+            typingTimer = null;
+        }
+        const el = document.getElementById('chat-typing-indicator');
+        if (el) el.remove();
+    }
+
+    /** Mostra "digitando..." e depois a resposta (efeito humano). */
+    function presentAiReply(msg) {
+        if (!msg) {
+            hideTypingIndicator();
+            return;
+        }
+
+        if (msg.id) {
+            lastMessageId = Math.max(lastMessageId, msg.id);
+        }
+
+        const alreadyTyping = isShowingTyping;
+        showTypingIndicator();
+
+        const len = (msg.message || '').length;
+        // Se já estava digitando durante a chamada da API, só segura um pouco a mais
+        const delay = alreadyTyping
+            ? Math.min(2800, Math.max(900, 500 + len * 12))
+            : Math.min(4200, Math.max(1400, 900 + len * 18));
+
+        if (typingTimer) clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+            hideTypingIndicator();
+            renderServerMessage(msg);
+        }, delay);
+    }
 
     // Máscara de telefone
     const phoneInput = document.getElementById('chat-phone');
@@ -440,9 +577,25 @@
             renderProbeButton(msg.message, msg.metadata.probe_url, adminName, time);
         } else if (msg.type === 'voucher_offer' && msg.metadata && msg.metadata.voucher_code) {
             renderVoucherCard(msg.metadata, adminName, time);
+        } else if (msg.type === 'receipt_request') {
+            renderReceiptRequest(msg.message, adminName, time, msg.id);
+        } else if (msg.type === 'receipt_upload' && msg.metadata && msg.metadata.receipt_url) {
+            renderReceiptUpload(msg.metadata, time);
         } else {
             addMessage(msg.message, isAdmin, adminName, time);
         }
+    }
+
+    function appendChatNode(node) {
+        const messagesDiv = document.getElementById('chat-messages');
+        if (!messagesDiv || !node) return;
+        const typing = document.getElementById('chat-typing-indicator');
+        if (typing) {
+            messagesDiv.insertBefore(node, typing);
+        } else {
+            messagesDiv.appendChild(node);
+        }
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
     function renderVoucherCard(meta, adminName, time) {
@@ -479,8 +632,7 @@
                 <p class="text-[9px] text-gray-500 mt-1.5 leading-tight">Clique em "Ativar" e informe o código acima para ganhar ${hours}h de internet.</p>
             </div>
         `;
-        messagesDiv.appendChild(div);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        appendChatNode(div);
     }
 
     function renderProbeButton(text, url, adminName, time) {
@@ -496,15 +648,118 @@
                         <p class="text-[9px] text-gray-500">${adminName} · ${time}</p>
                     </div>
                 </div>
-                <p class="text-xs text-gray-700 mb-2">${text}</p>
+                <p class="text-xs text-gray-700 mb-2 chat-msg-body">${formatChatText(text)}</p>
                 <a href="${url}" target="_blank" class="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center py-2 rounded-lg font-semibold text-xs transition">
                     ▶ Fazer teste agora
                 </a>
                 <p class="text-[9px] text-gray-400 mt-1 text-center">Leva 15 segundos</p>
             </div>
         `;
-        messagesDiv.appendChild(div);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        appendChatNode(div);
+    }
+
+    function renderReceiptRequest(text, adminName, time, msgId) {
+        const messagesDiv = document.getElementById('chat-messages');
+        const div = document.createElement('div');
+        div.className = 'flex justify-start chat-message-enter';
+        const inputId = 'receipt-file-' + (msgId || Date.now());
+        div.innerHTML = `
+            <div class="max-w-[92%] w-full bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl p-3 shadow-sm">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-white text-base shadow">📎</div>
+                    <div class="flex-1">
+                        <p class="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Comprovante PIX</p>
+                        <p class="text-[9px] text-gray-500">${adminName} · ${time}</p>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-700 mb-2 leading-snug chat-msg-body">${formatChatText(text)}</p>
+                <input type="file" id="${inputId}" accept="image/*,.pdf" class="hidden" />
+                <button type="button" data-receipt-input="${inputId}"
+                        class="receipt-upload-btn w-full bg-amber-600 hover:bg-amber-700 text-white text-center py-2.5 rounded-lg font-semibold text-xs transition">
+                    📷 Enviar comprovante
+                </button>
+                <p class="text-[9px] text-gray-500 mt-1.5 text-center">Foto ou print do PIX · máx. 5 MB</p>
+                <p class="receipt-upload-status text-[10px] text-amber-700 mt-1 text-center hidden"></p>
+            </div>
+        `;
+        appendChatNode(div);
+
+        const btn = div.querySelector('.receipt-upload-btn');
+        const input = div.querySelector('#' + inputId);
+        const status = div.querySelector('.receipt-upload-status');
+        btn.addEventListener('click', () => input.click());
+        input.addEventListener('change', () => {
+            if (input.files && input.files[0]) {
+                uploadReceiptFile(input.files[0], btn, status);
+            }
+        });
+    }
+
+    function renderReceiptUpload(meta, time) {
+        const div = document.createElement('div');
+        div.className = 'flex justify-end chat-message-enter';
+        const url = meta.receipt_url || '';
+        const isPdf = (meta.receipt_mime || '').includes('pdf') || (url || '').toLowerCase().endsWith('.pdf');
+        const preview = isPdf
+            ? `<a href="${url}" target="_blank" class="block text-center text-xs font-semibold text-emerald-800 underline py-4">📄 Abrir PDF do comprovante</a>`
+            : `<a href="${url}" target="_blank"><img src="${url}" alt="Comprovante" class="max-h-40 mx-auto rounded-lg border border-emerald-200 object-contain bg-white"></a>`;
+        div.innerHTML = `
+            <div class="max-w-[85%] bg-emerald-600 text-white rounded-xl p-2.5 shadow-sm">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-100 mb-1.5">Comprovante enviado · ${time}</p>
+                <div class="bg-white/95 rounded-lg p-1.5">${preview}</div>
+            </div>
+        `;
+        appendChatNode(div);
+    }
+
+    async function uploadReceiptFile(file, btn, statusEl) {
+        if (!chatSessionId) {
+            alert('Inicie a conversa antes de enviar o comprovante.');
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Arquivo muito grande. Máximo 5 MB.');
+            return;
+        }
+
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Enviando...';
+        statusEl.classList.remove('hidden');
+        statusEl.textContent = 'Enviando comprovante...';
+
+        try {
+            const form = new FormData();
+            form.append('session_id', chatSessionId);
+            form.append('receipt', file);
+
+            const res = await fetch('/api/chat/upload-receipt', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    'Accept': 'application/json',
+                },
+                body: form,
+            });
+            const data = await res.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Falha ao enviar');
+            }
+
+            btn.textContent = '✓ Enviado';
+            btn.classList.remove('bg-amber-600', 'hover:bg-amber-700');
+            btn.classList.add('bg-emerald-600');
+            statusEl.textContent = 'Comprovante enviado!';
+
+            if (data.message) renderServerMessage(data.message);
+            if (data.ai_reply) presentAiReply(data.ai_reply);
+        } catch (e) {
+            console.error(e);
+            btn.disabled = false;
+            btn.textContent = originalText;
+            statusEl.textContent = e.message || 'Erro ao enviar. Tente de novo.';
+        }
     }
 
     function addMessage(message, isAdmin = false, adminName = null, time = null) {
@@ -513,46 +768,39 @@
         msgDiv.className = `flex ${isAdmin ? 'justify-start' : 'justify-end'} chat-message-enter`;
 
         const displayTime = time || new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-        const isAI = false; // IA aparece como atendente normal — sem distinção visual
+        const body = formatChatText(message);
 
         if (isAdmin) {
-            if (isAI) {
-                msgDiv.innerHTML = `
-                    <div class="flex items-end space-x-2 max-w-[85%]">
-                        <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-base flex-shrink-0 shadow-md">🤖</div>
-                        <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-indigo-100">
-                            <p class="text-xs font-medium text-indigo-600 mb-1">Assistente</p>
-                            <p class="text-sm text-gray-800 leading-relaxed">${message}</p>
-                            <p class="text-xs text-gray-400 mt-2">${displayTime}</p>
-                        </div>
+            msgDiv.innerHTML = `
+                <div class="flex items-end space-x-2 max-w-[92%]">
+                    <div class="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-md">
+                        ${adminName ? escapeHtml(adminName.charAt(0).toUpperCase()) : 'A'}
                     </div>
-                `;
-            } else {
-                msgDiv.innerHTML = `
-                    <div class="flex items-end space-x-2 max-w-[85%]">
-                        <div class="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-md">
-                            ${adminName ? adminName.charAt(0).toUpperCase() : 'A'}
-                        </div>
-                        <div class="bg-white rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-100">
-                            ${adminName ? `<p class="text-xs font-medium text-emerald-600 mb-1">${adminName}</p>` : ''}
-                            <p class="text-sm text-gray-800 leading-relaxed">${message}</p>
-                            <p class="text-xs text-gray-400 mt-2">${displayTime}</p>
-                        </div>
+                    <div class="bg-white rounded-2xl rounded-bl-md px-3.5 py-2.5 shadow-sm border border-gray-100">
+                        ${adminName ? `<p class="text-[11px] font-semibold text-emerald-600 mb-1">${escapeHtml(adminName)}</p>` : ''}
+                        <p class="text-sm text-gray-800 chat-msg-body">${body}</p>
+                        <p class="text-[10px] text-gray-400 mt-1.5">${displayTime}</p>
                     </div>
-                `;
-            }
+                </div>
+            `;
         } else {
             msgDiv.innerHTML = `
                 <div class="max-w-[85%]">
-                    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl rounded-br-md px-4 py-3 shadow-md">
-                        <p class="text-sm leading-relaxed">${message}</p>
-                        <p class="text-xs text-emerald-100 mt-2 text-right">${displayTime}</p>
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl rounded-br-md px-3.5 py-2.5 shadow-md">
+                        <p class="text-sm chat-msg-body">${body}</p>
+                        <p class="text-[10px] text-emerald-100 mt-1.5 text-right">${displayTime}</p>
                     </div>
                 </div>
             `;
         }
-        
-        messagesDiv.appendChild(msgDiv);
+
+        // Mantém o indicador de digitando no final
+        const typing = document.getElementById('chat-typing-indicator');
+        if (typing) {
+            messagesDiv.insertBefore(msgDiv, typing);
+        } else {
+            messagesDiv.appendChild(msgDiv);
+        }
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
@@ -609,13 +857,10 @@
                     addMessage(message, false);
 
                     if (data.ai_reply) {
-                        // IA respondeu: mostra a resposta dela (texto ou probe)
-                        setTimeout(() => renderServerMessage(data.ai_reply), 600);
-                        if (data.ai_reply.id) lastMessageId = Math.max(lastMessageId, data.ai_reply.id);
+                        presentAiReply(data.ai_reply);
                     } else {
-                        // Sem IA: mensagem genérica de boas-vindas
                         setTimeout(() => {
-                            addMessage('Obrigado por entrar em contato, ' + name.split(' ')[0] + '! 😊 Nossa equipe foi notificada e responderá em breve.', true, 'Atendente');
+                            addMessage('Obrigado por entrar em contato, ' + name.split(' ')[0] + '! Nossa equipe foi notificada e responderá em breve.', true, 'Atendente');
                         }, 800);
                     }
 
@@ -658,6 +903,7 @@
             // Adicionar mensagem imediatamente (otimista)
             addMessage(message, false);
             input.value = '';
+            showTypingIndicator();
 
             fetch('/api/chat/send', {
                 method: 'POST',
@@ -672,6 +918,7 @@
             })
             .then(response => {
                 if (!response.ok) {
+                    hideTypingIndicator();
                     clearSession();
                     return null;
                 }
@@ -681,6 +928,7 @@
                 if (!data) return;
                 
                 if (data.closed) {
+                    hideTypingIndicator();
                     showConversationClosed();
                     return;
                 }
@@ -690,11 +938,13 @@
                 }
 
                 if (data.ai_reply) {
-                    setTimeout(() => renderServerMessage(data.ai_reply), 400);
-                    if (data.ai_reply.id) lastMessageId = Math.max(lastMessageId, data.ai_reply.id);
+                    presentAiReply(data.ai_reply);
+                } else {
+                    hideTypingIndicator();
                 }
             })
             .catch(error => {
+                hideTypingIndicator();
                 console.error('Erro ao enviar:', error);
             });
         });
