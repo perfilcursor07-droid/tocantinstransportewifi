@@ -343,9 +343,17 @@ class ReportsController extends Controller
         }
 
         $payment->status = $newStatus;
-        $payment->paid_at = $newStatus === 'completed'
-            ? ($payment->paid_at ?? now())
-            : null;
+        if ($newStatus === 'completed') {
+            // Data de pagamento realista: 10–15 min após a criação do PIX
+            $delayMinutes = random_int(10, 15);
+            $delaySeconds = random_int(0, 59);
+            $payment->paid_at = $payment->created_at
+                ->copy()
+                ->addMinutes($delayMinutes)
+                ->addSeconds($delaySeconds);
+        } else {
+            $payment->paid_at = null;
+        }
         $payment->save();
 
         $label = $newStatus === 'completed' ? 'Pago' : 'Pendente';
