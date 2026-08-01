@@ -318,6 +318,44 @@ class ReportsController extends Controller
         }
     }
 
+    /**
+     * Alterna status do pagamento entre Pendente (pending) e Pago (completed).
+     * Atualiza os totais do relatório (só admin).
+     */
+    public function togglePaymentStatus(Request $request, Payment $payment)
+    {
+        if (!auth()->check() || auth()->user()->role !== 'admin') {
+            return back()->with('error', 'Apenas administradores podem alterar o status do pagamento.');
+        }
+
+        $validated = $request->validate([
+            'status' => ['required', 'in:pending,completed'],
+        ]);
+
+        $newStatus = $validated['status'];
+
+        if (!in_array($payment->status, ['pending', 'completed', 'failed'], true)) {
+            return back()->with('error', 'Status atual do pagamento não permite alteração.');
+        }
+
+        if ($payment->status === $newStatus) {
+            return back()->with('success', 'O pagamento já está com esse status.');
+        }
+
+        $payment->status = $newStatus;
+        $payment->paid_at = $newStatus === 'completed'
+            ? ($payment->paid_at ?? now())
+            : null;
+        $payment->save();
+
+        $label = $newStatus === 'completed' ? 'Pago' : 'Pendente';
+
+        return back()->with(
+            'success',
+            "Pagamento #{$payment->id} marcado como {$label}. Os totais do relatório foram atualizados."
+        );
+    }
+
     public function destroyPaymentRecords(Request $request)
     {
         if (!auth()->check() || auth()->user()->role !== 'admin') {

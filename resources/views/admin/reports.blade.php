@@ -322,10 +322,34 @@
                             <td class="py-3 px-3 text-xs text-muted">{{ $payment->created_at->format('d/m/Y H:i') }}</td>
                             @if(auth()->user()?->role === 'admin')
                             <td class="py-3 px-3">
-                                <form method="POST" action="{{ route('admin.reports.payments.destroy', $payment) }}" onsubmit="return confirm('Excluir este registro e o usuário vinculado?');">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="text-[10px] font-bold bg-red-pale text-red px-2 py-1 rounded-lg hover:bg-red/10 transition-colors">Excluir</button>
-                                </form>
+                                <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                                    @if(in_array($payment->status, ['pending', 'failed'], true))
+                                    <form method="POST" action="{{ route('admin.reports.payments.toggle-status', $payment) }}"
+                                          onsubmit="return confirm('Marcar pagamento #{{ $payment->id }} como PAGO?\nO valor entrará nos totais de receita.');">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="status" value="completed">
+                                        <button type="submit" class="text-[10px] font-bold bg-green/10 text-green px-2 py-1 rounded-lg hover:bg-green/20 transition-colors whitespace-nowrap">
+                                            Marcar pago
+                                        </button>
+                                    </form>
+                                    @endif
+                                    @if($payment->status === 'completed')
+                                    <form method="POST" action="{{ route('admin.reports.payments.toggle-status', $payment) }}"
+                                          onsubmit="return confirm('Marcar pagamento #{{ $payment->id }} como PENDENTE?\nO valor sairá dos totais de receita.');">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="status" value="pending">
+                                        <button type="submit" class="text-[10px] font-bold bg-gold/10 text-gold px-2 py-1 rounded-lg hover:bg-gold/20 transition-colors whitespace-nowrap">
+                                            Marcar pendente
+                                        </button>
+                                    </form>
+                                    @endif
+                                    <form method="POST" action="{{ route('admin.reports.payments.destroy', $payment) }}" onsubmit="return confirm('Excluir este registro de pagamento?');">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="text-[10px] font-bold bg-red-pale text-red px-2 py-1 rounded-lg hover:bg-red/10 transition-colors">Excluir</button>
+                                    </form>
+                                </div>
                             </td>
                             @endif
                         </tr>

@@ -165,11 +165,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
         Route::delete('/avaliacoes/lote/excluir', [AdminServiceReviewController::class, 'bulkDestroy'])->name('reviews.bulk-destroy');
         Route::delete('/avaliacoes/{review}', [AdminServiceReviewController::class, 'destroy'])->name('reviews.destroy');
 
-        // Exclusão de registro de relatório (pagamento + usuário vinculado)
+        // Exclusão / alteração de status de registro de relatório (pagamento)
         Route::delete('/reports/payments', [ReportsController::class, 'destroyPaymentRecords'])
             ->name('reports.payments.bulk-destroy');
         Route::delete('/reports/payments/{payment}', [ReportsController::class, 'destroyPaymentRecord'])
             ->name('reports.payments.destroy');
+        Route::patch('/reports/payments/{payment}/status', [ReportsController::class, 'togglePaymentStatus'])
+            ->name('reports.payments.toggle-status');
 
         // Dispositivos
         Route::get('/devices', [AdminController::class, 'devices'])->name('devices');
