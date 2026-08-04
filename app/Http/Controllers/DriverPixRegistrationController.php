@@ -302,11 +302,20 @@ class DriverPixRegistrationController extends Controller
             return $byCpf;
         }
 
+        // Fallback por telefone: só reaproveita se o cadastro ainda não tem CPF
+        // OU se o CPF (normalizado) é o mesmo. Se o telefone pertence a outro CPF,
+        // retorna null → cria cadastro novo, sem sobrescrever o motorista anterior.
         return DriverPixProfile::where('phone', $phoneDigits)
-            ->whereNull('cpf')
+            ->where(function ($query) use ($cpfDigits) {
+                $query->whereNull('cpf')
+                    ->orWhere('cpf', '')
+                    ->orWhereRaw(
+                        "REPLACE(REPLACE(REPLACE(COALESCE(cpf, ''), '.', ''), '-', ''), ' ', '') = ?",
+                        [$cpfDigits]
+                    );
+            })
             ->orderByDesc('id')
-            ->first()
-            ?: DriverPixProfile::where('phone', $phoneDigits)->orderByDesc('id')->first();
+            ->first();
     }
 
     /** @return array<string, string> */
