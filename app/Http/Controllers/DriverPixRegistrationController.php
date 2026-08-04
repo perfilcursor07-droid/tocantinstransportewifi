@@ -9,14 +9,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class DriverPixRegistrationController extends Controller
 {
-    /** Quantos meses anteriores o motorista pode escolher. */
-    private const PAST_MONTHS = 5;
-
     public function show(string $token)
     {
         if (! Schema::hasTable('driver_pix_registration_links')) {
@@ -33,7 +29,6 @@ class DriverPixRegistrationController extends Controller
 
         return view('driver-pix.register', [
             'link' => $link,
-            'monthOptions' => $this->monthOptions(),
             'currentMonth' => now()->format('Y-m'),
         ]);
     }
@@ -70,8 +65,11 @@ class DriverPixRegistrationController extends Controller
         }
 
         $entries = Schema::hasTable('driver_pix_profile_months')
-            ? $profile->monthEntries()->orderByDesc('reference_month')->limit(6)->get()
+            ? $profile->monthEntries()->orderByDesc('reference_month')->orderByDesc('id')->limit(6)->get()
             : collect();
+
+        // Prefere o ônibus do último envio; o motorista ainda pode alterar no formulário
+        $latestBus = $entries->first()?->bus_number ?: $profile->bus_number;
 
         return response()->json([
             'found' => true,
@@ -79,9 +77,12 @@ class DriverPixRegistrationController extends Controller
                 'full_name' => $profile->full_name,
                 'cpf' => $profile->cpf ? $profile->formattedCpf() : null,
                 'phone' => $profile->formattedPhone() !== '—' ? $profile->formattedPhone() : null,
-                'bus_number' => $profile->bus_number,
-                'pix_key_masked' => $profile->maskedPixKey(),
-                'pix_key_type' => $this->pixKeyTypeLabel($profile->effectivePixKeyType()),
+                'bus_number' => $latestBus,
+                'has_pix_key' => filled($profile->pix_key),
+                'pix_key_masked' => $profile->pix_key ? $profile->maskedPixKey() : null,
+                'pix_key_type' => $profile->pix_key
+                    ? $this->pixKeyTypeLabel($profile->effectivePixKeyType())
+                    : null,
                 'status' => $profile->status,
                 'status_label' => match ($profile->status) {
                     'approved' => 'Cadastro aprovado',
@@ -119,10 +120,10 @@ class DriverPixRegistrationController extends Controller
             return back()->withErrors(['link' => 'Este link de cadastro não está mais disponível.']);
         }
 
-        $monthOptions = $this->monthOptions();
+        // Competência = mês atual (o formulário não pergunta mais o mês ao motorista)
+        $monthStart = DriverPixProfileMonth::normalizeMonth(now()->format('Y-m'));
 
         $validated = $request->validate([
-            'reference_month' => ['required', 'string', Rule::in(array_keys($monthOptions))],
             'full_name' => 'required|string|min:3|max:120',
             'cpf' => ['required', 'string', 'min:11', 'max:14', function ($attribute, $value, $fail) {
                 if (! DriverPixProfile::isValidCpf($value)) {
@@ -132,13 +133,9 @@ class DriverPixRegistrationController extends Controller
             'phone' => 'required|string|min:10|max:20',
             'bus_number' => 'required|string|max:20',
         ], [
-            'reference_month.required' => 'Selecione o mês de referência.',
-            'reference_month.in' => 'Mês de referência inválido.',
             'phone.required' => 'Informe seu telefone com DDD.',
             'bus_number.required' => 'Informe o número do ônibus (carro) deste mês.',
         ]);
-
-        $monthStart = DriverPixProfileMonth::normalizeMonth($validated['reference_month']);
         $cpfDigits = preg_replace('/\D/', '', $validated['cpf']);
         $phoneDigits = preg_replace('/\D/', '', $validated['phone']);
         $busNumber = mb_strtoupper(trim($validated['bus_number']), 'UTF-8');
@@ -316,12 +313,6 @@ class DriverPixRegistrationController extends Controller
             })
             ->orderByDesc('id')
             ->first();
-    }
-
-    /** @return array<string, string> */
-    private function monthOptions(): array
-    {
-        return DriverPixProfileMonth::monthOptions(self::PAST_MONTHS);
     }
 
     private function pixKeyTypeLabel(string $type): string
