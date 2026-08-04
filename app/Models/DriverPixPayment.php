@@ -8,6 +8,9 @@ class DriverPixPayment extends Model
 {
     protected $fillable = [
         'driver_pix_profile_id',
+        'driver_pix_profile_month_id',
+        'reference_month',
+        'bus_number',
         'amount',
         'description',
         'status',
@@ -21,6 +24,7 @@ class DriverPixPayment extends Model
     {
         return [
             'amount' => 'decimal:2',
+            'reference_month' => 'date',
             'paid_at' => 'datetime',
         ];
     }
@@ -28,6 +32,29 @@ class DriverPixPayment extends Model
     public function profile()
     {
         return $this->belongsTo(DriverPixProfile::class, 'driver_pix_profile_id');
+    }
+
+    public function monthEntry()
+    {
+        return $this->belongsTo(DriverPixProfileMonth::class, 'driver_pix_profile_month_id');
+    }
+
+    public function monthLabel(): string
+    {
+        if (! $this->reference_month) {
+            return '—';
+        }
+
+        return DriverPixProfileMonth::labelFor($this->reference_month);
+    }
+
+    public function shortMonthLabel(): string
+    {
+        if (! $this->reference_month) {
+            return '—';
+        }
+
+        return DriverPixProfileMonth::shortLabelFor($this->reference_month);
     }
 
     public function payer()

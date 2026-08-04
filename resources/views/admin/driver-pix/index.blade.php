@@ -17,6 +17,11 @@
     @if(session('error'))
     <div class="bg-red-pale border border-red/30 text-red px-4 py-3 rounded-2xl text-sm">{{ session('error') }}</div>
     @endif
+    @if($errors->any())
+    <div class="bg-red-pale border border-red/30 text-red px-4 py-3 rounded-2xl text-sm space-y-1">
+        @foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach
+    </div>
+    @endif
     @if(session('new_link_url'))
     <div class="bg-blue-pale border border-blue/30 rounded-2xl p-4">
         <p class="text-sm font-semibold text-blue mb-2">Novo link gerado — copie e envie ao motorista:</p>
@@ -27,34 +32,43 @@
     </div>
     @endif
 
-    {{-- Stats --}}
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    {{-- Indicadores da competência selecionada --}}
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <div class="bg-white rounded-2xl border border-border p-4 shadow-card">
-            <p class="text-[10px] font-bold uppercase text-muted tracking-wider">Pendentes</p>
-            <p class="text-2xl font-bold text-amber-600 mt-1">{{ $stats['pending_profiles'] }}</p>
+            <p class="text-[10px] font-bold uppercase text-muted tracking-wider">Confirmados · {{ $monthLabel }}</p>
+            <p class="text-2xl font-bold text-green mt-1">{{ $stats['month_confirmed'] }}</p>
+            <p class="text-[10px] text-muted mt-0.5">de {{ $stats['approved_profiles'] }} aprovados</p>
         </div>
         <div class="bg-white rounded-2xl border border-border p-4 shadow-card">
-            <p class="text-[10px] font-bold uppercase text-muted tracking-wider">Aprovados</p>
-            <p class="text-2xl font-bold text-green mt-1">{{ $stats['approved_profiles'] }}</p>
+            <p class="text-[10px] font-bold uppercase text-muted tracking-wider">Faltam confirmar</p>
+            <p class="text-2xl font-bold text-slate-600 mt-1">{{ $stats['month_missing'] }}</p>
+            <p class="text-[10px] text-muted mt-0.5">no mês selecionado</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-border p-4 shadow-card">
+            <p class="text-[10px] font-bold uppercase text-muted tracking-wider">Aguardando análise</p>
+            <p class="text-2xl font-bold text-amber-600 mt-1">{{ $stats['pending_profiles'] + $stats['month_updates'] }}</p>
+            <p class="text-[10px] text-muted mt-0.5">{{ $stats['pending_profiles'] }} novos · {{ $stats['month_updates'] }} alterações</p>
         </div>
         <div class="bg-white rounded-2xl border border-border p-4 shadow-card">
             <p class="text-[10px] font-bold uppercase text-muted tracking-wider">Pagtos pendentes</p>
-            <p class="text-2xl font-bold text-blue mt-1">{{ $stats['pending_payments'] }}</p>
+            <p class="text-2xl font-bold text-blue mt-1">{{ $stats['month_pending_payments'] }}</p>
+            <p class="text-[10px] text-muted mt-0.5">{{ $stats['pending_payments'] }} no total</p>
         </div>
         <div class="bg-white rounded-2xl border border-border p-4 shadow-card">
-            <p class="text-[10px] font-bold uppercase text-muted tracking-wider">Total pago</p>
-            <p class="text-2xl font-bold text-ink mt-1">R$ {{ number_format($stats['total_paid'], 2, ',', '.') }}</p>
+            <p class="text-[10px] font-bold uppercase text-muted tracking-wider">Pago · {{ $monthLabel }}</p>
+            <p class="text-2xl font-bold text-ink mt-1">R$ {{ number_format($stats['month_paid'], 2, ',', '.') }}</p>
+            <p class="text-[10px] text-muted mt-0.5">R$ {{ number_format($stats['total_paid'], 2, ',', '.') }} acumulado</p>
         </div>
     </div>
 
     {{-- Tabs --}}
     <div class="flex gap-1 p-1 bg-surface rounded-2xl border border-border w-fit">
         @foreach(['drivers' => 'Motoristas', 'links' => 'Links', 'payments' => 'Pagamentos'] as $key => $label)
-        <a href="{{ route('admin.driver-pix.index', ['tab' => $key]) }}"
+        <a href="{{ route('admin.driver-pix.index', ['tab' => $key, 'month' => $month]) }}"
            class="px-5 py-2.5 text-sm font-semibold rounded-xl transition-all {{ $tab === $key ? 'bg-white text-green shadow-card border border-border' : 'text-muted hover:text-ink' }}">
             {{ $label }}
-            @if($key === 'drivers' && $stats['pending_profiles'] > 0)
-            <span class="ml-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px]">{{ $stats['pending_profiles'] }}</span>
+            @if($key === 'drivers' && ($stats['pending_profiles'] + $stats['month_updates']) > 0)
+            <span class="ml-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px]">{{ $stats['pending_profiles'] + $stats['month_updates'] }}</span>
             @endif
             @if($key === 'payments' && $stats['pending_payments'] > 0)
             <span class="ml-1 px-1.5 py-0.5 rounded-full bg-blue-pale text-blue text-[10px]">{{ $stats['pending_payments'] }}</span>
@@ -68,7 +82,7 @@
     @elseif($tab === 'payments')
     @include('admin.driver-pix.partials.payments', ['payments' => $payments])
     @else
-    @include('admin.driver-pix.partials.drivers', ['profiles' => $profiles])
+    @include('admin.driver-pix.partials.drivers')
     @endif
 </div>
 

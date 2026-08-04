@@ -76,6 +76,10 @@ Route::get('/cadastro-motorista/enviado', [DriverRequestController::class, 'succ
 // Cadastro PIX motoristas (link com token)
 Route::get('/motorista/pix/{token}', [DriverPixRegistrationController::class, 'show'])->name('driver-pix.register');
 Route::post('/motorista/pix/{token}', [DriverPixRegistrationController::class, 'store'])->name('driver-pix.store');
+// Consulta de cadastro existente para pre-preencher o formulario (limitada por IP)
+Route::post('/motorista/pix/{token}/consultar', [DriverPixRegistrationController::class, 'lookup'])
+    ->middleware('throttle:12,1')
+    ->name('driver-pix.lookup');
 Route::get('/motorista/pix/{token}/enviado', [DriverPixRegistrationController::class, 'success'])->name('driver-pix.success');
 
 // Rotas de Autenticação
@@ -208,7 +212,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
         Route::get('/pagamentos-motoristas/{profile}/pix-qr', [AdminDriverPixController::class, 'pixQr'])->name('driver-pix.pix-qr');
         Route::patch('/pagamentos-motoristas/{profile}/aprovar', [AdminDriverPixController::class, 'approve'])->name('driver-pix.approve');
         Route::patch('/pagamentos-motoristas/{profile}/rejeitar', [AdminDriverPixController::class, 'reject'])->name('driver-pix.reject');
+        Route::put('/pagamentos-motoristas/{profile}', [AdminDriverPixController::class, 'updateProfile'])->name('driver-pix.update');
         Route::delete('/pagamentos-motoristas/{profile}', [AdminDriverPixController::class, 'destroyProfile'])->name('driver-pix.destroy');
+        // Cadastro por competencia (mes)
+        Route::post('/pagamentos-motoristas/{profile}/meses', [AdminDriverPixController::class, 'storeMonth'])->name('driver-pix.months.store');
+        Route::patch('/pagamentos-motoristas/meses/{monthEntry}/aprovar', [AdminDriverPixController::class, 'approveMonth'])->name('driver-pix.months.approve');
+        Route::patch('/pagamentos-motoristas/meses/{monthEntry}/rejeitar', [AdminDriverPixController::class, 'rejectMonth'])->name('driver-pix.months.reject');
+        Route::delete('/pagamentos-motoristas/meses/{monthEntry}', [AdminDriverPixController::class, 'destroyMonth'])->name('driver-pix.months.destroy');
         Route::post('/pagamentos-motoristas/{profile}/pagamentos', [AdminDriverPixController::class, 'storePayment'])->name('driver-pix.payments.store');
         Route::patch('/pagamentos-motoristas/pagamentos/{payment}/pagar', [AdminDriverPixController::class, 'markPaymentPaid'])->name('driver-pix.payments.paid');
         Route::patch('/pagamentos-motoristas/pagamentos/{payment}/cancelar', [AdminDriverPixController::class, 'cancelPayment'])->name('driver-pix.payments.cancel');

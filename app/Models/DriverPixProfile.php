@@ -9,10 +9,12 @@ class DriverPixProfile extends Model
     protected $fillable = [
         'registration_link_id',
         'full_name',
+        'cpf',
         'phone',
         'pix_key',
         'pix_key_type',
         'bus_number',
+        'last_confirmed_month',
         'status',
         'rejected_reason',
         'admin_notes',
@@ -24,6 +26,7 @@ class DriverPixProfile extends Model
     {
         return [
             'approved_at' => 'datetime',
+            'last_confirmed_month' => 'date',
         ];
     }
 
@@ -58,9 +61,115 @@ class DriverPixProfile extends Model
         );
     }
 
+    public function monthEntries()
+    {
+        return $this->hasMany(DriverPixProfileMonth::class, 'driver_pix_profile_id');
+    }
+
+    public function latestMonthEntry()
+    {
+        return $this->hasOne(DriverPixProfileMonth::class, 'driver_pix_profile_id')->ofMany(
+            ['reference_month' => 'max', 'id' => 'max'],
+            fn ($query) => $query
+        );
+    }
+
     public function isApproved(): bool
     {
         return $this->status === 'approved';
+    }
+
+    /**
+     * Localiza um cadastro existente a partir de um dado informado pelo motorista
+     * (CPF, telefone ou a própria chave PIX). Exige correspondência exata.
+     */
+    public static function findByIdentifier(?string $identifier): ?self
+    {
+        $identifier = trim((string) $identifier);
+
+        if (mb_strlen($identifier) < 5) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D/', '', $identifier);
+
+        if (strlen($digits) === 11) {
+            $profile = self::whereRaw("REPLACE(REPLACE(REPLACE(cpf, '.', ''), '-', ''), ' ', '') = ?", [$digits])
+                ->orderByDesc('id')
+                ->first();
+
+            if ($profile) {
+                return $profile;
+            }
+        }
+
+        if (strlen($digits) >= 10 && strlen($digits) <= 13) {
+            $profile = self::where('phone', $digits)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($profile) {
+                return $profile;
+            }
+        }
+
+        if ($digits !== '' && strlen($digits) >= 10) {
+            $profile = self::where('pix_key', $digits)->orderByDesc('id')->first();
+
+            if ($profile) {
+                return $profile;
+            }
+        }
+
+        if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+            return self::where('pix_key', mb_strtolower($identifier))->orderByDesc('id')->first();
+        }
+
+        return null;
+    }
+
+    public function matchesIdentity(?string $cpfDigits, ?string $phoneDigits): bool
+    {
+        $ownCpf = preg_replace('/\D/', '', (string) $this->cpf);
+        $ownPhone = preg_replace('/\D/', '', (string) $this->phone);
+
+        if ($cpfDigits && $ownCpf && $cpfDigits === $ownCpf) {
+            return true;
+        }
+
+        return (bool) ($phoneDigits && $ownPhone && $phoneDigits === $ownPhone);
+    }
+
+    public function formattedCpf(): string
+    {
+        $digits = preg_replace('/\D/', '', (string) $this->cpf);
+
+        if (strlen($digits) !== 11) {
+            return $this->cpf ?: '—';
+        }
+
+        return substr($digits, 0, 3) . '.' . substr($digits, 3, 3) . '.' . substr($digits, 6, 3) . '-' . substr($digits, 9);
+    }
+
+    public function maskedCpf(): string
+    {
+        $digits = preg_replace('/\D/', '', (string) $this->cpf);
+
+        if (strlen($digits) !== 11) {
+            return '—';
+        }
+
+        return '***.' . substr($digits, 3, 3) . '.***-' . substr($digits, 9);
+    }
+
+    public function monthEntryFor($month): ?DriverPixProfileMonth
+    {
+        $month = DriverPixProfileMonth::normalizeMonth(is_string($month) ? $month : $month?->toDateString());
+
+        return $this->monthEntries()
+            ->whereDate('reference_month', $month)
+            ->orderByDesc('id')
+            ->first();
     }
 
     public function maskedPixKey(): string
