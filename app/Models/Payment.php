@@ -19,6 +19,9 @@ class Payment extends Model
         'payment_data',
         'paid_at',
         'unpaid_reminder_sent_at',
+        'refund_receipt_path',
+        'refunded_at',
+        'refund_note',
     ];
 
     protected function casts(): array
@@ -27,6 +30,7 @@ class Payment extends Model
             'payment_data' => 'array',
             'paid_at' => 'datetime',
             'unpaid_reminder_sent_at' => 'datetime',
+            'refunded_at' => 'datetime',
             'amount' => 'decimal:2',
         ];
     }
@@ -39,5 +43,15 @@ class Payment extends Model
     public function sessions()
     {
         return $this->hasMany(Session::class);
+    }
+
+    public function isRefunded(): bool
+    {
+        return $this->status === 'refunded';
+    }
+
+    public function hasRefundReceipt(): bool
+    {
+        return filled($this->refund_receipt_path);
     }
 }

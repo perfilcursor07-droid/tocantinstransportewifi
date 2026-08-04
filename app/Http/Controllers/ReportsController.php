@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Models\Payment;
 use App\Models\User;
 use App\Models\Session;
@@ -94,8 +95,10 @@ class ReportsController extends Controller
             return $query;
         };
 
-        // Receita total (pagos)
-        $totalRevenue = $applyBus(Payment::where('status', 'completed')->whereBetween('created_at', $dateRange))->sum('amount');
+        // Receita bruta (pagos) e estornos — líquido abate estornos do total
+        $completedRevenue = (float) $applyBus(Payment::where('status', 'completed')->whereBetween('created_at', $dateRange))->sum('amount');
+        $refundedRevenue = (float) $applyBus(Payment::where('status', 'refunded')->whereBetween('created_at', $dateRange))->sum('amount');
+        $totalRevenue = $completedRevenue - $refundedRevenue;
 
         // Total de pagamentos (respeitando filtro de status)
         $totalQuery = Payment::whereBetween('created_at', $dateRange);
@@ -105,7 +108,7 @@ class ReportsController extends Controller
         // Contagem por status
         $completedPayments = $applyBus(Payment::where('status', 'completed')->whereBetween('created_at', $dateRange))->count();
         $pendingPaymentsCount = $applyBus(Payment::where('status', 'pending')->whereBetween('created_at', $dateRange))->count();
-        $failedPaymentsCount = $applyBus(Payment::where('status', 'failed')->whereBetween('created_at', $dateRange))->count();
+        $refundedPaymentsCount = $applyBus(Payment::where('status', 'refunded')->whereBetween('created_at', $dateRange))->count();
         $pendingPayments = $applyBus(Payment::where('status', 'pending')->whereBetween('created_at', $dateRange))->sum('amount');
 
         // Usuários
@@ -128,15 +131,17 @@ class ReportsController extends Controller
 
         return [
             'total_revenue' => $totalRevenue,
+            'completed_revenue' => $completedRevenue,
+            'refunded_revenue' => $refundedRevenue,
             'pending_payments' => $pendingPayments,
             'pending_payments_count' => $pendingPaymentsCount,
             'completed_payments_count' => $completedPayments,
-            'failed_payments_count' => $failedPaymentsCount,
+            'refunded_payments_count' => $refundedPaymentsCount,
             'total_payments' => $totalPayments,
             'total_users' => $totalUsers,
             'connected_users' => $connectedUsers,
             'active_sessions' => $activeSessions,
-            'avg_payment' => $completedPayments > 0 ? $totalRevenue / $completedPayments : 0,
+            'avg_payment' => $completedPayments > 0 ? $completedRevenue / $completedPayments : 0,
         ];
     }
     
@@ -173,8 +178,8 @@ class ReportsController extends Controller
     
     private function getChartsData($startDateTime, $endDateTime)
     {
-        // Receita por dia
-        $revenueByDay = Payment::where('status', 'completed')
+        // Receita líquida por dia (pagos − estornos)
+        $completedByDay = Payment::where('status', 'completed')
             ->whereBetween('created_at', [$startDateTime, $endDateTime])
             ->select(
                 DB::raw('DATE(created_at) as date'),
@@ -182,15 +187,43 @@ class ReportsController extends Controller
                 DB::raw('COUNT(*) as count')
             )
             ->groupBy('date')
-            ->orderBy('date')
-            ->get();
-        
+            ->get()
+            ->keyBy('date');
+
+        $refundedByDay = Payment::where('status', 'refunded')
+            ->whereBetween('created_at', [$startDateTime, $endDateTime])
+            ->select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw('SUM(amount) as total'),
+                DB::raw('COUNT(*) as count')
+            )
+            ->groupBy('date')
+            ->get()
+            ->keyBy('date');
+
+        $revenueByDay = $completedByDay->keys()
+            ->merge($refundedByDay->keys())
+            ->unique()
+            ->sort()
+            ->map(function ($date) use ($completedByDay, $refundedByDay) {
+                $paid = (float) ($completedByDay[$date]->total ?? 0);
+                $refund = (float) ($refundedByDay[$date]->total ?? 0);
+                $count = (int) ($completedByDay[$date]->count ?? 0);
+
+                return (object) [
+                    'date' => $date,
+                    'total' => $paid - $refund,
+                    'count' => $count,
+                ];
+            })
+            ->values();
+
         // Pagamentos por status
         $paymentsByStatus = Payment::whereBetween('created_at', [$startDateTime, $endDateTime])
             ->select('status', DB::raw('count(*) as count'))
             ->groupBy('status')
             ->get();
-        
+
         // Usuários por dia
         $usersByDay = User::whereBetween('created_at', [$startDateTime, $endDateTime])
             ->select(
@@ -200,7 +233,7 @@ class ReportsController extends Controller
             ->groupBy('date')
             ->orderBy('date')
             ->get();
-        
+
         // Conexões por hora (últimas 24h)
         $connectionsByHour = User::where('connected_at', '>=', Carbon::now()->subDay())
             ->select(
@@ -210,7 +243,7 @@ class ReportsController extends Controller
             ->groupBy('hour')
             ->orderBy('hour')
             ->get();
-        
+
         return [
             'revenue_by_day' => $revenueByDay,
             'payments_by_status' => $paymentsByStatus,
@@ -220,14 +253,14 @@ class ReportsController extends Controller
     }
 
     /**
-     * Receita agrupada por ônibus (mikrotik_id)
+     * Receita líquida agrupada por ônibus (pagos − estornos)
      */
     private function getRevenueByBus($startDateTime, $endDateTime)
     {
         $dateRange = [$startDateTime, $endDateTime];
         $busNames = \App\Models\Bus::getSerialNameMap();
 
-        $data = Payment::where('payments.status', 'completed')
+        $completed = Payment::where('payments.status', 'completed')
             ->whereBetween('payments.created_at', $dateRange)
             ->join('users', 'payments.user_id', '=', 'users.id')
             ->select(
@@ -236,14 +269,40 @@ class ReportsController extends Controller
                 DB::raw('COUNT(payments.id) as count')
             )
             ->groupBy('bus_id')
-            ->orderByDesc('total')
             ->get()
-            ->map(function ($row) use ($busNames) {
-                $row->bus_name = $busNames[$row->bus_id] ?? $row->bus_id;
-                return $row;
-            });
+            ->keyBy('bus_id');
 
-        return $data;
+        $refunded = Payment::where('payments.status', 'refunded')
+            ->whereBetween('payments.created_at', $dateRange)
+            ->join('users', 'payments.user_id', '=', 'users.id')
+            ->select(
+                DB::raw("COALESCE(users.last_mikrotik_id, 'desconhecido') as bus_id"),
+                DB::raw('SUM(payments.amount) as total'),
+                DB::raw('COUNT(payments.id) as count')
+            )
+            ->groupBy('bus_id')
+            ->get()
+            ->keyBy('bus_id');
+
+        $busIds = $completed->keys()->merge($refunded->keys())->unique();
+
+        return $busIds->map(function ($busId) use ($completed, $refunded, $busNames) {
+            $paid = (float) ($completed[$busId]->total ?? 0);
+            $refund = (float) ($refunded[$busId]->total ?? 0);
+            $paidCount = (int) ($completed[$busId]->count ?? 0);
+            $refundCount = (int) ($refunded[$busId]->count ?? 0);
+
+            return (object) [
+                'bus_id' => $busId,
+                'bus_name' => $busNames[$busId] ?? $busId,
+                'total' => $paid - $refund,
+                'count' => $paidCount,
+                'refunded_count' => $refundCount,
+                'refunded_total' => $refund,
+            ];
+        })->filter(fn ($row) => $row->count > 0 || $row->refunded_count > 0)
+            ->sortByDesc('total')
+            ->values();
     }
     
     public function export(Request $request)
@@ -334,7 +393,7 @@ class ReportsController extends Controller
 
         $newStatus = $validated['status'];
 
-        if (!in_array($payment->status, ['pending', 'completed', 'failed'], true)) {
+        if (!in_array($payment->status, ['pending', 'completed', 'failed', 'refunded'], true)) {
             return back()->with('error', 'Status atual do pagamento não permite alteração.');
         }
 
@@ -351,8 +410,11 @@ class ReportsController extends Controller
                 ->copy()
                 ->addMinutes($delayMinutes)
                 ->addSeconds($delaySeconds);
+            $payment->refunded_at = null;
+            // Mantém o comprovante de estorno no histórico se existir
         } else {
             $payment->paid_at = null;
+            $payment->refunded_at = null;
         }
         $payment->save();
 
@@ -362,6 +424,78 @@ class ReportsController extends Controller
             'success',
             "Pagamento #{$payment->id} marcado como {$label}. Os totais do relatório foram atualizados."
         );
+    }
+
+    /**
+     * Marca pagamento pago como estornado (abate da receita).
+     * Aceita comprovante opcional (imagem/PDF). Somente admin.
+     */
+    public function refundPayment(Request $request, Payment $payment)
+    {
+        if (! auth()->check() || auth()->user()->role !== 'admin') {
+            return back()->with('error', 'Apenas administradores podem registrar estorno.');
+        }
+
+        if ($payment->status !== 'completed') {
+            return back()->with('error', 'Só é possível estornar pagamentos com status Pago.');
+        }
+
+        $validated = $request->validate([
+            'refund_receipt' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
+            'refund_note' => ['nullable', 'string', 'max:255'],
+        ], [
+            'refund_receipt.mimes' => 'O comprovante deve ser imagem (JPG, PNG, WEBP) ou PDF.',
+            'refund_receipt.max' => 'O comprovante deve ter no máximo 5 MB.',
+        ]);
+
+        if ($request->hasFile('refund_receipt')) {
+            if ($payment->refund_receipt_path) {
+                Storage::disk('local')->delete($payment->refund_receipt_path);
+            }
+            $path = $request->file('refund_receipt')->store(
+                'refund-receipts/' . now()->format('Y/m'),
+                'local'
+            );
+            $payment->refund_receipt_path = $path;
+        }
+
+        $payment->status = 'refunded';
+        $payment->refunded_at = now();
+        $payment->refund_note = $validated['refund_note'] ?? null;
+        $payment->save();
+
+        return back()->with(
+            'success',
+            "Pagamento #{$payment->id} marcado como Estorno. O valor foi abatido da receita líquida."
+        );
+    }
+
+    /**
+     * Download/visualização do comprovante de estorno (admin e gestor).
+     */
+    public function refundReceipt(Payment $payment)
+    {
+        if (! auth()->check() || ! in_array(auth()->user()->role, ['admin', 'manager'], true)) {
+            abort(403);
+        }
+
+        if (! $payment->hasRefundReceipt()) {
+            return back()->with('error', 'Este estorno não possui comprovante anexado.');
+        }
+
+        $path = $payment->refund_receipt_path;
+        if (! Storage::disk('local')->exists($path)) {
+            return back()->with('error', 'Arquivo de comprovante não encontrado.');
+        }
+
+        $absolute = Storage::disk('local')->path($path);
+        $mime = mime_content_type($absolute) ?: 'application/octet-stream';
+        $name = 'comprovante-estorno-' . $payment->id . '.' . pathinfo($path, PATHINFO_EXTENSION);
+
+        return response()->file($absolute, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="' . $name . '"',
+        ]);
     }
 
     public function destroyPaymentRecords(Request $request)

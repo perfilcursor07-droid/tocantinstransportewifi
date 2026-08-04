@@ -109,6 +109,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
     Route::middleware(['module:reports'])->group(function () {
         Route::get('/reports', [ReportsController::class, 'index'])->name('reports');
         Route::get('/reports/export', [ReportsController::class, 'export'])->name('reports.export');
+        Route::get('/reports/payments/{payment}/refund-receipt', [ReportsController::class, 'refundReceipt'])
+            ->name('reports.payments.refund-receipt');
     });
     
     // Rotas de Vouchers
@@ -176,6 +178,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
             ->name('reports.payments.destroy');
         Route::patch('/reports/payments/{payment}/status', [ReportsController::class, 'togglePaymentStatus'])
             ->name('reports.payments.toggle-status');
+        Route::post('/reports/payments/{payment}/refund', [ReportsController::class, 'refundPayment'])
+            ->name('reports.payments.refund');
 
         // Dispositivos
         Route::get('/devices', [AdminController::class, 'devices'])->name('devices');

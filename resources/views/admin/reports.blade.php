@@ -57,7 +57,7 @@
                         <option value="all" {{ $paymentStatus == 'all' ? 'selected' : '' }}>Todos</option>
                         <option value="pending" {{ $paymentStatus == 'pending' ? 'selected' : '' }}>Pendente</option>
                         <option value="completed" {{ $paymentStatus == 'completed' ? 'selected' : '' }}>Pago</option>
-                        <option value="failed" {{ $paymentStatus == 'failed' ? 'selected' : '' }}>Falhou</option>
+                        <option value="refunded" {{ $paymentStatus == 'refunded' ? 'selected' : '' }}>Estorno</option>
                         <option value="cancelled" {{ $paymentStatus == 'cancelled' ? 'selected' : '' }}>Cancelado</option>
                     </select>
                 </div>
@@ -95,10 +95,13 @@
                 <div class="w-9 h-9 bg-green-pale rounded-lg flex items-center justify-center">
                     <svg class="w-4 h-4 text-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
-                <span class="text-[9px] font-bold uppercase tracking-wider bg-green/10 text-green px-1.5 py-0.5 rounded">Pagos</span>
+                <span class="text-[9px] font-bold uppercase tracking-wider bg-green/10 text-green px-1.5 py-0.5 rounded">Líquido</span>
             </div>
             <p class="text-xl font-bold text-ink">R$ {{ number_format($stats['total_revenue'], 2, ',', '.') }}</p>
             <p class="text-[11px] text-muted mt-0.5">Ticket médio: R$ {{ number_format($stats['avg_payment'], 2, ',', '.') }}</p>
+            @if(($stats['refunded_revenue'] ?? 0) > 0)
+            <p class="text-[10px] text-red mt-1">Bruto R$ {{ number_format($stats['completed_revenue'] ?? 0, 2, ',', '.') }} − Estornos R$ {{ number_format($stats['refunded_revenue'], 2, ',', '.') }}</p>
+            @endif
         </div>
 
         <div class="bg-white rounded-xl shadow-card border border-border p-4 hover:shadow-hover transition-all">
@@ -123,7 +126,7 @@
             <div class="flex gap-1.5 mt-2">
                 <span class="text-[9px] font-bold bg-green/10 text-green px-1.5 py-0.5 rounded">{{ $stats['completed_payments_count'] }} pagos</span>
                 <span class="text-[9px] font-bold bg-gold/10 text-gold px-1.5 py-0.5 rounded">{{ $stats['pending_payments_count'] }} pend.</span>
-                <span class="text-[9px] font-bold bg-red/10 text-red px-1.5 py-0.5 rounded">{{ $stats['failed_payments_count'] }} falhos</span>
+                <span class="text-[9px] font-bold bg-red/10 text-red px-1.5 py-0.5 rounded">{{ $stats['refunded_payments_count'] ?? 0 }} estornos</span>
             </div>
         </div>
 
@@ -176,10 +179,13 @@
                     <p class="text-lg font-bold text-green">R$ {{ number_format($bus->total, 2, ',', '.') }}</p>
                     <div class="flex items-center justify-between mt-2">
                         <span class="text-[10px] text-muted">{{ $bus->count }} pagamentos</span>
-                        <span class="text-[10px] font-semibold text-ink2">{{ number_format(($bus->total / $maxRevenue) * 100, 0) }}%</span>
+                        <span class="text-[10px] font-semibold text-ink2">{{ number_format(($bus->total / max($maxRevenue, 0.01)) * 100, 0) }}%</span>
                     </div>
+                    @if(($bus->refunded_count ?? 0) > 0)
+                    <p class="text-[10px] text-red mt-1">{{ $bus->refunded_count }} estorno(s) − R$ {{ number_format($bus->refunded_total ?? 0, 2, ',', '.') }}</p>
+                    @endif
                     <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1.5">
-                        <div class="h-full bg-green rounded-full" style="width: {{ ($bus->total / $maxRevenue) * 100 }}%"></div>
+                        <div class="h-full bg-green rounded-full" style="width: {{ max(0, ($bus->total / max($maxRevenue, 0.01)) * 100) }}%"></div>
                     </div>
                 </div>
                 @endforeach
@@ -256,6 +262,7 @@
                             <th class="text-left text-[10px] font-bold text-muted uppercase tracking-wider py-2.5 px-3">Valor</th>
                             <th class="text-left text-[10px] font-bold text-muted uppercase tracking-wider py-2.5 px-3">Tipo</th>
                             <th class="text-left text-[10px] font-bold text-muted uppercase tracking-wider py-2.5 px-3">Status</th>
+                            <th class="text-left text-[10px] font-bold text-muted uppercase tracking-wider py-2.5 px-3">Comprovante</th>
                             @if(auth()->user()?->role === 'admin')
                             <th class="text-left text-[10px] font-bold text-muted uppercase tracking-wider py-2.5 px-3">Veículo</th>
                             @endif
@@ -292,12 +299,36 @@
                                         'completed' => 'bg-green/10 text-green',
                                         'pending'   => 'bg-gold/10 text-gold',
                                         'failed'    => 'bg-red/10 text-red',
+                                        'refunded'  => 'bg-red/10 text-red',
+                                        'cancelled' => 'bg-surface text-muted',
                                     ];
-                                    $stLabel = ['completed'=>'Pago','pending'=>'Pendente','failed'=>'Falhou'];
+                                    $stLabel = [
+                                        'completed' => 'Pago',
+                                        'pending' => 'Pendente',
+                                        'failed' => 'Falhou',
+                                        'refunded' => 'Estorno',
+                                        'cancelled' => 'Cancelado',
+                                    ];
                                 @endphp
                                 <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded {{ $stMap[$payment->status] ?? 'bg-surface text-muted' }}">
                                     {{ $stLabel[$payment->status] ?? ucfirst($payment->status) }}
                                 </span>
+                                @if($payment->status === 'refunded' && $payment->refunded_at)
+                                    <p class="text-[9px] text-muted mt-0.5">{{ $payment->refunded_at->format('d/m/Y H:i') }}</p>
+                                @endif
+                            </td>
+                            <td class="py-3 px-3">
+                                @if($payment->status === 'refunded' && $payment->hasRefundReceipt())
+                                    <a href="{{ route('admin.reports.payments.refund-receipt', $payment) }}"
+                                       target="_blank"
+                                       class="inline-flex items-center gap-1 text-[10px] font-bold bg-blue/10 text-blue px-2 py-1 rounded-lg hover:bg-blue/20 transition-colors">
+                                        Ver comprovante
+                                    </a>
+                                @elseif($payment->status === 'refunded')
+                                    <span class="text-[10px] text-muted">Sem anexo</span>
+                                @else
+                                    <span class="text-[10px] text-muted">—</span>
+                                @endif
                             </td>
                             @if(auth()->user()?->role === 'admin')
                             <td class="py-3 px-3">
@@ -323,7 +354,7 @@
                             @if(auth()->user()?->role === 'admin')
                             <td class="py-3 px-3">
                                 <div class="flex items-center gap-1.5 flex-wrap justify-end">
-                                    @if(in_array($payment->status, ['pending', 'failed'], true))
+                                    @if(in_array($payment->status, ['pending', 'failed', 'refunded'], true))
                                     <form method="POST" action="{{ route('admin.reports.payments.toggle-status', $payment) }}"
                                           onsubmit="return confirm('Marcar pagamento #{{ $payment->id }} como PAGO?\nO valor entrará nos totais de receita.');">
                                         @csrf
@@ -344,6 +375,11 @@
                                             Marcar pendente
                                         </button>
                                     </form>
+                                    <button type="button"
+                                            onclick="openRefundModal({{ $payment->id }}, '{{ number_format($payment->amount, 2, ',', '.') }}')"
+                                            class="text-[10px] font-bold bg-red/10 text-red px-2 py-1 rounded-lg hover:bg-red/20 transition-colors whitespace-nowrap">
+                                        Estorno
+                                    </button>
                                     @endif
                                     <form method="POST" action="{{ route('admin.reports.payments.destroy', $payment) }}" onsubmit="return confirm('Excluir este registro de pagamento?');">
                                         @csrf @method('DELETE')
@@ -355,7 +391,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="{{ auth()->user()?->role === 'admin' ? 10 : 7 }}" class="py-10 text-center">
+                            <td colspan="{{ auth()->user()?->role === 'admin' ? 11 : 8 }}" class="py-10 text-center">
                                 <div class="w-10 h-10 bg-surface rounded-full flex items-center justify-center mx-auto mb-2">
                                     <svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
                                 </div>
@@ -479,8 +515,75 @@
         @endif
     </div>
 
+    @if(auth()->user()?->role === 'admin')
+    <!-- Modal Estorno -->
+    <div id="refund-modal" class="fixed inset-0 z-[10000] hidden items-center justify-center bg-black/40 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-border overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-border bg-surface">
+                <div>
+                    <h3 class="text-sm font-bold text-ink">Registrar estorno</h3>
+                    <p class="text-[11px] text-muted">Pagamento #<span id="refund-payment-id-label"></span> · R$ <span id="refund-amount-label"></span></p>
+                </div>
+                <button type="button" onclick="closeRefundModal()" class="w-8 h-8 rounded-lg hover:bg-border text-muted">×</button>
+            </div>
+            <form id="refund-form" method="POST" enctype="multipart/form-data" class="p-5 space-y-4">
+                @csrf
+                <p class="text-xs text-ink2 leading-relaxed">
+                    O valor será <strong class="text-red">abatido da receita líquida</strong>. O gestor verá o status Estorno e o comprovante (se anexado).
+                </p>
+                <div>
+                    <label class="block text-[11px] font-semibold text-ink2 uppercase tracking-wider mb-1.5">Comprovante (opcional)</label>
+                    <input type="file" name="refund_receipt" accept=".jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf"
+                           class="w-full text-xs text-ink file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-red/10 file:text-red file:font-semibold file:text-xs">
+                    <p class="text-[10px] text-muted mt-1">JPG, PNG, WEBP ou PDF · máx. 5 MB</p>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-ink2 uppercase tracking-wider mb-1.5">Observação (opcional)</label>
+                    <input type="text" name="refund_note" maxlength="255" placeholder="Ex: PIX devolvido ao cliente"
+                           class="w-full px-3 py-2 text-sm text-ink bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/30 focus:border-red">
+                </div>
+                <div class="flex gap-2 pt-1">
+                    <button type="button" onclick="closeRefundModal()"
+                            class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg border border-border text-ink2 hover:bg-surface">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-red text-white hover:opacity-90">
+                        Confirmar estorno
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
+
     <!-- Scripts específicos da página -->
     <script>
+        const refundRouteTemplate = @json(url('/admin/reports/payments/__ID__/refund'));
+
+        function openRefundModal(paymentId, amount) {
+            const modal = document.getElementById('refund-modal');
+            const form = document.getElementById('refund-form');
+            if (!modal || !form) return;
+            form.action = refundRouteTemplate.replace('__ID__', paymentId);
+            document.getElementById('refund-payment-id-label').textContent = paymentId;
+            document.getElementById('refund-amount-label').textContent = amount;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeRefundModal() {
+            const modal = document.getElementById('refund-modal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            const form = document.getElementById('refund-form');
+            if (form) form.reset();
+        }
+
+        document.getElementById('refund-modal')?.addEventListener('click', function(e) {
+            if (e.target === this) closeRefundModal();
+        });
         // Toggle filtros avançados
         (function() {
             const btn = document.getElementById('toggleAdvancedFilters');
@@ -650,15 +753,23 @@
                     type: 'doughnut',
                     data: {
                         labels: {!! json_encode($charts['payments_by_status']->pluck('status')->map(function($status) { 
-                            return $status === 'completed' ? 'Pago' : ($status === 'pending' ? 'Pendente' : ($status === 'failed' ? 'Falhou' : 'Cancelado')); 
+                            return match($status) {
+                                'completed' => 'Pago',
+                                'pending' => 'Pendente',
+                                'failed' => 'Falhou',
+                                'refunded' => 'Estorno',
+                                'cancelled' => 'Cancelado',
+                                default => ucfirst((string) $status),
+                            };
                         })) !!},
                         datasets: [{
                             data: {!! json_encode($charts['payments_by_status']->pluck('count')) !!},
                             backgroundColor: [
                                 '#00A335', // green - completed
                                 '#E6A817', // gold - pending  
-                                '#D32F2F', // red - failed
-                                '#888888'  // muted - cancelled
+                                '#D32F2F', // red - refunded/failed
+                                '#888888', // muted - cancelled
+                                '#6B7280'
                             ],
                             borderWidth: 3,
                             borderColor: '#ffffff',
