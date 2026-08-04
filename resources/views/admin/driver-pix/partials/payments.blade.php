@@ -44,11 +44,13 @@
               'pending' => 'bg-amber-100 text-amber-800',
               'paid' => 'bg-green-pale text-green-dark',
               'cancelled' => 'bg-red-pale text-red',
+              default => 'bg-slate-100 text-slate-600',
             };
             $plabel = match($payment->status) {
               'pending' => 'Pendente',
               'paid' => 'Pago',
               'cancelled' => 'Cancelado',
+              default => ucfirst((string) $payment->status),
             };
           @endphp
           <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $pbadge }}">{{ $plabel }}</span>

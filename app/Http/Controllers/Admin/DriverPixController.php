@@ -12,11 +12,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DriverPixController extends Controller
 {
     public function index(Request $request)
     {
+        if (! $this->driverPixSchemaReady()) {
+            return view('admin.driver-pix.setup-required');
+        }
+
         $tab = $request->get('tab', 'drivers');
 
         $monthStart = DriverPixProfileMonth::normalizeMonth(
@@ -182,6 +187,17 @@ class DriverPixController extends Controller
         return DriverPixProfile::with(['approver', 'registrationLink'])
             ->withSum(['payments as total_paid' => fn ($q) => $q->where('status', 'paid')], 'amount')
             ->withCount(['payments as pending_payments_count' => fn ($q) => $q->where('status', 'pending')]);
+    }
+
+    private function driverPixSchemaReady(): bool
+    {
+        return Schema::hasTable('driver_pix_profiles')
+            && Schema::hasTable('driver_pix_registration_links')
+            && Schema::hasTable('driver_pix_payments')
+            && Schema::hasTable('driver_pix_profile_months')
+            && Schema::hasColumn('driver_pix_profiles', 'cpf')
+            && Schema::hasColumn('driver_pix_profiles', 'phone')
+            && Schema::hasColumn('driver_pix_payments', 'reference_month');
     }
 
     private function stats(Carbon $monthStart): array
