@@ -222,11 +222,19 @@
 
     function fillFromIdentifier(value) {
         const digits = value.replace(/\D/g, '');
-        if (looksLikePhone(digits) || (digits.length >= 10 && digits.length <= 11 && !el('phone').value)) {
-            if (!el('phone').value) el('phone').value = maskPhone(digits);
-        }
-        if (digits.length === 11 && !looksLikePhone(digits)) {
+        const formatted = (value || '').trim();
+        // CPF formatado (000.000.000-00) ou 11 dígitos sem padrão de celular → só CPF
+        const isCpfInput = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(formatted)
+            || (digits.length === 11 && !looksLikePhone(digits));
+
+        if (isCpfInput) {
             if (!el('cpf').value) el('cpf').value = maskCpf(digits);
+            return;
+        }
+
+        // Telefone (10 ou 11 dígitos com 9 após o DDD)
+        if (digits.length >= 10 && digits.length <= 11) {
+            if (!el('phone').value) el('phone').value = maskPhone(digits);
         }
     }
 
