@@ -1186,12 +1186,12 @@ class WiFiPortal {
         // Tempo esgotado (ou qualquer mensagem no lugar do relógio)
         if (message) {
             popupTimer.textContent = message;
-            popupTimer.className = 'text-center text-2xl font-black text-red-600 leading-tight my-2';
+            popupTimer.className = 'text-[15px] font-black text-red-600 leading-tight';
             if (bar) {
                 bar.style.width = '0%';
                 bar.className = 'h-full bg-red-500 rounded-full transition-all duration-1000 ease-linear';
             }
-            if (label) label.textContent = 'Tempo esgotado';
+            if (label) label.textContent = 'Gere um novo código';
             return;
         }
 
@@ -1222,7 +1222,7 @@ class WiFiPortal {
         };
 
         popupTimer.textContent = value;
-        popupTimer.className = `text-center text-5xl font-black ${textColors[color]} leading-none my-2 tabular-nums`;
+        popupTimer.className = `text-4xl font-black ${textColors[color]} leading-none tabular-nums`;
 
         if (bar) {
             bar.style.width = `${(left / total) * 100}%`;
@@ -1233,26 +1233,23 @@ class WiFiPortal {
         const box = document.getElementById('pix-copy-popup-timer-box');
         const boxHint = document.getElementById('pix-copy-popup-timer-hint');
         if (left <= 30) {
-            if (box) box.className = 'mt-4 rounded-2xl border-2 border-red-400 bg-red-50 p-4';
+            if (box) box.className = 'rounded-xl border-2 border-red-400 bg-red-50 px-3 py-2.5';
             if (label) {
-                label.className = 'text-center text-[13px] font-bold text-red-900';
-                label.textContent = 'O tempo está acabando!';
+                label.className = 'text-[13px] font-bold text-red-900 leading-tight';
+                label.textContent = 'Está acabando!';
             }
             if (boxHint) {
-                boxHint.className = 'text-center text-[13px] text-red-900 mt-2 leading-snug';
-                boxHint.innerHTML = 'Termine o pagamento agora. Se o tempo acabar, você precisa gerar um novo código.';
+                boxHint.textContent = 'Se o tempo acabar, gere um novo código.';
+                boxHint.classList.remove('hidden');
             }
         } else {
             // Restaura o visual do modo atual (sucesso, limite, erro...)
             if (box?.dataset.defaultClass) box.className = box.dataset.defaultClass;
             if (label?.dataset.defaultClass) {
                 label.className = label.dataset.defaultClass;
-                label.textContent = label.dataset.defaultText;
+                label.textContent = 'Tempo para pagar';
             }
-            if (boxHint?.dataset.defaultClass) {
-                boxHint.className = boxHint.dataset.defaultClass;
-                boxHint.innerHTML = boxHint.dataset.defaultHtml;
-            }
+            boxHint?.classList.add('hidden');
         }
     }
 
@@ -1885,69 +1882,61 @@ class WiFiPortal {
             overlay.id = 'pix-copy-popup';
             overlay.className = 'fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-3 bg-black/60 backdrop-blur-sm';
             overlay.innerHTML = `
-                <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-5 animate-slide-up max-h-[92vh] overflow-y-auto">
-                    <div class="flex justify-center mb-3">
-                        <div id="pix-copy-popup-icon" class="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg">
-                            <svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-4 animate-slide-up max-h-[94vh] overflow-y-auto">
+                    <div class="flex items-center gap-2.5 mb-3">
+                        <div id="pix-copy-popup-icon" class="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shadow">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                         </div>
+                        <h3 id="pix-copy-popup-title" class="text-[17px] font-extrabold text-emerald-800 leading-tight">Código PIX copiado!</h3>
                     </div>
-                    <h3 id="pix-copy-popup-title" class="text-center text-xl font-extrabold text-emerald-800 leading-tight">Código PIX copiado!</h3>
-                    <p id="pix-copy-popup-text" class="text-center text-[14px] text-gray-700 mt-2 leading-relaxed"></p>
+                    <p id="pix-copy-popup-text" class="hidden text-[13px] text-gray-700 mb-3 leading-snug"></p>
 
-                    <!-- TEMPO RESTANTE — grande, fácil de enxergar -->
-                    <div id="pix-copy-popup-timer-box" class="mt-4 rounded-2xl border-2 border-emerald-300 bg-emerald-50 p-4">
-                        <p id="pix-copy-popup-timer-label" class="text-center text-[13px] font-bold text-emerald-900">Tempo para você pagar</p>
-                        <p id="pix-copy-popup-timer" class="text-center text-5xl font-black text-emerald-700 leading-none my-2 tabular-nums">03:00</p>
-                        <div class="h-3 w-full rounded-full bg-gray-200 overflow-hidden">
+                    <!-- TEMPO RESTANTE -->
+                    <div id="pix-copy-popup-timer-box" class="rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2.5">
+                        <div class="flex items-center justify-between gap-2">
+                            <p id="pix-copy-popup-timer-label" class="text-[13px] font-bold text-emerald-900 leading-tight">Tempo para pagar</p>
+                            <p id="pix-copy-popup-timer" class="text-4xl font-black text-emerald-700 leading-none tabular-nums">03:00</p>
+                        </div>
+                        <div class="mt-2 h-2.5 w-full rounded-full bg-gray-200 overflow-hidden">
                             <div id="pix-copy-popup-timer-bar" class="h-full bg-emerald-500 rounded-full transition-all duration-1000 ease-linear" style="width:100%"></div>
                         </div>
-                        <p id="pix-copy-popup-timer-hint" class="text-center text-[13px] text-emerald-900 mt-2 leading-snug">A internet está liberada por <strong>3 minutos</strong> só para você abrir o banco e pagar.</p>
+                        <p id="pix-copy-popup-timer-hint" class="hidden text-center text-[13px] font-bold text-red-900 mt-2 leading-snug"></p>
                     </div>
 
-                    <div id="pix-copy-popup-step2" class="mt-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="flex-1 h-px bg-gray-200"></div>
-                            <span class="text-[12px] text-gray-500 font-bold tracking-wide">FAÇA AGORA</span>
-                            <div class="flex-1 h-px bg-gray-200"></div>
-                        </div>
-
-                        <ol id="pix-copy-popup-steps" class="space-y-3">
-                            <li class="flex gap-3 items-start">
-                                <span class="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-600 text-white font-black text-base flex items-center justify-center">1</span>
-                                <p class="text-[15px] text-gray-800 leading-snug pt-1">Saia desta tela e abra o <strong>aplicativo do seu banco</strong></p>
+                    <div id="pix-copy-popup-step2">
+                        <ol id="pix-copy-popup-steps" class="list-none mt-3 space-y-2">
+                            <li class="flex gap-2.5 items-center">
+                                <span class="flex-shrink-0 w-7 h-7 rounded-full bg-emerald-600 text-white font-black text-[13px] flex items-center justify-center">1</span>
+                                <p class="text-[15px] text-gray-800 leading-tight">Abra o <strong>app do seu banco</strong></p>
                             </li>
-                            <li class="flex gap-3 items-start">
-                                <span class="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-600 text-white font-black text-base flex items-center justify-center">2</span>
-                                <p class="text-[15px] text-gray-800 leading-snug pt-1">Toque em <strong>PIX</strong> e depois em <strong>“Pix Copia e Cola”</strong></p>
+                            <li class="flex gap-2.5 items-center">
+                                <span class="flex-shrink-0 w-7 h-7 rounded-full bg-emerald-600 text-white font-black text-[13px] flex items-center justify-center">2</span>
+                                <p class="text-[15px] text-gray-800 leading-tight">Toque em <strong>PIX</strong> → <strong>Pix Copia e Cola</strong></p>
                             </li>
-                            <li class="flex gap-3 items-start">
-                                <span class="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-600 text-white font-black text-base flex items-center justify-center">3</span>
-                                <p class="text-[15px] text-gray-800 leading-snug pt-1">Segure o dedo no campo até aparecer <strong>“Colar”</strong> e toque nele</p>
+                            <li class="flex gap-2.5 items-center">
+                                <span class="flex-shrink-0 w-7 h-7 rounded-full bg-emerald-600 text-white font-black text-[13px] flex items-center justify-center">3</span>
+                                <p class="text-[15px] text-gray-800 leading-tight">Segure o dedo no campo e toque em <strong>Colar</strong></p>
                             </li>
-                            <li class="flex gap-3 items-start">
-                                <span class="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-600 text-white font-black text-base flex items-center justify-center">4</span>
-                                <p class="text-[15px] text-gray-800 leading-snug pt-1"><strong>Confirme o pagamento</strong> e volte para esta tela</p>
+                            <li class="flex gap-2.5 items-center">
+                                <span class="flex-shrink-0 w-7 h-7 rounded-full bg-emerald-600 text-white font-black text-[13px] flex items-center justify-center">4</span>
+                                <p class="text-[15px] text-gray-800 leading-tight"><strong>Confirme o pagamento</strong></p>
                             </li>
                         </ol>
 
-                        <div id="pix-copy-popup-hint" class="mt-4 bg-emerald-50 border border-emerald-300 rounded-xl p-3">
-                            <p class="text-emerald-900 font-bold text-[14px]">Não precisa digitar nada. O código já está copiado no seu celular.</p>
-                        </div>
-
-                        <div class="flex items-center justify-center gap-2 py-3 mt-1">
+                        <div class="flex items-center justify-center gap-1.5 mt-3">
                             <div class="flex gap-1">
-                                <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                                <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" style="animation-delay:0.2s"></div>
-                                <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" style="animation-delay:0.4s"></div>
+                                <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
+                                <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" style="animation-delay:0.2s"></div>
+                                <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" style="animation-delay:0.4s"></div>
                             </div>
-                            <span class="text-[13px] text-gray-500 text-center leading-snug">Estamos conferindo seu pagamento. Quando cair, o WiFi libera sozinho.</span>
+                            <span id="pix-copy-popup-status" class="text-[12px] text-gray-500 leading-tight">O WiFi libera sozinho quando o PIX cair</span>
                         </div>
                     </div>
 
-                    <button type="button" id="pix-copy-popup-ok" class="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[16px] font-bold py-4 rounded-xl shadow-md">
-                        Entendi, vou pagar agora
+                    <button type="button" id="pix-copy-popup-ok" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[16px] font-bold py-3.5 rounded-xl shadow-md">
+                        Entendi, vou pagar
                     </button>
-                    <button type="button" id="pix-copy-popup-recopy" class="mt-2 w-full text-[14px] font-semibold text-gray-500 hover:text-gray-700 py-2 underline">
+                    <button type="button" id="pix-copy-popup-recopy" class="mt-1.5 w-full text-[13px] font-semibold text-gray-500 hover:text-gray-700 py-1.5 underline">
                         Copiar o código de novo
                     </button>
                 </div>
@@ -1975,85 +1964,69 @@ class WiFiPortal {
         const title = overlay.querySelector('#pix-copy-popup-title');
         const text = overlay.querySelector('#pix-copy-popup-text');
         const step2 = overlay.querySelector('#pix-copy-popup-step2');
-        const hint = overlay.querySelector('#pix-copy-popup-hint');
         const timerBox = overlay.querySelector('#pix-copy-popup-timer-box');
         const timerLabel = overlay.querySelector('#pix-copy-popup-timer-label');
-        const timerHint = overlay.querySelector('#pix-copy-popup-timer-hint');
         const steps = overlay.querySelector('#pix-copy-popup-steps');
         const okBtn = overlay.querySelector('#pix-copy-popup-ok');
+        const status = overlay.querySelector('#pix-copy-popup-status');
 
         // Passo 1 muda quando o usuário precisa ligar o 4G pra pagar
         const step1 = steps?.querySelector('li:first-child p');
-        const step1Default = 'Saia desta tela e abra o <strong>aplicativo do seu banco</strong>';
-        const step1With4G = 'Ligue os <strong>dados móveis (4G)</strong> e abra o <strong>aplicativo do seu banco</strong>';
+        const step1Default = 'Abra o <strong>app do seu banco</strong>';
+        const step1With4G = 'Ligue o <strong>4G</strong> e abra o <strong>app do banco</strong>';
+
+        const btnBase = 'mt-3 w-full text-white text-[16px] font-bold py-3.5 rounded-xl shadow-md';
 
         if (mode === 'limit') {
-            icon.className = 'w-16 h-16 rounded-full bg-red-500 flex items-center justify-center shadow-lg';
-            icon.innerHTML = '<span class="text-white text-3xl font-black">!</span>';
-            title.className = 'text-center text-xl font-extrabold text-red-800 leading-tight';
-            title.textContent = 'Código copiado — ligue o 4G para pagar';
-            text.innerHTML = 'Você já usou as <strong>2 liberações de WiFi desta hora</strong>. Para pagar, ligue os dados móveis do celular (4G) por alguns minutos.';
-            hint.className = 'mt-4 bg-red-50 border border-red-300 rounded-xl p-3';
-            hint.innerHTML = '<p class="text-red-900 font-bold text-[14px]">Sem o 4G ligado, o app do banco não vai abrir. Depois de pagar, você pode desligar de novo.</p>';
+            icon.className = 'flex-shrink-0 w-10 h-10 rounded-full bg-red-500 flex items-center justify-center shadow';
+            icon.innerHTML = '<span class="text-white text-xl font-black">!</span>';
+            title.className = 'text-[17px] font-extrabold text-red-800 leading-tight';
+            title.textContent = 'Ligue o 4G para pagar';
+            text.className = 'text-[13px] text-gray-700 mb-3 leading-snug';
+            text.innerHTML = 'Você já usou as 2 liberações de WiFi desta hora.';
+            text.classList.remove('hidden');
             if (step1) step1.innerHTML = step1With4G;
-            timerBox.className = 'mt-4 rounded-2xl border-2 border-red-300 bg-red-50 p-4';
-            timerLabel.className = 'text-center text-[13px] font-bold text-red-900';
-            timerLabel.textContent = 'Tempo para pagar este PIX';
-            timerHint.className = 'text-center text-[13px] text-red-900 mt-2 leading-snug';
-            timerHint.innerHTML = 'Depois desse tempo o código expira e você precisa gerar outro.';
-            okBtn.className = 'w-full bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-[16px] font-bold py-4 rounded-xl shadow-md';
-            step2.classList.remove('hidden');
+            timerBox.className = 'rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2.5';
+            timerLabel.className = 'text-[13px] font-bold text-red-900 leading-tight';
+            okBtn.className = `${btnBase} bg-red-600 hover:bg-red-700 active:bg-red-800`;
         } else if (mode === 'error' || mode === 'blocked') {
-            icon.className = 'w-16 h-16 rounded-full bg-amber-500 flex items-center justify-center shadow-lg';
-            icon.innerHTML = '<span class="text-white text-3xl font-black">!</span>';
-            title.className = 'text-center text-xl font-extrabold text-amber-900 leading-tight';
-            title.textContent = 'Código copiado — pode ser preciso ligar o 4G';
-            text.innerHTML = options.message
-                || 'Não conseguimos liberar o WiFi temporário agora. Se o app do banco não abrir, ligue os <strong>dados móveis (4G)</strong> só para pagar.';
-            hint.className = 'mt-4 bg-amber-50 border border-amber-300 rounded-xl p-3';
-            hint.innerHTML = '<p class="text-amber-900 font-bold text-[14px]">O código já está copiado. É só colar no banco — não precisa digitar nada.</p>';
+            icon.className = 'flex-shrink-0 w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center shadow';
+            icon.innerHTML = '<span class="text-white text-xl font-black">!</span>';
+            title.className = 'text-[17px] font-extrabold text-amber-900 leading-tight';
+            title.textContent = 'Código copiado';
+            text.className = 'text-[13px] text-gray-700 mb-3 leading-snug';
+            text.innerHTML = options.message || 'Se o app do banco não abrir, ligue o <strong>4G</strong> só para pagar.';
+            text.classList.remove('hidden');
             if (step1) step1.innerHTML = step1With4G;
-            timerBox.className = 'mt-4 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4';
-            timerLabel.className = 'text-center text-[13px] font-bold text-amber-900';
-            timerLabel.textContent = 'Tempo para pagar este PIX';
-            timerHint.className = 'text-center text-[13px] text-amber-900 mt-2 leading-snug';
-            timerHint.innerHTML = 'Depois desse tempo o código expira e você precisa gerar outro.';
-            okBtn.className = 'w-full bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-[16px] font-bold py-4 rounded-xl shadow-md';
-            step2.classList.remove('hidden');
+            timerBox.className = 'rounded-xl border-2 border-amber-300 bg-amber-50 px-3 py-2.5';
+            timerLabel.className = 'text-[13px] font-bold text-amber-900 leading-tight';
+            okBtn.className = `${btnBase} bg-amber-600 hover:bg-amber-700 active:bg-amber-800`;
         } else if (mode === 'copied' || mode === 'checking') {
-            icon.className = 'w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center shadow-lg';
-            icon.innerHTML = '<svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
-            title.className = 'text-center text-xl font-extrabold text-blue-800 leading-tight';
+            icon.className = 'flex-shrink-0 w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center shadow';
+            icon.innerHTML = '<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
+            title.className = 'text-[17px] font-extrabold text-blue-800 leading-tight';
             title.textContent = 'Código PIX copiado!';
-            text.innerHTML = 'Já pode abrir o app do banco e colar o código. Estamos liberando a internet para você pagar...';
-            hint.className = 'mt-4 bg-blue-50 border border-blue-300 rounded-xl p-3';
-            hint.innerHTML = '<p class="text-blue-900 font-bold text-[14px]">Não precisa digitar nada. O código já está copiado no seu celular.</p>';
+            text.classList.add('hidden');
             if (step1) step1.innerHTML = step1Default;
-            timerBox.className = 'mt-4 rounded-2xl border-2 border-blue-300 bg-blue-50 p-4';
-            timerLabel.className = 'text-center text-[13px] font-bold text-blue-900';
-            timerLabel.textContent = 'Tempo para você pagar';
-            timerHint.className = 'text-center text-[13px] text-blue-900 mt-2 leading-snug';
-            timerHint.innerHTML = 'Use esse tempo para abrir o banco e colar o código.';
-            okBtn.className = 'w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-[16px] font-bold py-4 rounded-xl shadow-md';
-            step2.classList.remove('hidden');
+            timerBox.className = 'rounded-xl border-2 border-blue-300 bg-blue-50 px-3 py-2.5';
+            timerLabel.className = 'text-[13px] font-bold text-blue-900 leading-tight';
+            if (status) status.textContent = 'Liberando a internet para você pagar...';
+            okBtn.className = `${btnBase} bg-blue-600 hover:bg-blue-700 active:bg-blue-800`;
         } else {
-            const extra = this.remainingBypassLabel(options.remaining);
-            icon.className = 'w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg';
-            icon.innerHTML = '<svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
-            title.className = 'text-center text-xl font-extrabold text-emerald-800 leading-tight';
+            icon.className = 'flex-shrink-0 w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shadow';
+            icon.innerHTML = '<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
+            title.className = 'text-[17px] font-extrabold text-emerald-800 leading-tight';
             title.textContent = 'Código PIX copiado!';
-            text.innerHTML = `Liberamos a internet por <strong>3 minutos</strong> para você abrir o banco e pagar. Assim que o PIX cair, o WiFi libera sozinho.${extra}`;
-            hint.className = 'mt-4 bg-emerald-50 border border-emerald-300 rounded-xl p-3';
-            hint.innerHTML = '<p class="text-emerald-900 font-bold text-[14px]">Não precisa digitar nada. O código já está copiado no seu celular.</p>';
+            text.classList.add('hidden');
             if (step1) step1.innerHTML = step1Default;
-            timerBox.className = 'mt-4 rounded-2xl border-2 border-emerald-300 bg-emerald-50 p-4';
-            timerLabel.className = 'text-center text-[13px] font-bold text-emerald-900';
-            timerLabel.textContent = 'Tempo para você pagar';
-            timerHint.className = 'text-center text-[13px] text-emerald-900 mt-2 leading-snug';
-            timerHint.innerHTML = 'A internet está liberada por <strong>3 minutos</strong> só para você abrir o banco e pagar.';
-            okBtn.className = 'w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[16px] font-bold py-4 rounded-xl shadow-md';
-            step2.classList.remove('hidden');
+            timerBox.className = 'rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2.5';
+            timerLabel.className = 'text-[13px] font-bold text-emerald-900 leading-tight';
+            if (status) status.textContent = 'O WiFi libera sozinho quando o PIX cair';
+            okBtn.className = `${btnBase} bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800`;
         }
+
+        timerLabel.textContent = 'Tempo para pagar';
+        step2.classList.remove('hidden');
 
         this._popupTimerTheme = (mode === 'limit') ? 'red'
             : (mode === 'error' || mode === 'blocked') ? 'amber'
@@ -2064,9 +2037,6 @@ class WiFiPortal {
         // depois de pintar tudo de vermelho nos últimos 30 segundos.
         timerBox.dataset.defaultClass = timerBox.className;
         timerLabel.dataset.defaultClass = timerLabel.className;
-        timerLabel.dataset.defaultText = timerLabel.textContent;
-        timerHint.dataset.defaultClass = timerHint.className;
-        timerHint.dataset.defaultHtml = timerHint.innerHTML;
 
         this.updatePixTimerDisplay();
         overlay.classList.remove('hidden');
