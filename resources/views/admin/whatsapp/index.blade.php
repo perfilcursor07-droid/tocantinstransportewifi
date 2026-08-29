@@ -10,6 +10,12 @@
 @section('page-title', 'Módulo WhatsApp')
 
 @section('content')
+    @if(session('success'))
+        <div class="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+        <div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">{{ session('error') }}</div>
+    @endif
 <div class="space-y-6">
     
     <!-- Status da Conexão -->
@@ -105,12 +111,27 @@
                     Pagamentos Pendentes ({{ count($pendingPayments) }})
                     <span class="text-sm font-normal text-gray-500">há mais de {{ $settings['pending_minutes'] }} minutos</span>
                 </h2>
-                <button id="btn-send-all" onclick="sendToAllPending()" class="bg-gradient-to-r from-tocantins-green to-green-600 text-white py-2 px-4 rounded-lg font-medium hover:from-green-600 hover:to-green-700 transition-all duration-300 flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed" {{ !$settings['is_connected'] ? 'disabled' : '' }}>
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                    </svg>
-                    Enviar para Todos
-                </button>
+                <div class="flex items-center gap-2">
+                    @if(auth()->user()?->role === 'admin' && count($pendingPayments) > 0)
+                    <form method="POST" action="{{ route('admin.whatsapp.pending-payments.bulk-destroy') }}"
+                          onsubmit="return confirm('Excluir todos os {{ count($pendingPayments) }} pagamentos pendentes desta lista?');">
+                        @csrf
+                        @method('DELETE')
+                        @foreach($pendingPayments as $pending)
+                            <input type="hidden" name="payment_ids[]" value="{{ $pending->id }}">
+                        @endforeach
+                        <button type="submit" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 py-2 px-3 rounded-lg font-medium text-sm">
+                            Excluir pendentes
+                        </button>
+                    </form>
+                    @endif
+                    <button id="btn-send-all" onclick="sendToAllPending()" class="bg-gradient-to-r from-tocantins-green to-green-600 text-white py-2 px-4 rounded-lg font-medium hover:from-green-600 hover:to-green-700 transition-all duration-300 flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed" {{ !$settings['is_connected'] ? 'disabled' : '' }}>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                        Enviar para Todos
+                    </button>
+                </div>
             </div>
 
             @if(count($pendingPayments) > 0)
@@ -142,9 +163,21 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-center">
-                                <button onclick="sendSingleMessage('{{ $payment->user->phone }}', {{ $payment->user_id }}, {{ $payment->id }})" class="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50" {{ !$settings['is_connected'] ? 'disabled' : '' }}>
-                                    Enviar
-                                </button>
+                                <div class="inline-flex items-center gap-1.5">
+                                    <button onclick="sendSingleMessage('{{ $payment->user->phone }}', {{ $payment->user_id }}, {{ $payment->id }})" class="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50" {{ !$settings['is_connected'] ? 'disabled' : '' }}>
+                                        Enviar
+                                    </button>
+                                    @if(auth()->user()?->role === 'admin')
+                                    <form method="POST" action="{{ route('admin.whatsapp.pending-payments.destroy', $payment) }}"
+                                          onsubmit="return confirm('Excluir o pagamento pendente #{{ $payment->id }}?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="bg-red-50 hover:bg-red-100 text-red-700 px-3 py-1 rounded-lg text-xs font-medium">
+                                            Excluir
+                                        </button>
+                                    </form>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                         @endforeach

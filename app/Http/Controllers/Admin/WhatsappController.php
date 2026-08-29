@@ -713,4 +713,37 @@ HTML;
 
         return response()->json(['success' => true]);
     }
+
+    public function destroyPendingPayment(Payment $payment)
+    {
+        if (auth()->user()?->role !== 'admin') {
+            return back()->with('error', 'Apenas administradores podem excluir pagamentos.');
+        }
+
+        if ($payment->status !== 'pending') {
+            return back()->with('error', 'Só é possível excluir pagamentos pendentes.');
+        }
+
+        $payment->delete();
+
+        return back()->with('success', "Pagamento #{$payment->id} excluído.");
+    }
+
+    public function destroyPendingPayments(Request $request)
+    {
+        if (auth()->user()?->role !== 'admin') {
+            return back()->with('error', 'Apenas administradores podem excluir pagamentos.');
+        }
+
+        $validated = $request->validate([
+            'payment_ids' => ['required', 'array', 'min:1'],
+            'payment_ids.*' => ['integer', 'exists:payments,id'],
+        ]);
+
+        $deleted = Payment::whereIn('id', $validated['payment_ids'])
+            ->where('status', 'pending')
+            ->delete();
+
+        return back()->with('success', "{$deleted} pagamento(s) pendente(s) excluído(s).");
+    }
 }

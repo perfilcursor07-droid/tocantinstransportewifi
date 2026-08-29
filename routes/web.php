@@ -202,6 +202,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
             Route::post('/send', [WhatsappController::class, 'sendMessage'])->name('send');
             Route::post('/send-pending', [WhatsappController::class, 'sendToPendingPayments'])->name('send-pending');
             Route::post('/resend/{id}', [WhatsappController::class, 'resendMessage'])->name('resend');
+            Route::delete('/pending-payments', [WhatsappController::class, 'destroyPendingPayments'])->name('pending-payments.bulk-destroy');
+            Route::delete('/pending-payments/{payment}', [WhatsappController::class, 'destroyPendingPayment'])->name('pending-payments.destroy');
         });
 
         // Pedidos de motoristas (vouchers)
