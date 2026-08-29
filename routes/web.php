@@ -133,6 +133,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
         Route::post('/{id}/reply', [App\Http\Controllers\Admin\ChatController::class, 'reply'])->name('reply')->where('id', '[0-9]+');
         Route::post('/{id}/close', [App\Http\Controllers\Admin\ChatController::class, 'close'])->name('close')->where('id', '[0-9]+');
         Route::delete('/{id}', [App\Http\Controllers\Admin\ChatController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
+        Route::delete('/{id}/user', [App\Http\Controllers\Admin\ChatController::class, 'deleteLinkedUser'])->name('delete-user')->where('id', '[0-9]+');
         Route::get('/{id}/messages', [App\Http\Controllers\Admin\ChatController::class, 'getMessages'])->name('messages')->where('id', '[0-9]+');
         // 📡 Admin gera link de teste de conexão a partir do chat
         Route::post('/{id}/probe', [ConnectivityProbeController::class, 'createFromChat'])->name('probe.create')->where('id', '[0-9]+');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ChatConversation;
 use App\Models\ChatMessage;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -89,6 +90,37 @@ class ChatController extends Controller
         $conversation->delete();
 
         return redirect()->route('admin.chat.index')->with('success', 'Conversa excluída!');
+    }
+
+    /**
+     * Exclui o cadastro do usuário vinculado (mesmo de /admin/users)
+     * para permitir cadastrar de novo.
+     */
+    public function deleteLinkedUser($id)
+    {
+        if (Auth::user()?->role !== 'admin') {
+            return back()->with('error', 'Apenas administradores podem excluir o cadastro do usuário.');
+        }
+
+        $conversation = ChatConversation::findOrFail($id);
+        $user = $conversation->linked_user;
+
+        if (!$user) {
+            return back()->with('error', 'Nenhum cadastro encontrado para este visitante.');
+        }
+
+        if (in_array($user->role, ['admin', 'manager'], true)) {
+            return back()->with('error', 'Não é possível excluir usuários administrativos.');
+        }
+
+        $user->sessions()->where('session_status', 'active')->update([
+            'session_status' => 'ended',
+            'ended_at' => now(),
+        ]);
+
+        $user->delete();
+
+        return back()->with('success', 'Cadastro excluído. O passageiro pode se cadastrar de novo no portal.');
     }
 
     public function getMessages($id)

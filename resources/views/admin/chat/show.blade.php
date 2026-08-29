@@ -11,6 +11,12 @@
 @endsection
 
 @section('content')
+    @if(session('success'))
+        <div class="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+        <div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">{{ session('error') }}</div>
+    @endif
 <div class="flex flex-col lg:flex-row gap-4 lg:gap-6 h-auto lg:h-[calc(100vh-160px)]">
     <!-- Área Principal do Chat -->
     <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-xl overflow-hidden min-h-[60vh] lg:min-h-0">
@@ -558,6 +564,16 @@
                                     </div>
                                 @endif
                             </div>
+                            @if(auth()->user()?->role === 'admin')
+                            <form action="{{ route('admin.chat.delete-user', $conversation->id) }}" method="POST" class="mt-3"
+                                  onsubmit="return confirm('Excluir o cadastro deste usuário em /admin/users?\nEle poderá se cadastrar de novo no portal.');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="w-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 px-3 py-2 rounded-lg transition-colors">
+                                    Excluir cadastro do usuário
+                                </button>
+                            </form>
+                            @endif
                         </div>
                     </div>
                 @elseif($conversation->visitor_mac || $conversation->visitor_phone)
