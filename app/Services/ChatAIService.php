@@ -18,6 +18,15 @@ class ChatAIService
 
     public const ACTIONS = ['reply', 'request_probe', 'request_receipt', 'request_mac', 'escalate'];
 
+    /** Afirmação de que pagou. */
+    private const RE_PAID_CLAIM = '/\b(paguei|fiz\s*o\s*pix|pagamento\s*feito|enviei\s*o\s*comprovante|acabei\s*de\s*pagar)\b/u';
+
+    /** Negação explícita de pagamento — precisa vencer o RE_PAID_CLAIM. */
+    private const RE_PAY_DENIAL = '/((ainda\s+)?n[aã]o\s+(cheguei\s+a\s+)?paguei|(ainda\s+)?nao\s+(cheguei\s+a\s+)?paguei|n[aã]o\s+fiz\s+o\s+pix|nao\s+fiz\s+o\s+pix|n[aã]o\s+paguei\s+nada|nunca\s+paguei|n[aã]o\s+cheguei\s+a\s+pagar|sem\s+ter\s+pago|n[aã]o\s+tenho\s+pagamento)/u';
+
+    /** Quer pagar agora (nunca pagou) — deve receber passo a passo, nunca pedido de comprovante. */
+    private const RE_WANTS_TO_PAY = '/(quero\s+pagar|queria\s+pagar|vou\s+pagar|preciso\s+pagar|gostaria\s+de\s+pagar|como\s+(que\s+)?(eu\s+)?pago|como\s+(eu\s+)?fa[cç]o\s+p(ra|ara)\s+pagar|onde\s+(eu\s+)?pago|quero\s+comprar|quero\s+contratar|me\s+ensina\s+a\s+pagar|como\s+pagar)/u';
+
     public function isEnabled(): bool
     {
         return (bool) config('services.together.enabled')
@@ -104,6 +113,7 @@ class ChatAIService
             }
 
             $decision = $this->guardDeviceAnswerRequestMac($conv, $decision);
+            $decision = $this->guardWantsToPayNeverAskReceipt($conv, $decision);
             $decision = $this->guardPaidWithoutReceipt($conv, $decision);
             $decision = $this->guardPaymentHelpWithoutEscalate($conv, $decision);
             $decision = $this->guardConfusionWithoutEscalate($conv, $decision);
@@ -188,6 +198,13 @@ Você é a **Ana**, atendente de suporte da **Tocantins Transporte WiFi**, servi
 # REGRA DO PORTAL — SEMPRE CITE O SITE
 Sempre que orientar pagamento, acesso ao portal ou "abrir o navegador", inclua **www.tocantinstransportewifi.com.br** (ou {$portalHost}).
 Nunca diga só "abra o navegador" ou "pague pelo portal" sem informar o site.
+
+# REGRA CRÍTICA — LEIA A NEGAÇÃO ANTES DE PEDIR COMPROVANTE
+"Não paguei", "ainda não paguei", "quero pagar", "como eu pago" NÃO é afirmação de pagamento — é o contrário.
+- Se o visitante disser que NÃO pagou ou que QUER pagar: **PROIBIDO** usar request_receipt, request_probe ou escalate. Use **reply** com o PASSO A PASSO DE PAGAMENTO.
+- Vale mesmo que ele tenha dito "paguei" antes: a mensagem MAIS RECENTE manda. Se ele se corrigiu ("na verdade não paguei"), esqueça a afirmação antiga e ensine a pagar.
+- Nunca responda a "não paguei" mandando enviar comprovante. Isso irrita o cliente e é o pior erro possível.
+- Nunca repita a mesma mensagem duas vezes seguidas. Se o visitante repetir a fala dele, é sinal de que você não entendeu — mude a resposta e trate o que ele realmente disse.
 
 # REGRA CRÍTICA — ESQUECER A REDE
 - **ANTES de pagar / SEM CADASTRO / EXPIRADO:** PODE pedir pra *esquecer a rede* TocantinsTransporteWiFi e conectar de novo — isso ajuda a abrir o captive portal automaticamente.
@@ -274,7 +291,9 @@ O sistema não vê pagamento ativo, mas o usuário *afirma* que pagou.
 
 3. **Depois que o comprovante chegar:** o sistema já avisa o atendente humano. Se o usuário continuar falando sem enviar, lembre de usar o botão. Só **escalate** se ele pedir atendente ou se já enviou o comprovante e ainda precisa de humano.
 
-4. **Se disser que NÃO pagou / se confundiu:** use o **PASSO A PASSO DE PAGAMENTO**.
+4. **Se disser que NÃO pagou / se confundiu / quer pagar:** ABANDONE este cenário na hora. Nada de comprovante. Use **reply** com o **PASSO A PASSO DE PAGAMENTO** e um reconhecimento curto, tipo:
+   "Ah, entendi! Então é só fazer o pagamento que libera na hora. Faz assim: ..."
+   Se você já mandou o passo a passo nesta conversa, NÃO repita igual — pergunte onde ele parou e mande o caminho direto do portal.
 
 ## CENÁRIO C: Status = "SEM CADASTRO" ou "EXPIRADO" + usuário NÃO afirma ter pago
 (Casos tipo "Wifi", "quero wifi", "Conexão do celular", "Não estou conseguindo", "sem internet", "como pago".)
@@ -661,9 +680,32 @@ PROMPT;
         }
 
         if ($recentRequest) {
+            // Ele disse que não pagou depois do pedido: era engano nosso, ensina a pagar.
+            if ($this->visitorDeniesPayment($conv)) {
+                Log::info('🤖 Comprovante pedido por engano — visitante não pagou', ['conversation_id' => $conv->id]);
+                return $this->actionReply($conv, $this->paymentStepsMessage());
+            }
+
+            // Não repete o mesmo lembrete pra sempre: no segundo, chama o humano.
+            $reminders = ChatMessage::where('conversation_id', $conv->id)
+                ->where('sender_type', 'admin')
+                ->whereNull('admin_id')
+                ->where('created_at', '>=', now()->subMinutes(30))
+                ->where('message', 'like', '%comprovante%')
+                ->where('type', 'text')
+                ->count();
+
+            if ($reminders >= 1) {
+                return $this->actionEscalate(
+                    $conv,
+                    'Beleza, vou chamar meu colega pra conferir seu pagamento direto no sistema. Aguarda só um minutinho!',
+                    'não enviou comprovante após lembrete'
+                );
+            }
+
             return $this->actionReply(
                 $conv,
-                'O botão pra enviar o comprovante do PIX já está na conversa acima. Manda a foto/print por lá que eu passo pro meu colega conferir.'
+                "O botão pra enviar o comprovante do PIX está logo acima na conversa. Se preferir, me diga o horário do PIX e o nome de quem pagou que eu procuro aqui."
             );
         }
 
@@ -847,6 +889,49 @@ PROMPT;
         return in_array($linked->status, ['connected', 'active', 'temp_bypass'], true)
             && $linked->expires_at
             && $linked->expires_at->isFuture();
+    }
+
+    /**
+     * Visitante disse que NÃO pagou (ou que quer pagar): ensinar a pagar.
+     * Nunca pedir comprovante, nunca rodar probe, nunca escalar por isso.
+     */
+    private function guardWantsToPayNeverAskReceipt(ChatConversation $conv, array $decision): array
+    {
+        if (!$this->visitorDeniesPayment($conv)) {
+            return $decision;
+        }
+
+        if ($this->visitorAskedForHuman($conv) || $this->visitorHasActiveAccess($conv)) {
+            return $decision;
+        }
+
+        $action = $decision['action'] ?? 'reply';
+        $message = mb_strtolower((string) ($decision['message'] ?? ''));
+
+        $wrongAction = in_array($action, ['request_receipt', 'request_probe', 'escalate'], true);
+        $insistsOnReceipt = str_contains($message, 'comprovante');
+
+        if (!$wrongAction && !$insistsOnReceipt) {
+            return $decision;
+        }
+
+        // Já ensinamos a pagar e ele continua dizendo que quer pagar → deixa a IA seguir
+        // (evita repetir o mesmo texto pra sempre).
+        if ($this->alreadySentPaymentSteps($conv) && $this->alreadySentPaymentFollowup($conv)) {
+            return $decision;
+        }
+
+        Log::info('🤖 Guard: visitante NÃO pagou — ensinando a pagar em vez de pedir comprovante', [
+            'conversation_id' => $conv->id,
+            'was_action' => $action,
+        ]);
+
+        return [
+            'action' => 'reply',
+            'message' => $this->alreadySentPaymentSteps($conv)
+                ? $this->paymentFollowupMessage()
+                : $this->paymentStepsMessage(),
+        ];
     }
 
     /**
@@ -1144,6 +1229,15 @@ PROMPT;
             ];
         }
 
+        if ($this->visitorDeniesPayment($conv) && !$this->visitorHasActiveAccess($conv)) {
+            return [
+                'action' => 'reply',
+                'message' => $this->alreadySentPaymentSteps($conv)
+                    ? $this->paymentFollowupMessage()
+                    : $this->paymentStepsMessage(),
+            ];
+        }
+
         if ($this->visitorNeedsGuidedHelp($conv)) {
             return [
                 'action' => 'reply',
@@ -1206,6 +1300,27 @@ PROMPT;
             . "3) Escolha o plano, pague no PIX e aguarde até 15 segundos — libera sozinho.\n\n"
             . "4) Se nada disso funcionar, peça ajuda ao motorista.\n\n"
             . "Me fala em qual passo você parou!";
+    }
+
+    /**
+     * Segunda mensagem de ajuda pra pagar — nunca repete o passo a passo igual,
+     * pergunta onde travou e já dá o caminho do portal.
+     */
+    private function paymentFollowupMessage(): string
+    {
+        return "Sem problema, vamos pagar agora!\n\n"
+            . "No celular, deixa só o WiFi TocantinsTransporteWiFi ligado e o 4G desligado.\n\n"
+            . "Abre o navegador em www.tocantinstransportewifi.com.br, escolhe o plano Viagem Completa e paga no PIX. Libera sozinho em uns 15 segundos.\n\n"
+            . "Me fala o que aparece na sua tela agora que eu te guio daí.";
+    }
+
+    private function alreadySentPaymentFollowup(ChatConversation $conv): bool
+    {
+        return ChatMessage::where('conversation_id', $conv->id)
+            ->where('sender_type', 'admin')
+            ->whereNull('admin_id')
+            ->where('message', 'like', '%Sem problema, vamos pagar agora%')
+            ->exists();
     }
 
     private function alreadySentPaymentSteps(ChatConversation $conv): bool
@@ -1275,19 +1390,46 @@ PROMPT;
 
     private function visitorClaimsPaid(ChatConversation $conv): bool
     {
+        // Se ele acabou de negar ("não paguei") ou dizer que quer pagar,
+        // a afirmação antiga não vale mais — senão a IA fica pedindo comprovante de quem nunca pagou.
+        if ($this->visitorDeniesPayment($conv)) {
+            return false;
+        }
+
         $texts = ChatMessage::where('conversation_id', $conv->id)
             ->where('sender_type', 'visitor')
             ->orderByDesc('id')
             ->limit(8)
-            ->pluck('message')
-            ->implode(' ');
+            ->pluck('message');
 
-        $normalized = mb_strtolower($texts);
+        foreach ($texts as $text) {
+            $normalized = mb_strtolower((string) $text);
+            // Tira os trechos negados pra "não paguei" não contar como "paguei"
+            $normalized = preg_replace(self::RE_PAY_DENIAL, ' ', $normalized);
 
-        return (bool) preg_match(
-            '/\b(paguei|ja\s*paguei|já\s*paguei|fiz\s*o\s*pix|paguei\s*o\s*pix|pagamento\s*feito|enviei\s*o\s*comprovante)\b/u',
-            $normalized
-        );
+            if (preg_match(self::RE_PAID_CLAIM, $normalized)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Última mensagem do visitante nega o pagamento ou pede pra pagar.
+     * Quem diz "não paguei" / "quero pagar" precisa do PASSO A PASSO, nunca de comprovante.
+     */
+    private function visitorDeniesPayment(ChatConversation $conv): bool
+    {
+        $last = $this->lastVisitorMessage($conv);
+        if (!$last) {
+            return false;
+        }
+
+        $normalized = mb_strtolower($last);
+
+        return (bool) preg_match(self::RE_PAY_DENIAL, $normalized)
+            || (bool) preg_match(self::RE_WANTS_TO_PAY, $normalized);
     }
 
     private function visitorAskedForHuman(ChatConversation $conv): bool
