@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WiFi Tocantins — Assista a Copa na viagem</title>
+    <title>WiFi Tocantins — Internet no ônibus</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @php
         $forceLogin = config('wifi.mikrotik.force_login_redirect', false);
@@ -91,23 +91,6 @@
             border-width: 5px !important; border-color: #00A335 !important;
         }
         .hero-gradient { background: linear-gradient(160deg, #006B25 0%, #00A335 40%, #00C040 100%); }
-        .hero-copa {
-            background: linear-gradient(160deg, #004d1a 0%, #007A28 35%, #00A335 70%, #009c3b 100%);
-            position: relative; overflow: hidden;
-        }
-        .hero-copa::before {
-            content: '';
-            position: absolute; inset: 0;
-            background: repeating-linear-gradient(
-                -45deg,
-                transparent,
-                transparent 8px,
-                rgba(255,255,255,0.03) 8px,
-                rgba(255,255,255,0.03) 16px
-            );
-            pointer-events: none;
-        }
-        .hero-copa > * { position: relative; z-index: 1; }
         .price-pill {
             background: linear-gradient(135deg, #fef9c3 0%, #fde047 100%);
             color: #14532d;
@@ -394,25 +377,8 @@
 
     <div class="min-h-screen flex flex-col">
 
-        <!-- Header -->
-        <div class="hero-copa pt-4 pb-4 px-4 text-center">
-            <h1 class="text-white font-black text-xl leading-tight">WiFi no ônibus</h1>
-            <p class="text-white/85 text-[13px] mt-1 font-medium">Pague no PIX e navegue na hora · sem cadastro</p>
-            @php
-                $reviewAverage = $review_average ?? 0;
-                $reviewCount = $review_count ?? 0;
-                $passengersMonth = $passengers_30d ?? 0;
-            @endphp
-            <div class="flex items-center justify-center gap-2 mt-2 flex-wrap">
-                <span class="inline-flex items-center gap-1 bg-white/15 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">🛰️ Starlink 100+ Mbps</span>
-                @if($reviewCount >= 3)
-                <span class="inline-flex items-center gap-1 bg-white/15 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">⭐ {{ number_format($reviewAverage, 1, ',', '.') }} ({{ number_format($reviewCount, 0, ',', '.') }})</span>
-                @endif
-            </div>
-        </div>
-
         <!-- Conteudo Principal -->
-        <main class="flex-1 px-4 pt-2.5 pb-5 sm:pt-4 sm:pb-8">
+        <main class="flex-1 px-4 pt-4 pb-5 sm:pt-5 sm:pb-8">
             <div class="max-w-lg mx-auto space-y-2.5 sm:space-y-4">
 
                 <!-- Status de conexão: dinâmico — re-testa o WiFi do ônibus a cada 5s -->
@@ -522,7 +488,7 @@
                                 <span data-plan-radio class="h-4 w-4 rounded-full border-2 border-gray-300 bg-white flex-shrink-0 transition-all duration-200"></span>
                                 <div class="min-w-0 flex-1">
                                     <p class="text-sm font-bold text-ink leading-tight">{{ $session_duration_short ?? 1 }}h de WiFi</p>
-                                    <p class="text-[10px] text-muted">Ideal para 1 jogo</p>
+                                    <p class="text-[10px] text-muted">Ideal pra uma parada rápida</p>
                                 </div>
                                 <p data-plan-price-display class="text-base font-extrabold text-ink tracking-tight">R${{ number_format($wifi_price_short ?? 5.99, 2, ',', '.') }}</p>
                             </button>
@@ -532,12 +498,12 @@
                             <!-- Plano Viagem Completa (PRÉ-SELECIONADO) -->
                             <button type="button" data-plan-option data-plan-price="{{ $wifi_price_full ?? 6.99 }}" data-plan-duration="{{ $session_duration ?? 12 }}" data-plan-name="Viagem completa" data-plan-suffix="/ viagem" data-plan-default="true"
                                 class="wifi-plan-card plan-card-selected relative flex w-full rounded-xl border-2 border-green text-left transition-all duration-200 hover:shadow-hover focus:outline-none focus:ring-2 focus:ring-green/20">
-                                <span class="absolute -top-2 right-3 price-pill text-[8px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm z-10">Melhor p/ Conexão</span>
+                                <span class="absolute -top-2 right-3 price-pill text-[8px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm z-10">Mais escolhido</span>
                                 <div class="flex items-center gap-2.5 px-3 py-2.5">
                                     <span data-plan-radio class="h-4 w-4 rounded-full border-[4px] border-green bg-white flex-shrink-0 transition-all duration-200"></span>
                                     <div class="min-w-0 flex-1">
                                         <p class="text-[15px] font-extrabold text-ink leading-tight">Viagem completa</p>
-                                        <p class="text-[10px] text-green-dark font-medium">Todos os jogos até chegar</p>
+                                        <p class="text-[10px] text-green-dark font-medium">Internet até o destino</p>
                                         @if(($savings ?? 0) > 0)
                                         <p class="text-[9px] text-amber-700 font-semibold mt-0.5">Economize R${{ number_format($savings, 2, ',', '.') }}</p>
                                         @endif
@@ -1183,7 +1149,7 @@
                 </div>
                 <div class="bg-emerald-50 rounded-xl p-5 mb-5 text-center border border-emerald-100">
                     <p id="selected-plan-price" class="text-3xl font-extrabold text-emerald-700">R$6,99</p>
-                    <p id="selected-plan-name" class="text-sm text-emerald-600 mt-1">Viagem completa / ate o destino final</p>
+                    <p id="selected-plan-name" class="text-sm text-emerald-600 mt-1">Viagem completa / até o destino</p>
                 </div>
                 <button data-payment="pix" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md text-sm">
                     PAGAR AGORA

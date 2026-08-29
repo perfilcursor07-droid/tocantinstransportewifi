@@ -1173,12 +1173,11 @@ class WiFiPortal {
     }
 
     updatePixTimerDisplay(message) {
+        const value = message || this.formatCountdown(this.pixCountdownSeconds);
         const timerText = document.getElementById('pix-timer-text');
-        if (timerText && message) {
-            timerText.textContent = message;
-        } else if (timerText) {
-            timerText.textContent = this.formatCountdown(this.pixCountdownSeconds);
-        }
+        if (timerText) timerText.textContent = value;
+        const popupTimer = document.getElementById('pix-copy-popup-timer');
+        if (popupTimer) popupTimer.textContent = value;
     }
 
     updatePixStatusHint(message) {
@@ -1325,27 +1324,19 @@ class WiFiPortal {
                             </div>
 
                             
-                            ${!isMobile ? `
-                            <!-- QR Code (apenas desktop) — gerado localmente, sem depender de API externa -->
+                            <!-- QR Code (celular e desktop) — para pagar neste aparelho ou em outro -->
                             <div class="text-center mb-2">
                                 <div class="bg-white p-2 rounded-xl border-2 border-dashed border-emerald-300 inline-block shadow-sm">
                                     <div id="pix-qr-local" class="w-36 h-36 mx-auto flex items-center justify-center"></div>
                                 </div>
-                                <p class="text-gray-400 text-[10px] mt-1">No celular: copie o código. No computador: escaneie ou copie.</p>
+                                <p class="text-gray-400 text-[10px] mt-1">Pague neste celular (copie o código) ou escaneie o QR com outro aparelho.</p>
                             </div>
-                            
+
                             <div class="flex items-center gap-2 mb-2">
                                 <div class="flex-1 h-px bg-gray-200"></div>
-                                <span class="text-[10px] text-gray-400 font-medium">PASSO 1 — COPIE O CÓDIGO</span>
+                                <span class="text-[10px] ${isMobile ? 'text-blue-700 font-bold' : 'text-gray-400 font-medium'}">PASSO 1 — COPIE O CÓDIGO</span>
                                 <div class="flex-1 h-px bg-gray-200"></div>
                             </div>
-                            ` : `
-                            <div class="flex items-center gap-2 mb-2">
-                                <div class="flex-1 h-px bg-gray-200"></div>
-                                <span class="text-[10px] text-blue-700 font-bold">PASSO 1 — COPIE O CÓDIGO</span>
-                                <div class="flex-1 h-px bg-gray-200"></div>
-                            </div>
-                            `}
                             
                             <!-- Copia e Cola -->
                             <div class="bg-blue-50 rounded-xl p-2.5 mb-2 border border-blue-200">
@@ -1378,16 +1369,12 @@ class WiFiPortal {
                                 </div>
                             </div>
                             
-                            <!-- Timer + Já Paguei lado a lado no mobile, empilhado no desktop -->
-                            <div class="flex items-center gap-2 mb-2">
-                                <div class="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2.5 py-1.5 border flex-shrink-0">
+                            <!-- Timer da liberação temporária -->
+                            <div class="flex items-center justify-center mb-2">
+                                <div class="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2.5 py-1.5 border">
                                     <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                     <span id="pix-timer-text" class="text-xs font-bold text-gray-700">03:00</span>
                                 </div>
-                                <button id="btn-paid" class="flex-1 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white font-bold py-2.5 rounded-lg text-xs transition-all shadow-md flex items-center justify-center gap-1.5">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                    JÁ PAGUEI
-                                </button>
                             </div>
                             
                             <!-- Indicador de verificação automática -->
@@ -1547,28 +1534,19 @@ class WiFiPortal {
 
         // Event: Copiar código PIX
         document.getElementById('copy-pix-code')?.addEventListener('click', () => {
-            this.copyPixCode(data.qr_code.emv_string);
+            this.copyPixCode(data.qr_code.emv_string, { silent: true });
 
             // Liberação temporária de 3 min SÓ quando o usuário copia o código
-            // (não ao abrir o modal — evita gastar o limite de liberações à toa)
             this.detectAndBypass(data.payment_id);
+            this.syncAfterCopyHints();
+            this.showCopyPopupForBypass();
+
             const btn = document.getElementById('copy-pix-code');
             if (btn) {
                 btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> COPIADO!';
                 btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
                 btn.classList.add('bg-emerald-500');
 
-                const openBankArea = document.getElementById('open-bank-area');
-                const afterCopyHint = document.getElementById('after-copy-hint');
-                const limitCopyHint = document.getElementById('limit-copy-hint');
-                if (openBankArea) openBankArea.classList.remove('hidden');
-                if (this._bypassMode === 'limit') {
-                    if (limitCopyHint) limitCopyHint.classList.remove('hidden');
-                } else {
-                    if (afterCopyHint) afterCopyHint.classList.remove('hidden');
-                }
-
-                // 📧 Enviar email com código PIX (em background, não bloqueia)
                 fetch('/api/payment/pix/send-email', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.getCSRFToken() },
@@ -1638,6 +1616,7 @@ class WiFiPortal {
      */
     showPaymentConfirmed() {
         this.pixPaymentConfirmed = true;
+        this.hideCopyBypassPopup();
         this.stopPixCountdown();
         
         // Parar verificação automática e manual
@@ -1752,10 +1731,11 @@ class WiFiPortal {
     /**
      * Copia código PIX para a área de transferência
      */
-    async copyPixCode(code) {
+    async copyPixCode(code, options = {}) {
+        const silent = options.silent === true;
         try {
             await navigator.clipboard.writeText(code);
-            this.showSuccessMessage('Código PIX copiado! Cole no seu app de pagamento.');
+            if (!silent) this.showSuccessMessage('Código PIX copiado! Cole no seu app de pagamento.');
         } catch (error) {
             // Fallback para navegadores mais antigos
             const textArea = document.createElement('textarea');
@@ -1764,8 +1744,162 @@ class WiFiPortal {
             textArea.select();
             document.execCommand('copy');
             document.body.removeChild(textArea);
-            this.showSuccessMessage('Código PIX copiado!');
+            if (!silent) this.showSuccessMessage('Código PIX copiado!');
         }
+    }
+
+    remainingBypassLabel(remaining) {
+        if (remaining == null) return '';
+        if (remaining > 0) {
+            return ` (${remaining} liberação${remaining > 1 ? 'ões' : ''} restante${remaining > 1 ? 's' : ''} nesta hora).`;
+        }
+        return ' (última liberação desta hora).';
+    }
+
+    hideCopyBypassPopup() {
+        document.getElementById('pix-copy-popup')?.classList.add('hidden');
+    }
+
+    showCopyPopupForBypass() {
+        const mode = this._bypassMode;
+        if (mode === 'limit' || mode === 'blocked' || mode === 'error') {
+            this.showCopyBypassPopup(mode, {
+                remaining: this._bypassRemaining,
+                message: this._bypassMessage,
+            });
+            return;
+        }
+        if (mode === 'success') {
+            this.showCopyBypassPopup('success', { remaining: this._bypassRemaining });
+            return;
+        }
+        this.showCopyBypassPopup('copied');
+    }
+
+    syncAfterCopyHints() {
+        const openBankArea = document.getElementById('open-bank-area');
+        const afterCopyHint = document.getElementById('after-copy-hint');
+        const limitCopyHint = document.getElementById('limit-copy-hint');
+        if (openBankArea) openBankArea.classList.remove('hidden');
+
+        const limited = this._bypassMode === 'limit' || this._bypassMode === 'blocked';
+        if (limited) {
+            afterCopyHint?.classList.add('hidden');
+            limitCopyHint?.classList.remove('hidden');
+        } else if (this._bypassMode === 'success') {
+            limitCopyHint?.classList.add('hidden');
+            afterCopyHint?.classList.remove('hidden');
+        } else {
+            afterCopyHint?.classList.add('hidden');
+            limitCopyHint?.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Popup após copiar o PIX: código já copiado + passo 2 (banco / já paguei).
+     */
+    showCopyBypassPopup(mode = 'success', options = {}) {
+        let overlay = document.getElementById('pix-copy-popup');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'pix-copy-popup';
+            overlay.className = 'fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-3 bg-black/60 backdrop-blur-sm';
+            overlay.innerHTML = `
+                <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-4 animate-slide-up">
+                    <div class="flex justify-center mb-2">
+                        <div id="pix-copy-popup-icon" class="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center shadow-md">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                    </div>
+                    <h3 id="pix-copy-popup-title" class="text-center text-base font-extrabold text-emerald-800 leading-tight">Internet liberada por 3 minutos!</h3>
+                    <p id="pix-copy-popup-text" class="text-center text-[12px] text-gray-600 mt-1.5 leading-relaxed"></p>
+
+                    <div id="pix-copy-popup-step2" class="mt-3">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="flex-1 h-px bg-gray-200"></div>
+                            <span class="text-[10px] text-emerald-700 font-bold">PASSO 2 — ABRA O BANCO E COLE</span>
+                            <div class="flex-1 h-px bg-gray-200"></div>
+                        </div>
+                        <div id="pix-copy-popup-hint" class="bg-emerald-50 border border-emerald-300 rounded-xl p-3">
+                            <p class="text-emerald-800 font-bold text-xs">✅ Código copiado! Agora abra o <strong>app do banco</strong> e cole o PIX.</p>
+                            <p class="text-emerald-700 text-[11px] mt-1">WiFi liberado por 3 minutos para você pagar. Cole o código no banco.</p>
+                        </div>
+                        <div class="flex items-center justify-center mt-3">
+                            <div class="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2.5 py-2 border">
+                                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span id="pix-copy-popup-timer" class="text-sm font-bold text-gray-700">03:00</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-center gap-2 py-2 mt-1">
+                            <div class="flex gap-1">
+                                <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
+                                <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" style="animation-delay:0.2s"></div>
+                                <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" style="animation-delay:0.4s"></div>
+                            </div>
+                            <span class="text-[10px] text-gray-400">Verificando pagamento automaticamente</span>
+                        </div>
+                    </div>
+
+                    <button type="button" id="pix-copy-popup-ok" class="mt-1 w-full text-[11px] font-semibold text-gray-400 hover:text-gray-600 py-1">
+                        Fechar
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            overlay.querySelector('#pix-copy-popup-ok').addEventListener('click', () => this.hideCopyBypassPopup());
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) this.hideCopyBypassPopup();
+            });
+        }
+
+        const icon = overlay.querySelector('#pix-copy-popup-icon');
+        const title = overlay.querySelector('#pix-copy-popup-title');
+        const text = overlay.querySelector('#pix-copy-popup-text');
+        const step2 = overlay.querySelector('#pix-copy-popup-step2');
+        const hint = overlay.querySelector('#pix-copy-popup-hint');
+
+        if (mode === 'limit') {
+            icon.className = 'w-12 h-12 rounded-full bg-red-500 flex items-center justify-center shadow-md';
+            icon.innerHTML = '<span class="text-white text-2xl font-black">!</span>';
+            title.className = 'text-center text-base font-extrabold text-red-800 leading-tight';
+            title.textContent = 'Limite de liberações usado';
+            text.innerHTML = 'O código já foi copiado. Você já usou as <strong>2 liberações por hora</strong> — pague com o <strong>4G ligado</strong>, ou aguarde 1 hora.';
+            hint.className = 'bg-red-50 border border-red-300 rounded-xl p-3';
+            hint.innerHTML = '<p class="text-red-800 font-bold text-xs">⚠️ Código copiado! Abra o app do banco com o <strong>4G ligado</strong> e cole o PIX.</p>';
+            step2.classList.remove('hidden');
+        } else if (mode === 'error' || mode === 'blocked') {
+            icon.className = 'w-12 h-12 rounded-full bg-amber-500 flex items-center justify-center shadow-md';
+            icon.innerHTML = '<span class="text-white text-2xl font-black">!</span>';
+            title.className = 'text-center text-base font-extrabold text-amber-900 leading-tight';
+            title.textContent = mode === 'blocked' ? 'Liberação temporária suspensa' : 'Código PIX copiado!';
+            text.innerHTML = options.message
+                || 'O código já foi copiado. Abra o app do banco e cole para pagar. Se o WiFi não abrir, ligue o <strong>4G</strong> só para pagar.';
+            hint.className = 'bg-amber-50 border border-amber-300 rounded-xl p-3';
+            hint.innerHTML = '<p class="text-amber-900 font-bold text-xs">✅ Código copiado! Agora abra o <strong>app do banco</strong> e cole o PIX.</p>';
+            step2.classList.remove('hidden');
+        } else if (mode === 'copied' || mode === 'checking') {
+            icon.className = 'w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center shadow-md';
+            icon.innerHTML = '<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>';
+            title.className = 'text-center text-base font-extrabold text-blue-800 leading-tight';
+            title.textContent = 'Código PIX copiado!';
+            text.innerHTML = 'Agora abra o app do banco e cole o código para pagar. Estamos confirmando se o WiFi temporário pode ser liberado...';
+            hint.className = 'bg-blue-50 border border-blue-300 rounded-xl p-3';
+            hint.innerHTML = '<p class="text-blue-800 font-bold text-xs">✅ Código copiado! Abra o <strong>app do banco</strong> e cole o PIX.</p>';
+            step2.classList.remove('hidden');
+        } else {
+            const extra = this.remainingBypassLabel(options.remaining);
+            icon.className = 'w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center shadow-md';
+            icon.innerHTML = '<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>';
+            title.className = 'text-center text-base font-extrabold text-emerald-800 leading-tight';
+            title.textContent = 'Internet liberada por 3 minutos!';
+            text.innerHTML = `O código PIX já foi copiado. Agora abra o app do banco e cole para pagar. O acesso completo libera automaticamente após o PIX.${extra}`;
+            hint.className = 'bg-emerald-50 border border-emerald-300 rounded-xl p-3';
+            hint.innerHTML = '<p class="text-emerald-800 font-bold text-xs">✅ Código copiado! Agora abra o <strong>app do banco</strong> e cole o PIX.</p><p class="text-emerald-700 text-[11px] mt-1">WiFi liberado por 3 minutos para você pagar. Cole o código no banco.</p>';
+            step2.classList.remove('hidden');
+        }
+
+        this.updatePixTimerDisplay();
+        overlay.classList.remove('hidden');
     }
 
     /**
@@ -1837,11 +1971,10 @@ class WiFiPortal {
             textEl.innerHTML = copySteps;
         } else if (mode === 'success') {
             const remaining = options.remaining ?? 0;
-            const extra = remaining > 0
-                ? ` (${remaining} liberação${remaining > 1 ? 'ões' : ''} restante${remaining > 1 ? 's' : ''} nesta hora)`
-                : ' (última liberação desta hora)';
+            this._bypassRemaining = remaining;
+            const extra = this.remainingBypassLabel(remaining);
             titleEl.textContent = 'Internet liberada por 3 minutos!';
-            textEl.innerHTML = `Primeiro <strong>copie o código abaixo</strong>. Depois abra o app do banco e cole para pagar. O acesso completo libera automaticamente após o PIX.${extra}`;
+            textEl.innerHTML = `O código PIX já foi copiado. Agora abra o app do banco e cole para pagar. O acesso completo libera automaticamente após o PIX.${extra}`;
         } else if (mode === 'limit') {
             titleEl.textContent = 'Limite de liberações usado';
             textEl.innerHTML = 'Você já usou as <strong>2 liberações por hora</strong> neste aparelho. Copie o código abaixo e pague com <strong>dados móveis (4G) ligados</strong>, ou aguarde 1 hora.';
@@ -1849,8 +1982,15 @@ class WiFiPortal {
             titleEl.textContent = 'Não foi possível liberar o WiFi agora';
             textEl.innerHTML = copySteps + '<br><br>Tente copiar o código e pagar com o <strong>4G ligado</strong>, ou gere um novo QR Code.';
         } else if (mode === 'blocked') {
+            this._bypassMessage = options.message;
             titleEl.textContent = 'Liberação temporária suspensa';
             textEl.innerHTML = options.message || 'Entre em contato com o suporte ou realize o pagamento com dados móveis.';
+        }
+
+        this.syncAfterCopyHints();
+        const popup = document.getElementById('pix-copy-popup');
+        if (popup && !popup.classList.contains('hidden') && mode !== 'checking') {
+            this.showCopyBypassPopup(mode, { ...options, remaining: this._bypassRemaining, message: this._bypassMessage });
         }
     }
 
@@ -1858,7 +1998,10 @@ class WiFiPortal {
      * Libera 3 min de WiFi ao abrir o modal PIX (sempre tenta — não depende do 4G)
      */
     detectAndBypass(paymentId) {
-        if (this._bypassRan) return;
+        if (this._bypassRan) {
+            this.syncAfterCopyHints();
+            return;
+        }
         this._bypassRan = true;
         this._bypassMode = 'checking';
         this.activateBypassAuto(paymentId);
