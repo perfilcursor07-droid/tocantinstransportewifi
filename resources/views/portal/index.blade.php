@@ -496,14 +496,14 @@
 
                             @if($plan_full_enabled ?? true)
                             <!-- Plano Viagem Completa (PRÉ-SELECIONADO) -->
-                            <button type="button" data-plan-option data-plan-price="{{ $wifi_price_full ?? 6.99 }}" data-plan-duration="{{ $session_duration ?? 12 }}" data-plan-name="Viagem completa" data-plan-suffix="/ viagem" data-plan-default="true"
+                            <button type="button" data-plan-option data-plan-price="{{ $wifi_price_full ?? 6.99 }}" data-plan-duration="{{ $session_duration ?? 12 }}" data-plan-name="Viagem completa" data-plan-suffix="/ {{ $session_duration ?? 12 }} horas" data-plan-default="true"
                                 class="wifi-plan-card plan-card-selected relative flex w-full rounded-xl border-2 border-green text-left transition-all duration-200 hover:shadow-hover focus:outline-none focus:ring-2 focus:ring-green/20">
                                 <span class="absolute -top-2 right-3 price-pill text-[8px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm z-10">Mais escolhido</span>
                                 <div class="flex items-center gap-2.5 px-3 py-2.5">
                                     <span data-plan-radio class="h-4 w-4 rounded-full border-[4px] border-green bg-white flex-shrink-0 transition-all duration-200"></span>
                                     <div class="min-w-0 flex-1">
                                         <p class="text-[15px] font-extrabold text-ink leading-tight">Viagem completa</p>
-                                        <p class="text-[10px] text-green-dark font-medium">Internet até o destino</p>
+                                        <p class="text-[10px] text-green-dark font-medium">{{ $session_duration ?? 12 }} horas de acesso · Internet até o destino</p>
                                         @if(($savings ?? 0) > 0)
                                         <p class="text-[9px] text-amber-700 font-semibold mt-0.5">Economize R${{ number_format($savings, 2, ',', '.') }}</p>
                                         @endif
@@ -1149,7 +1149,7 @@
                 </div>
                 <div class="bg-emerald-50 rounded-xl p-5 mb-5 text-center border border-emerald-100">
                     <p id="selected-plan-price" class="text-3xl font-extrabold text-emerald-700">R$6,99</p>
-                    <p id="selected-plan-name" class="text-sm text-emerald-600 mt-1">Viagem completa / até o destino</p>
+                    <p id="selected-plan-name" class="text-sm text-emerald-600 mt-1">Viagem completa / {{ $session_duration ?? 12 }} horas de acesso</p>
                 </div>
                 <button data-payment="pix" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md text-sm">
                     PAGAR AGORA

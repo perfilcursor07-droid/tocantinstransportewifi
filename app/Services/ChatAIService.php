@@ -83,6 +83,19 @@ class ChatAIService
                 );
             }
 
+            // Respondeu iOS/iPhone/Android → pede o MAC na hora (não escala, não chama a API)
+            if ($this->shouldRequestMacAfterDeviceAnswer($conv)) {
+                $device = $this->visitorDeviceFromHistory($conv) ?? 'both';
+                Log::info('🤖 Visitante informou o aparelho — pedindo MAC', [
+                    'conversation_id' => $conv->id,
+                    'device' => $device,
+                ]);
+                return $this->executeAction($conv, [
+                    'action' => 'request_mac',
+                    'message' => $this->macInstructionsMessage($device),
+                ]);
+            }
+
             $messages = $this->buildMessages($conv);
             $decision = $this->callApi($messages);
 
@@ -90,6 +103,7 @@ class ChatAIService
                 $decision = $this->fallbackDecision($conv);
             }
 
+            $decision = $this->guardDeviceAnswerRequestMac($conv, $decision);
             $decision = $this->guardPaidWithoutReceipt($conv, $decision);
             $decision = $this->guardPaymentHelpWithoutEscalate($conv, $decision);
             $decision = $this->guardConfusionWithoutEscalate($conv, $decision);
@@ -218,7 +232,7 @@ Me fala em qual passo você parou!
 1. **reply** — texto normal. Para cumprimentar, perguntar, dar dica, orientar.
 2. **request_probe** — pede teste automático de conexão. Use SOMENTE quando o usuário tem ACESSO ATIVO confirmado e ainda assim reclama de problema técnico de internet. **NUNCA** use probe se status for SEM CADASTRO ou EXPIRADO, ou se o problema for pagamento/portal.
 3. **request_receipt** — abre no chat um botão pra o usuário *enviar o comprovante do PIX* (foto/print). Use SOMENTE quando o status for SEM CADASTRO ou EXPIRADO e o usuário *insistiu* que já pagou (ex.: "paguei", "já paguei", "paguei hoje", "tem 2 horas que paguei"). NÃO use se ele ainda não afirmou que pagou.
-4. **request_mac** — abre no chat um botão pra o usuário *enviar foto do MAC* (ou escrever o MAC). Use quando ele insiste que não consegue acessar / pagou e não libera. ANTES de usar, pergunte se é iPhone ou Android. Depois de saber o aparelho, use request_mac com o passo a passo certo.
+4. **request_mac** — abre no chat um botão pra o usuário *enviar foto do MAC* (ou escrever o MAC). Use quando ele insiste que não consegue acessar / pagou e não libera. ANTES de usar, pergunte se é iOS (iPhone) ou Android. No turno em que ele responder o aparelho, use request_mac. NUNCA escalate nesse turno.
 5. **escalate** — passa pro humano. Use SOMENTE em último caso (depois do comprovante, depois da foto do MAC, ou se o usuário pediu atendente).
 
 # REGRA OURO: SEJA INTELIGENTE E PERSISTENTE
@@ -231,11 +245,9 @@ Usuário pagou e tá ativo, mas reclama de internet. PROBLEMA TÉCNICO.
 
 **Fluxo:**
 1. **Confirma o status e pergunta o aparelho:**
-   "Oi {$conv->visitor_name}! Vi aqui que seu pagamento tá ativo. Pra te ajudar, me fala: você tá usando iPhone ou Android?"
+   "Oi {$conv->visitor_name}! Vi aqui que seu pagamento tá ativo. Pra te ajudar, me fala: você está usando iOS (iPhone) ou Android?"
 
-2. **Após resposta do aparelho, mande as configurações:**
-   - **iPhone:** "Beleza! Faz isso aí pra mim: Vai em *Ajustes → Wi-Fi* → toca no *(i)* azul ao lado de 'TocantinsTransporteWiFi' → desativa *'Endereço Privado'* (ou 'Privacy Address') → desconecta do WiFi e conecta de novo. Me fala se voltou!"
-   - **Android:** "Faz isso pra mim: Vai em *Configurações → Wi-Fi* → segura no nome 'TocantinsTransporteWiFi' → toca em *Modificar/Avançado* → procura *'Privacidade'* ou *'Tipo de endereço MAC'* → muda de 'MAC aleatório' pra *'MAC do dispositivo'* → reconecta. Me fala se deu certo!"
+2. **Quando ele responder iOS / iPhone / Android:** use **request_mac** na hora (passo a passo pra achar o MAC daquele aparelho + botão de foto). NUNCA escalate nesse turno. NUNCA peça só pra desativar endereço privado e parar.
 
 3. **Se não resolveu, mande o probe:** "Hmm. Deixa eu mandar um teste rápido pra ver como tá seu sinal." → **request_probe**
 
@@ -281,8 +293,8 @@ Use o **COMO DESLIGAR O 4G** quando a dúvida for dados móveis / 4G / continuar
 
 **DEPOIS que o passo a passo JÁ FOI ENVIADO nesta conversa:**
 Se ele insiste que não consegue acessar (tentou e não abre / nada deu certo):
-1. Se você AINDA NÃO sabe se é iPhone ou Android: use **reply** perguntando: "Beleza. Pra te ajudar, seu celular é iPhone ou Android?"
-2. Se ele JÁ disse iPhone ou Android: use **request_mac** com o passo pra achar o MAC daquele aparelho. NÃO escalate ainda.
+1. Se você AINDA NÃO sabe se é iOS (iPhone) ou Android: use **reply** perguntando: "Beleza. Pra te ajudar, você está usando iOS (iPhone) ou Android?"
+2. Se ele JÁ disse iOS, iPhone ou Android: use **request_mac** com o passo pra achar o MAC daquele aparelho. NÃO escalate ainda.
 3. Só **escalate** depois que ele mandar a foto/MAC, ou se pedir atendente.
 
 "Não entendi" / "como faço" / "explica" NÃO é motivo pra escalar.
@@ -318,14 +330,14 @@ Me fala se é iPhone ou Android que eu te guiando no detalhe!
 ## CENÁRIO H: Insiste que não consegue acessar (possível MAC diferente)
 Às vezes o pagamento liberou outro MAC (endereço privado / MAC aleatório). Antes de passar pro humano:
 
-1. Pergunte: iPhone ou Android?
-2. Depois use **request_mac** e explique onde achar o MAC:
+1. Pergunte: você está usando iOS (iPhone) ou Android?
+2. No turno SEGUINTE, quando ele responder iOS/iPhone/Android, use **request_mac** (obrigatório). NUNCA escalate nesse turno.
 
 iPhone: Ajustes → Wi-Fi → toca no (i) azul ao lado de TocantinsTransporteWiFi. O Endereço Wi-Fi / MAC aparece aí. Manda uma foto dessa tela ou escreve o código (tipo AA:BB:CC:DD:EE:FF).
 
 Android: Configurações → Wi-Fi → toca na rede TocantinsTransporteWiFi (ou em detalhes / i). Procura Endereço MAC ou MAC do dispositivo. Manda foto ou escreve o código.
 
-NÃO use request_mac sem saber se é iPhone ou Android.
+NÃO use request_mac sem saber se é iOS (iPhone) ou Android. Quando ele responder o aparelho, request_mac é obrigatório.
 
 ## CENÁRIO F: Portal não abre / "não consigo pagar" / "não consigo conectar"
 - Se o usuário está com DÚVIDA (não entendeu / como faz): explique o passo. Não escalate.
@@ -345,7 +357,7 @@ Interprete os dados e responda de forma **específica**.
 use o **PASSO A PASSO DE PAGAMENTO** (lembre de desligar o 4G no passo 1).
 
 **Se "Pagamento ativo" + conexão ruim:**
-"Seu pagamento tá ativo, mas o sinal tá fraco. Me fala: iPhone ou Android? Vou te passar uns ajustes rápidos." *(NÃO peça pra esquecer a rede neste caso.)*
+"Seu pagamento tá ativo, mas o sinal tá fraco. Me fala: você está usando iOS (iPhone) ou Android?" Depois da resposta, **request_mac**. *(NÃO peça pra esquecer a rede neste caso.)*
 
 **Se "Pagamento ativo" + conexão boa:**
 "O teste mostrou que tá tudo certo com pagamento e conexão! Se ainda não navega, desliga e liga o WiFi (sem esquecer a rede) ou fecha e abre o navegador. Funcionou?"
@@ -698,7 +710,7 @@ PROMPT;
         if ($device === null) {
             return $this->actionReply(
                 $conv,
-                'Beleza. Às vezes o WiFi libera outro aparelho. Pra te ajudar no passo certo, seu celular é iPhone ou Android?'
+                'Beleza. Às vezes o WiFi libera outro aparelho. Pra te ajudar no passo certo, você está usando iOS (iPhone) ou Android?'
             );
         }
 
@@ -931,6 +943,29 @@ PROMPT;
     }
 
     /**
+     * Se o visitante acabou de dizer iOS/iPhone/Android, obriga request_mac.
+     */
+    private function guardDeviceAnswerRequestMac(ChatConversation $conv, array $decision): array
+    {
+        if (!$this->shouldRequestMacAfterDeviceAnswer($conv)) {
+            return $decision;
+        }
+
+        $device = $this->visitorDeviceFromHistory($conv) ?? 'both';
+
+        Log::info('🤖 Guard: resposta do aparelho — forçando request_mac', [
+            'conversation_id' => $conv->id,
+            'device' => $device,
+            'was_action' => $decision['action'] ?? 'reply',
+        ]);
+
+        return [
+            'action' => 'request_mac',
+            'message' => $this->macInstructionsMessage($device),
+        ];
+    }
+
+    /**
      * Insiste que não acessa: pergunta iPhone/Android e pede MAC (foto ou código)
      * antes de passar pro humano — o MAC liberado costuma ser outro.
      */
@@ -950,7 +985,13 @@ PROMPT;
             return $decision;
         }
 
-        $receiptPending = $this->visitorClaimsPaid($conv) && !$this->alreadyUploadedReceipt($conv);
+        // "paguei" sem comprovante NÃO bloqueia o MAC se o pagamento já está ativo
+        // ou se ele acabou de dizer iOS/Android (fluxo do aparelho)
+        $receiptPending = $this->visitorClaimsPaid($conv)
+            && !$this->alreadyUploadedReceipt($conv)
+            && !$this->visitorHasActiveAccess($conv)
+            && !$this->visitorJustAnsweredDevice($conv)
+            && !$this->alreadyAskedDevice($conv);
         if ($receiptPending) {
             return $decision;
         }
@@ -1095,10 +1136,25 @@ PROMPT;
             ];
         }
 
+        if ($this->shouldRequestMacAfterDeviceAnswer($conv)) {
+            $device = $this->visitorDeviceFromHistory($conv) ?? 'both';
+            return [
+                'action' => 'request_mac',
+                'message' => $this->macInstructionsMessage($device),
+            ];
+        }
+
         if ($this->visitorNeedsGuidedHelp($conv)) {
             return [
                 'action' => 'reply',
                 'message' => $this->howToDisableMobileDataMessage(),
+            ];
+        }
+
+        if ($this->alreadyAskedDevice($conv) && !$this->alreadyCollectedMac($conv)) {
+            return $this->nextMacCollectionDecision($conv) ?? [
+                'action' => 'reply',
+                'message' => 'Pra te ajudar no passo certo, você está usando iOS (iPhone) ou Android?',
             ];
         }
 
@@ -1107,7 +1163,7 @@ PROMPT;
                 if (!$this->alreadyCollectedMac($conv)) {
                     return $this->nextMacCollectionDecision($conv) ?? [
                         'action' => 'reply',
-                        'message' => 'Beleza. Às vezes o WiFi libera outro aparelho. Pra te ajudar, seu celular é iPhone ou Android?',
+                        'message' => 'Beleza. Às vezes o WiFi libera outro aparelho. Pra te ajudar, você está usando iOS (iPhone) ou Android?',
                     ];
                 }
 
@@ -1139,7 +1195,7 @@ PROMPT;
             . "iPhone: Ajustes → Celular (ou Dados Celulares) → desliga o botão no topo.\n\n"
             . "Android: desliza a tela de cima pra baixo e toca no ícone Dados móveis / 4G até apagar.\n\n"
             . "Depois fica só no WiFi TocantinsTransporteWiFi, abre o navegador em www.tocantinstransportewifi.com.br, escolhe o plano e paga no PIX.\n\n"
-            . "Me fala se é iPhone ou Android que eu te guiando no detalhe!";
+            . "Me fala se é iOS (iPhone) ou Android que eu te guiando no detalhe!";
     }
 
     private function paymentStepsMessage(): string
@@ -1254,6 +1310,46 @@ PROMPT;
     }
 
     /**
+     * Acabou de responder iOS/iPhone/Android e ainda não pedimos/recebemos o MAC.
+     */
+    private function shouldRequestMacAfterDeviceAnswer(ChatConversation $conv): bool
+    {
+        if ($this->alreadyCollectedMac($conv) || $this->alreadyRequestedMac($conv)) {
+            return false;
+        }
+
+        if ($this->visitorAskedForHuman($conv)) {
+            return false;
+        }
+
+        return $this->visitorJustAnsweredDevice($conv);
+    }
+
+    private function visitorJustAnsweredDevice(ChatConversation $conv): bool
+    {
+        $last = mb_strtolower(trim((string) $this->lastVisitorMessage($conv)));
+        if ($last === '') {
+            return false;
+        }
+
+        $mentionsDevice = (bool) preg_match(
+            '/\b(iphone|ios|android|samsung|xiaomi|motorola|moto|redmi|galaxy)\b/u',
+            $last
+        );
+
+        if (!$mentionsDevice) {
+            return false;
+        }
+
+        if ($this->alreadyAskedDevice($conv)) {
+            return true;
+        }
+
+        // Resposta curta do tipo "é iphone" / "android" mesmo se a pergunta não casou 100%
+        return mb_strlen($last) <= 80;
+    }
+
+    /**
      * Próximo passo da coleta de MAC: perguntar aparelho, pedir foto, ou lembrar o botão.
      */
     private function nextMacCollectionDecision(ChatConversation $conv): ?array
@@ -1267,7 +1363,7 @@ PROMPT;
         if ($device === null) {
             return [
                 'action' => 'reply',
-                'message' => 'Beleza. Às vezes o WiFi libera outro aparelho. Pra te ajudar no passo certo, seu celular é iPhone ou Android?',
+                'message' => 'Beleza. Às vezes o WiFi libera outro aparelho. Pra te ajudar no passo certo, você está usando iOS (iPhone) ou Android?',
             ];
         }
 
@@ -1349,7 +1445,7 @@ PROMPT;
 
         foreach ($adminMsgs as $msg) {
             $t = mb_strtolower((string) $msg);
-            if (preg_match('/iphone\s*(ou|\/)\s*android|android\s*(ou|\/)\s*iphone/u', $t)) {
+            if (preg_match('/(ios|iphone).{0,40}(android)|(android).{0,40}(ios|iphone)/u', $t)) {
                 return true;
             }
         }
