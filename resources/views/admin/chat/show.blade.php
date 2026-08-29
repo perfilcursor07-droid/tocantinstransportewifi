@@ -308,6 +308,69 @@
                     </div>
                 </div>
 
+            {{-- Ana pediu MAC --}}
+            @elseif($msgType === 'mac_request')
+                <div class="flex justify-center chat-message-enter">
+                    <div class="max-w-md w-full bg-gradient-to-br from-sky-50 to-indigo-50 border-2 border-sky-300 rounded-2xl p-4 shadow-sm">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-9 h-9 rounded-lg bg-sky-600 flex items-center justify-center text-white text-xl shadow">📶</div>
+                            <div class="flex-1">
+                                <p class="text-[10px] font-bold text-sky-800 uppercase tracking-wider">Pedido de MAC</p>
+                                <p class="text-sm font-bold text-sky-900">Ana pediu o MAC da rede do celular</p>
+                            </div>
+                            <p class="text-[10px] text-gray-500">{{ $message->created_at->format('H:i') }}</p>
+                        </div>
+                        <p class="text-sm text-gray-700 whitespace-pre-line">{{ $message->message }}</p>
+                        <p class="text-[10px] text-gray-400 mt-2 italic">Aguardando foto da tela ou o código AA:BB:CC:DD:EE:FF</p>
+                    </div>
+                </div>
+
+            {{-- Cliente enviou foto do MAC --}}
+            @elseif($msgType === 'mac_upload')
+                @php
+                    $macUrl = $message->metadata['mac_url'] ?? null;
+                @endphp
+                <div class="flex justify-start chat-message-enter">
+                    <div class="max-w-md w-full bg-white border-2 border-sky-300 rounded-2xl p-4 shadow-sm">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-9 h-9 rounded-lg bg-sky-600 flex items-center justify-center text-white text-xl shadow">📶</div>
+                            <div class="flex-1">
+                                <p class="text-[10px] font-bold text-sky-700 uppercase tracking-wider">Foto do MAC</p>
+                                <p class="text-sm font-bold text-sky-900">{{ $conversation->visitor_name }} enviou</p>
+                            </div>
+                            <p class="text-[10px] text-gray-500">{{ $message->created_at->format('H:i') }}</p>
+                        </div>
+                        @if($macUrl)
+                            <a href="{{ $macUrl }}" target="_blank" class="block">
+                                <img src="{{ $macUrl }}" alt="MAC da rede" class="max-h-72 mx-auto rounded-xl border border-sky-200 object-contain bg-gray-50">
+                            </a>
+                        @else
+                            <p class="text-sm text-gray-500">Arquivo indisponível</p>
+                        @endif
+                        <p class="text-[10px] text-amber-700 mt-2 font-semibold">⚠ Conferir o MAC na foto e liberar esse aparelho no MikroTik</p>
+                    </div>
+                </div>
+
+            {{-- Cliente escreveu o MAC --}}
+            @elseif($msgType === 'mac_text')
+                @php
+                    $typedMac = $message->metadata['mac_address'] ?? $message->message;
+                @endphp
+                <div class="flex justify-start chat-message-enter">
+                    <div class="max-w-md w-full bg-white border-2 border-sky-300 rounded-2xl p-4 shadow-sm">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-9 h-9 rounded-lg bg-sky-600 flex items-center justify-center text-white text-xl shadow">📶</div>
+                            <div class="flex-1">
+                                <p class="text-[10px] font-bold text-sky-700 uppercase tracking-wider">MAC digitado</p>
+                                <p class="text-sm font-bold text-sky-900">{{ $conversation->visitor_name }} enviou</p>
+                            </div>
+                            <p class="text-[10px] text-gray-500">{{ $message->created_at->format('H:i') }}</p>
+                        </div>
+                        <p class="text-xl font-mono font-bold text-sky-800 tracking-wider text-center py-2 select-all">{{ $typedMac }}</p>
+                        <p class="text-[10px] text-amber-700 mt-1 font-semibold">⚠ Liberar este MAC no MikroTik</p>
+                    </div>
+                </div>
+
             {{-- Mensagem texto padrão --}}
             @else
                 <div class="flex {{ $message->sender_type === 'admin' ? 'justify-end' : 'justify-start' }} chat-message-enter">
@@ -865,7 +928,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const newMessages = data.messages.filter(m => m.id > lastMessageId && m.sender_type === 'visitor');
 
                     // Se veio resultado de probe, recarrega pra pegar o cartão renderizado
-                    if (newMessages.some(m => (m.type || 'text') === 'probe_result')) {
+                    if (newMessages.some(m => ['probe_result', 'receipt_upload', 'mac_upload', 'mac_text'].includes(m.type || 'text'))) {
                         window.location.reload();
                         return;
                     }

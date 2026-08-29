@@ -13,10 +13,10 @@ class ChatAIService
 {
     /**
      * IA tenta resolver antes de mandar pro humano.
-     * Ações possíveis por turno: reply, request_probe, request_receipt, escalate.
+     * Ações: reply, request_probe, request_receipt, request_mac, escalate.
      */
 
-    public const ACTIONS = ['reply', 'request_probe', 'request_receipt', 'escalate'];
+    public const ACTIONS = ['reply', 'request_probe', 'request_receipt', 'request_mac', 'escalate'];
 
     public function isEnabled(): bool
     {
@@ -58,7 +58,7 @@ class ChatAIService
             ->whereNull('admin_id')
             ->count();
 
-        if ($aiTurns >= (int) config('services.together.max_turns', 6)) {
+        if ($aiTurns >= (int) config('services.together.max_turns', 10)) {
             Log::info('🤖 Limite de turnos atingido', ['conv' => $conv->id, 'turns' => $aiTurns]);
             return false;
         }
@@ -74,6 +74,15 @@ class ChatAIService
     public function respond(ChatConversation $conv): ?ChatMessage
     {
         try {
+            if ($this->visitorTypedMacAfterRequest($conv)) {
+                $mac = self::extractMacAddress($this->lastVisitorMessage($conv));
+                return $this->actionEscalate(
+                    $conv,
+                    "Recebi o MAC {$mac}. Vou passar pro meu colega liberar esse aparelho. Aguarda só um minutinho!",
+                    'MAC digitado: ' . $mac
+                );
+            }
+
             $messages = $this->buildMessages($conv);
             $decision = $this->callApi($messages);
 
@@ -83,6 +92,8 @@ class ChatAIService
 
             $decision = $this->guardPaidWithoutReceipt($conv, $decision);
             $decision = $this->guardPaymentHelpWithoutEscalate($conv, $decision);
+            $decision = $this->guardConfusionWithoutEscalate($conv, $decision);
+            $decision = $this->guardAccessIssueAskMac($conv, $decision);
             $decision = $this->guardNoRepeatPaymentSteps($conv, $decision);
 
             return $this->executeAction($conv, $decision);
@@ -207,7 +218,8 @@ Me fala em qual passo você parou!
 1. **reply** — texto normal. Para cumprimentar, perguntar, dar dica, orientar.
 2. **request_probe** — pede teste automático de conexão. Use SOMENTE quando o usuário tem ACESSO ATIVO confirmado e ainda assim reclama de problema técnico de internet. **NUNCA** use probe se status for SEM CADASTRO ou EXPIRADO, ou se o problema for pagamento/portal.
 3. **request_receipt** — abre no chat um botão pra o usuário *enviar o comprovante do PIX* (foto/print). Use SOMENTE quando o status for SEM CADASTRO ou EXPIRADO e o usuário *insistiu* que já pagou (ex.: "paguei", "já paguei", "paguei hoje", "tem 2 horas que paguei"). NÃO use se ele ainda não afirmou que pagou.
-4. **escalate** — passa pro humano. Use SOMENTE em último caso (depois do comprovante, ou se o usuário pediu atendente).
+4. **request_mac** — abre no chat um botão pra o usuário *enviar foto do MAC* (ou escrever o MAC). Use quando ele insiste que não consegue acessar / pagou e não libera. ANTES de usar, pergunte se é iPhone ou Android. Depois de saber o aparelho, use request_mac com o passo a passo certo.
+5. **escalate** — passa pro humano. Use SOMENTE em último caso (depois do comprovante, depois da foto do MAC, ou se o usuário pediu atendente).
 
 # REGRA OURO: SEJA INTELIGENTE E PERSISTENTE
 Sua missão é RESOLVER o problema do cliente, não escalar de cara. Antes de escalar, você precisa ter feito perguntas e oferecido soluções de verdade. Os admins humanos só recebem casos onde você realmente tentou.
@@ -262,11 +274,18 @@ action: **reply** com o **PASSO A PASSO DE PAGAMENTO** (pode perguntar antes OU 
 **Se o usuário confirmar** (ex.: "sim", "quero sim", "pode", "manda") e você ainda NÃO mandou o passo a passo:
 action: **reply** com o **PASSO A PASSO DE PAGAMENTO**. Não escalate.
 
+**Se o usuário NÃO ENTENDEU um passo** (ex.: "não entendi", "como desligo o 4G", "como continuo pro pagamento", "explica melhor"):
+action: **reply**. EXPLIQUE aquele passo com calma. **PROIBIDO escalate.** Dúvida não é falha.
+
+Use o **COMO DESLIGAR O 4G** quando a dúvida for dados móveis / 4G / continuar pro pagamento.
+
 **DEPOIS que o passo a passo JÁ FOI ENVIADO nesta conversa:**
-Se o usuário disser que tentou / não abre / não funciona / nada deu certo / fiz tudo e nada:
-→ action: **escalate** IMEDIATAMENTE.
-Mensagem: "Poxa, {$conv->visitor_name}, desculpa que não resolveu por aqui. Vou passar pro meu colega que consegue te ajudar direto. Aguarda só um minutinho!"
-**PROIBIDO repetir o mesmo passo a passo.** Repetir irrita o cliente.
+Se ele insiste que não consegue acessar (tentou e não abre / nada deu certo):
+1. Se você AINDA NÃO sabe se é iPhone ou Android: use **reply** perguntando: "Beleza. Pra te ajudar, seu celular é iPhone ou Android?"
+2. Se ele JÁ disse iPhone ou Android: use **request_mac** com o passo pra achar o MAC daquele aparelho. NÃO escalate ainda.
+3. Só **escalate** depois que ele mandar a foto/MAC, ou se pedir atendente.
+
+"Não entendi" / "como faço" / "explica" NÃO é motivo pra escalar.
 
 ## PASSO A PASSO DE PAGAMENTO (use sempre que for orientar a conectar/pagar)
 Mande EXATAMENTE neste estilo (texto puro, cada passo em linha nova, SEM asteriscos):
@@ -283,9 +302,35 @@ Beleza! Faz assim:
 
 Me fala em qual passo você parou!
 
+## COMO DESLIGAR O 4G (use quando o usuário não entender esse passo)
+Mande neste estilo, texto puro, SEM asteriscos:
+
+Tranquilo! O 4G é a internet do chip. Pra pagar no WiFi do ônibus, ele precisa estar desligado.
+
+iPhone: Ajustes → Celular (ou Dados Celulares) → desliga o botão no topo.
+
+Android: desliza a tela de cima pra baixo e toca no ícone Dados móveis / 4G até apagar.
+
+Depois fica só no WiFi TocantinsTransporteWiFi, abre o navegador em www.tocantinstransportewifi.com.br, escolhe o plano e paga no PIX.
+
+Me fala se é iPhone ou Android que eu te guiando no detalhe!
+
+## CENÁRIO H: Insiste que não consegue acessar (possível MAC diferente)
+Às vezes o pagamento liberou outro MAC (endereço privado / MAC aleatório). Antes de passar pro humano:
+
+1. Pergunte: iPhone ou Android?
+2. Depois use **request_mac** e explique onde achar o MAC:
+
+iPhone: Ajustes → Wi-Fi → toca no (i) azul ao lado de TocantinsTransporteWiFi. O Endereço Wi-Fi / MAC aparece aí. Manda uma foto dessa tela ou escreve o código (tipo AA:BB:CC:DD:EE:FF).
+
+Android: Configurações → Wi-Fi → toca na rede TocantinsTransporteWiFi (ou em detalhes / i). Procura Endereço MAC ou MAC do dispositivo. Manda foto ou escreve o código.
+
+NÃO use request_mac sem saber se é iPhone ou Android.
+
 ## CENÁRIO F: Portal não abre / "não consigo pagar" / "não consigo conectar"
+- Se o usuário está com DÚVIDA (não entendeu / como faz): explique o passo. Não escalate.
 - Se o passo a passo **ainda não** foi enviado nesta conversa: mande o **PASSO A PASSO DE PAGAMENTO**.
-- Se o passo a passo **já foi** enviado e o usuário ainda não consegue: **escalate**. NÃO repita os mesmos 4 passos.
+- Se o passo a passo **já foi** enviado e ele afirma que JÁ TENTOU e não funciona: pergunte iPhone/Android e depois **request_mac**. Só escalate depois da foto/MAC.
 
 **Se portal abre mas trava no PIX/cadastro:**
 "Qual parte trava? É na hora de gerar o PIX, na tela de cadastro ou depois de pagar? Me descreve o que aparece que eu te guio."
@@ -340,6 +385,8 @@ ou
 ou
 {"action":"request_receipt","message":"Pra eu localizar seu pagamento, me manda o comprovante do PIX (foto ou print). Use o botão abaixo."}
 ou
+{"action":"request_mac","message":"Pra liberar o aparelho certo, me manda o MAC da rede. Use o botão abaixo pra enviar a foto da tela ou escreva o código."}
+ou
 {"action":"escalate","message":"Vou passar pro meu colega, aguarda um minutinho."}
 
 Apenas JSON cru, nada antes ou depois.
@@ -364,6 +411,13 @@ PROMPT;
             $type = $msg->type ?? 'text';
             if ($msg->sender_type === 'visitor') {
                 $content = (string) $msg->message;
+                if ($type === 'receipt_upload') {
+                    $content .= ' [enviou comprovante PIX]';
+                } elseif ($type === 'mac_upload') {
+                    $content .= ' [enviou foto do MAC]';
+                } elseif ($type === 'mac_text' && !empty($msg->metadata['mac_address'])) {
+                    $content .= ' [MAC digitado: ' . $msg->metadata['mac_address'] . ']';
+                }
                 if ($type === 'probe_result') {
                     $r = $msg->metadata['results'] ?? [];
                     $hints = [];
@@ -388,6 +442,10 @@ PROMPT;
                 elseif ($type === 'probe_result') {
                     $verdict = $msg->metadata['verdict'] ?? 'n/d';
                     $prefix = "[resultado do teste: {$verdict}] ";
+                } elseif ($type === 'receipt_request') {
+                    $prefix = '[sistema: pediu comprovante PIX] ';
+                } elseif ($type === 'mac_request') {
+                    $prefix = '[sistema: pediu foto/MAC do aparelho] ';
                 }
                 $arr[] = ['role' => 'assistant', 'content' => $prefix . (string) $msg->message];
             }
@@ -479,6 +537,7 @@ PROMPT;
         return match ($action) {
             'request_probe' => $this->actionProbe($conv, $text),
             'request_receipt' => $this->actionRequestReceipt($conv, $text),
+            'request_mac' => $this->actionRequestMac($conv, $text),
             'escalate' => $this->actionEscalate($conv, $text, $decision['reason'] ?? null),
             default => $this->actionReply($conv, $text),
         };
@@ -617,6 +676,73 @@ PROMPT;
         ]);
 
         Log::info('🤖 IA pediu comprovante PIX', ['conversation_id' => $conv->id]);
+        return $msg;
+    }
+
+    /**
+     * Abre no chat o cartão pra o visitante enviar foto do MAC (ou escrever o código).
+     */
+    private function actionRequestMac(ChatConversation $conv, string $text): ChatMessage
+    {
+        if ($this->alreadyCollectedMac($conv)) {
+            $mac = $this->collectedMacAddress($conv);
+            $suffix = $mac ? " ({$mac})" : '';
+            return $this->actionEscalate(
+                $conv,
+                "Já recebi o MAC{$suffix}. Vou passar pro meu colega liberar esse aparelho. Aguarda só um minutinho!",
+                'MAC já enviado'
+            );
+        }
+
+        $device = $this->visitorDeviceFromHistory($conv);
+        if ($device === null) {
+            return $this->actionReply(
+                $conv,
+                'Beleza. Às vezes o WiFi libera outro aparelho. Pra te ajudar no passo certo, seu celular é iPhone ou Android?'
+            );
+        }
+
+        $recentRequest = ChatMessage::where('conversation_id', $conv->id)
+            ->where('type', 'mac_request')
+            ->where('created_at', '>=', now()->subMinutes(10))
+            ->exists();
+
+        if ($recentRequest) {
+            return $this->actionReply(
+                $conv,
+                'O botão pra enviar a foto do MAC já está na conversa acima. Manda a foto da tela ou escreve o código (tipo AA:BB:CC:DD:EE:FF) que eu passo pro meu colega liberar.'
+            );
+        }
+
+        $instructions = $this->macInstructionsMessage($device);
+        $looksComplete = mb_strlen($text) >= 80 && preg_match('/ajustes|configura/iu', $text);
+        $cardText = $looksComplete ? $text : $instructions;
+
+        $msg = ChatMessage::create([
+            'conversation_id' => $conv->id,
+            'sender_type' => 'admin',
+            'admin_id' => null,
+            'type' => 'mac_request',
+            'message' => $cardText,
+            'metadata' => [
+                'ai' => true,
+                'ai_name' => 'Ana',
+                'model' => config('services.together.model'),
+                'mac_requested' => true,
+                'device' => $device,
+            ],
+            'is_read' => true,
+        ]);
+
+        $conv->update([
+            'last_message_at' => now(),
+            'status' => 'active',
+        ]);
+
+        Log::info('🤖 IA pediu MAC do aparelho', [
+            'conversation_id' => $conv->id,
+            'device' => $device,
+        ]);
         return $msg;
     }
 
@@ -805,11 +931,95 @@ PROMPT;
     }
 
     /**
+     * Insiste que não acessa: pergunta iPhone/Android e pede MAC (foto ou código)
+     * antes de passar pro humano — o MAC liberado costuma ser outro.
+     */
+    private function guardAccessIssueAskMac(ChatConversation $conv, array $decision): array
+    {
+        $action = $decision['action'] ?? 'reply';
+
+        if ($action === 'request_receipt' || $action === 'request_mac') {
+            return $decision;
+        }
+
+        if ($this->visitorAskedForHuman($conv)) {
+            return $decision;
+        }
+
+        if ($this->alreadyCollectedMac($conv)) {
+            return $decision;
+        }
+
+        $receiptPending = $this->visitorClaimsPaid($conv) && !$this->alreadyUploadedReceipt($conv);
+        if ($receiptPending) {
+            return $decision;
+        }
+
+        $insists = $this->visitorSaysStepsFailed($conv);
+        $alreadyHelped = $this->alreadySentPaymentSteps($conv)
+            || $this->visitorHasActiveAccess($conv)
+            || $this->alreadyAskedDevice($conv);
+
+        $iaTriedToEscalate = in_array($action, ['escalate', 'request_probe'], true)
+            && ($this->alreadySentPaymentSteps($conv) || $this->visitorHasActiveAccess($conv));
+
+        if (!(($insists && $alreadyHelped) || $iaTriedToEscalate)) {
+            return $decision;
+        }
+
+        $next = $this->nextMacCollectionDecision($conv);
+        if (!$next) {
+            return $decision;
+        }
+
+        Log::info('🤖 Guard: pedindo MAC (iPhone/Android) em vez de escalar', [
+            'conversation_id' => $conv->id,
+            'was_action' => $action,
+            'next_action' => $next['action'],
+        ]);
+
+        return $next;
+    }
+
+    /**
+     * Dúvida ("não entendi", "como desligo o 4G") não escala — explica o passo.
+     */
+    private function guardConfusionWithoutEscalate(ChatConversation $conv, array $decision): array
+    {
+        if (!$this->visitorNeedsGuidedHelp($conv)) {
+            return $decision;
+        }
+
+        if ($this->visitorAskedForHuman($conv)) {
+            return $decision;
+        }
+
+        $action = $decision['action'] ?? 'reply';
+        if ($action !== 'escalate' && $action !== 'request_probe') {
+            return $decision;
+        }
+
+        Log::info('🤖 Guard: dúvida do usuário — explicando em vez de escalar', [
+            'conversation_id' => $conv->id,
+            'was_action' => $action,
+        ]);
+
+        return [
+            'action' => 'reply',
+            'message' => $this->howToDisableMobileDataMessage(),
+        ];
+    }
+
+    /**
      * Nunca repetir o mesmo passo a passo quando o usuário já tentou e falhou.
      */
     private function guardNoRepeatPaymentSteps(ChatConversation $conv, array $decision): array
     {
         if ($this->visitorHasActiveAccess($conv)) {
+            return $decision;
+        }
+
+        if ($this->visitorNeedsGuidedHelp($conv)) {
             return $decision;
         }
 
@@ -836,6 +1046,21 @@ PROMPT;
             }
         }
 
+        if (in_array($decision['action'] ?? 'reply', ['request_mac', 'request_receipt'], true)) {
+            return $decision;
+        }
+
+        if (!$this->alreadyCollectedMac($conv)) {
+            $next = $this->nextMacCollectionDecision($conv);
+            if ($next) {
+                Log::info('🤖 Guard: passos falharam — pedindo MAC antes de escalar', [
+                    'conversation_id' => $conv->id,
+                    'was_action' => $decision['action'] ?? 'reply',
+                ]);
+                return $next;
+            }
+        }
+
         $action = $decision['action'] ?? 'reply';
         $msg = mb_strtolower((string) ($decision['message'] ?? ''));
         $looksLikeSteps = str_contains($msg, '1)') && (
@@ -848,8 +1073,7 @@ PROMPT;
             return $decision;
         }
 
-        // reply/probe/steps de novo → força humano
-        Log::info('🤖 Guard: passos já falharam — escalando (sem repetir)', [
+        Log::info('🤖 Guard: passos já falharam e MAC já coletado — escalando', [
             'conversation_id' => $conv->id,
             'was_action' => $action,
         ]);
@@ -871,8 +1095,22 @@ PROMPT;
             ];
         }
 
+        if ($this->visitorNeedsGuidedHelp($conv)) {
+            return [
+                'action' => 'reply',
+                'message' => $this->howToDisableMobileDataMessage(),
+            ];
+        }
+
         if (!$this->visitorHasActiveAccess($conv)) {
-            if ($this->alreadySentPaymentSteps($conv) && $this->visitorSaysStepsFailed($conv)) {
+            if ($this->alreadySentPaymentSteps($conv) && $this->visitorSaysStepsFailed($conv) && !$this->visitorNeedsGuidedHelp($conv)) {
+                if (!$this->alreadyCollectedMac($conv)) {
+                    return $this->nextMacCollectionDecision($conv) ?? [
+                        'action' => 'reply',
+                        'message' => 'Beleza. Às vezes o WiFi libera outro aparelho. Pra te ajudar, seu celular é iPhone ou Android?',
+                    ];
+                }
+
                 return [
                     'action' => 'escalate',
                     'message' => 'Poxa, desculpa que não resolveu por aqui. Vou passar pro meu colega que consegue te ajudar direto. Aguarda só um minutinho!',
@@ -893,6 +1131,15 @@ PROMPT;
             'message' => 'Vou passar pro meu colega que consegue te ajudar melhor. Aguarda só um minutinho!',
             'reason' => $reason ?? 'IA não retornou decisão válida',
         ];
+    }
+
+    private function howToDisableMobileDataMessage(): string
+    {
+        return "Tranquilo! O 4G é a internet do chip. Pra pagar no WiFi do ônibus, ele precisa estar desligado.\n\n"
+            . "iPhone: Ajustes → Celular (ou Dados Celulares) → desliga o botão no topo.\n\n"
+            . "Android: desliza a tela de cima pra baixo e toca no ícone Dados móveis / 4G até apagar.\n\n"
+            . "Depois fica só no WiFi TocantinsTransporteWiFi, abre o navegador em www.tocantinstransportewifi.com.br, escolhe o plano e paga no PIX.\n\n"
+            . "Me fala se é iPhone ou Android que eu te guiando no detalhe!";
     }
 
     private function paymentStepsMessage(): string
@@ -941,8 +1188,31 @@ PROMPT;
 
         $normalized = mb_strtolower($last);
 
+        if ($this->visitorNeedsGuidedHelp($conv)) {
+            return false;
+        }
+
         return (bool) preg_match(
-            '/(n[aã]o\s*abre|nao\s*abre|n[aã]o\s*funcion|nao\s*funcion|nada\s*deu\s*certo|nada\s*funciona|fiz\s*(isso\s*)?tudo|tentei|n[aã]o\s*deu|nao\s*deu|mesmo\s*assim|continua\s*sem|ainda\s*n[aã]o|ainda\s*nao|sem\s*p[aá]gina|n[aã]o\s*aparec|nao\s*aparec)/u',
+            '/(n[aã]o\s*abre|nao\s*abre|n[aã]o\s*funcion|nao\s*funcion|nada\s*deu\s*certo|nada\s*funciona|fiz\s*(isso\s*)?tudo|tentei|n[aã]o\s*deu|nao\s*deu|mesmo\s*assim|continua\s*sem|ainda\s*n[aã]o|ainda\s*nao|sem\s*p[aá]gina|n[aã]o\s*aparec|nao\s*aparec|n[aã]o\s*consig|nao\s*consig|n[aã]o\s*conect|nao\s*conect|n[aã]o\s*libera|nao\s*libera|sem\s*acesso)/u',
+            $normalized
+        );
+    }
+
+    private function visitorNeedsGuidedHelp(ChatConversation $conv): bool
+    {
+        $last = ChatMessage::where('conversation_id', $conv->id)
+            ->where('sender_type', 'visitor')
+            ->orderByDesc('id')
+            ->value('message');
+
+        if (!$last) {
+            return false;
+        }
+
+        $normalized = mb_strtolower($last);
+
+        return (bool) preg_match(
+            '/(n[aã]o\s*entendi|nao\s*entendi|como\s*(desligo|desligar|fa[cç]o|pago|abro|entro|continuo|continuar|continar)|me\s*explica|explica\s*(melhor|de\s*novo)|o\s*que\s*[eé]\s*(o\s*)?4g|dados\s*m[oó]veis|desligar\s*(o\s*)?4g)/u',
             $normalized
         );
     }
@@ -981,5 +1251,185 @@ PROMPT;
             '/\b(atendente|humano|pessoa\s*real|falar\s*com\s*(alguém|alguem|atendente)|quero\s*atendente)\b/u',
             $normalized
         );
+    }
+
+    /**
+     * Próximo passo da coleta de MAC: perguntar aparelho, pedir foto, ou lembrar o botão.
+     */
+    private function nextMacCollectionDecision(ChatConversation $conv): ?array
+    {
+        if ($this->alreadyCollectedMac($conv)) {
+            return null;
+        }
+
+        $device = $this->visitorDeviceFromHistory($conv);
+
+        if ($device === null) {
+            return [
+                'action' => 'reply',
+                'message' => 'Beleza. Às vezes o WiFi libera outro aparelho. Pra te ajudar no passo certo, seu celular é iPhone ou Android?',
+            ];
+        }
+
+        if ($this->alreadyRequestedMac($conv)) {
+            return [
+                'action' => 'reply',
+                'message' => 'O botão pra enviar a foto do MAC já está na conversa acima. Manda a foto da tela ou escreve o código (tipo AA:BB:CC:DD:EE:FF) que eu passo pro meu colega liberar.',
+            ];
+        }
+
+        return [
+            'action' => 'request_mac',
+            'message' => $this->macInstructionsMessage($device),
+        ];
+    }
+
+    private function macInstructionsMessage(string $device): string
+    {
+        if ($device === 'ios') {
+            return "Beleza! Às vezes o pagamento libera outro aparelho. Preciso do MAC da rede deste iPhone.\n\n"
+                . "1) Abre Ajustes → Wi-Fi\n\n"
+                . "2) Toca no (i) azul ao lado de TocantinsTransporteWiFi\n\n"
+                . "3) Procura Endereço Wi-Fi ou Endereço MAC\n\n"
+                . "Manda uma foto dessa tela pelo botão abaixo, ou escreve o código aqui (tipo AA:BB:CC:DD:EE:FF).";
+        }
+
+        if ($device === 'android') {
+            return "Beleza! Às vezes o pagamento libera outro aparelho. Preciso do MAC da rede deste Android.\n\n"
+                . "1) Abre Configurações → Wi-Fi\n\n"
+                . "2) Toca na rede TocantinsTransporteWiFi (ou em detalhes / i)\n\n"
+                . "3) Procura Endereço MAC ou MAC do dispositivo\n\n"
+                . "Manda uma foto dessa tela pelo botão abaixo, ou escreve o código aqui (tipo AA:BB:CC:DD:EE:FF).";
+        }
+
+        return "Beleza! Às vezes o pagamento libera outro aparelho. Preciso do MAC da rede.\n\n"
+            . "iPhone: Ajustes → Wi-Fi → toca no (i) azul ao lado de TocantinsTransporteWiFi → Endereço Wi-Fi / MAC.\n\n"
+            . "Android: Configurações → Wi-Fi → toca na rede TocantinsTransporteWiFi (ou detalhes) → Endereço MAC.\n\n"
+            . "Manda uma foto dessa tela pelo botão abaixo, ou escreve o código aqui (tipo AA:BB:CC:DD:EE:FF).";
+    }
+
+    /**
+     * ios | android | both | null
+     */
+    private function visitorDeviceFromHistory(ChatConversation $conv): ?string
+    {
+        $texts = ChatMessage::where('conversation_id', $conv->id)
+            ->where('sender_type', 'visitor')
+            ->orderByDesc('id')
+            ->limit(12)
+            ->pluck('message')
+            ->implode(' ');
+
+        $normalized = mb_strtolower($texts);
+        $ios = (bool) preg_match('/\b(iphone|ios|apple)\b/u', $normalized);
+        $android = (bool) preg_match('/\b(android|samsung|xiaomi|motorola|moto|redmi|galaxy)\b/u', $normalized);
+
+        if ($ios && !$android) {
+            return 'ios';
+        }
+        if ($android && !$ios) {
+            return 'android';
+        }
+
+        $last = mb_strtolower((string) $this->lastVisitorMessage($conv));
+        if ($this->alreadyAskedDevice($conv) && preg_match('/n[aã]o\s*sei|nao\s*sei/u', $last)) {
+            return 'both';
+        }
+
+        return null;
+    }
+
+    private function alreadyAskedDevice(ChatConversation $conv): bool
+    {
+        $adminMsgs = ChatMessage::where('conversation_id', $conv->id)
+            ->where('sender_type', 'admin')
+            ->orderByDesc('id')
+            ->limit(12)
+            ->pluck('message');
+
+        foreach ($adminMsgs as $msg) {
+            $t = mb_strtolower((string) $msg);
+            if (preg_match('/iphone\s*(ou|\/)\s*android|android\s*(ou|\/)\s*iphone/u', $t)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function alreadyRequestedMac(ChatConversation $conv): bool
+    {
+        return ChatMessage::where('conversation_id', $conv->id)
+            ->where('type', 'mac_request')
+            ->where('created_at', '>=', now()->subHours(2))
+            ->exists();
+    }
+
+    private function alreadyUploadedReceipt(ChatConversation $conv): bool
+    {
+        return ChatMessage::where('conversation_id', $conv->id)
+            ->where('type', 'receipt_upload')
+            ->where('created_at', '>=', now()->subHours(6))
+            ->exists();
+    }
+
+    private function alreadyCollectedMac(ChatConversation $conv): bool
+    {
+        $uploaded = ChatMessage::where('conversation_id', $conv->id)
+            ->whereIn('type', ['mac_upload', 'mac_text'])
+            ->where('created_at', '>=', now()->subHours(6))
+            ->exists();
+
+        return $uploaded || $this->visitorTypedMacAfterRequest($conv);
+    }
+
+    private function collectedMacAddress(ChatConversation $conv): ?string
+    {
+        $typed = self::extractMacAddress($this->lastVisitorMessage($conv));
+        if ($typed) {
+            return $typed;
+        }
+
+        $msg = ChatMessage::where('conversation_id', $conv->id)
+            ->whereIn('type', ['mac_upload', 'mac_text'])
+            ->orderByDesc('id')
+            ->first();
+
+        return $msg->metadata['mac_address'] ?? null;
+    }
+
+    private function visitorTypedMacAfterRequest(ChatConversation $conv): bool
+    {
+        if (!$this->alreadyRequestedMac($conv)) {
+            return false;
+        }
+
+        return self::extractMacAddress($this->lastVisitorMessage($conv)) !== null;
+    }
+
+    private function lastVisitorMessage(ChatConversation $conv): ?string
+    {
+        return ChatMessage::where('conversation_id', $conv->id)
+            ->where('sender_type', 'visitor')
+            ->orderByDesc('id')
+            ->value('message');
+    }
+
+    public static function extractMacAddress(?string $text): ?string
+    {
+        if (!$text) {
+            return null;
+        }
+
+        if (preg_match('/\b(?:[0-9A-Fa-f]{2}[:\-\.]){5}[0-9A-Fa-f]{2}\b/', $text, $m)) {
+            $raw = preg_replace('/[^0-9A-Fa-f]/', '', $m[0]);
+            return strtoupper(implode(':', str_split($raw, 2)));
+        }
+
+        if (preg_match('/\b[0-9A-Fa-f]{12}\b/', $text, $m)) {
+            return strtoupper(implode(':', str_split($m[0], 2)));
+        }
+
+        return null;
     }
 }

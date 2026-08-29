@@ -139,17 +139,29 @@ class ChatApiController extends Controller
             ]);
         }
 
+        $typedMac = ChatAIService::extractMacAddress($request->message);
+        $recentMacRequest = ChatMessage::where('conversation_id', $conversation->id)
+            ->where('type', 'mac_request')
+            ->where('created_at', '>=', now()->subHours(2))
+            ->exists();
+
         $message = ChatMessage::create([
             'conversation_id' => $conversation->id,
             'sender_type' => 'visitor',
+            'type' => ($typedMac && $recentMacRequest) ? 'mac_text' : 'text',
             'message' => $request->message,
+            'metadata' => ($typedMac && $recentMacRequest) ? ['mac_address' => $typedMac] : null,
             'is_read' => false,
         ]);
 
-        $conversation->update([
+        $conversationUpdate = [
             'last_message_at' => now(),
             'unread_count' => $conversation->unread_count + 1,
-        ]);
+        ];
+        if ($typedMac && $recentMacRequest) {
+            $conversationUpdate['visitor_mac'] = $typedMac;
+        }
+        $conversation->update($conversationUpdate);
 
         // 🤖 IA tenta responder antes do humano
         $aiReply = $this->maybeRunAI($conversation);
@@ -337,6 +349,101 @@ class ChatApiController extends Controller
                 "{$conversation->visitor_name} ({$conversation->visitor_phone})\nEnviou comprovante — conferir e liberar se válido.",
                 'high',
                 ['receipt', 'warning']
+            );
+        } catch (\Exception $e) {
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'ai_reply' => $aiAck,
+        ]);
+    }
+
+    /**
+     * Visitante envia foto do MAC (só depois da Ana pedir via mac_request).
+     */
+    public function uploadMac(Request $request)
+    {
+        $request->validate([
+            'session_id' => 'required|string',
+            'mac_photo' => 'required|file|mimes:jpg,jpeg,png,webp|max:5120',
+        ]);
+
+        $conversation = ChatConversation::where('session_id', $request->session_id)->first();
+
+        if (!$conversation) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Conversa não encontrada.',
+            ], 404);
+        }
+
+        if ($conversation->status === 'closed') {
+            return response()->json([
+                'success' => false,
+                'closed' => true,
+                'error' => 'Esta conversa foi encerrada.',
+            ]);
+        }
+
+        $recentRequest = ChatMessage::where('conversation_id', $conversation->id)
+            ->where('type', 'mac_request')
+            ->where('created_at', '>=', now()->subHours(6))
+            ->exists();
+
+        if (!$recentRequest) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Aguarde a Ana pedir o MAC antes de enviar a foto.',
+            ], 422);
+        }
+
+        $file = $request->file('mac_photo');
+        $path = $file->store('chat-macs/' . $conversation->id, 'public');
+        $url = Storage::disk('public')->url($path);
+
+        $message = ChatMessage::create([
+            'conversation_id' => $conversation->id,
+            'sender_type' => 'visitor',
+            'type' => 'mac_upload',
+            'message' => '📷 Enviou foto do MAC da rede',
+            'metadata' => [
+                'mac_path' => $path,
+                'mac_url' => $url,
+                'mac_mime' => $file->getMimeType(),
+                'mac_name' => $file->getClientOriginalName(),
+            ],
+            'is_read' => false,
+        ]);
+
+        $conversation->update([
+            'last_message_at' => now(),
+            'unread_count' => $conversation->unread_count + 1,
+            'status' => 'pending',
+        ]);
+
+        $aiAck = ChatMessage::create([
+            'conversation_id' => $conversation->id,
+            'sender_type' => 'admin',
+            'admin_id' => null,
+            'type' => 'text',
+            'message' => 'Recebi a foto do MAC! Vou passar pro meu colega liberar esse aparelho. Aguarda só um minutinho.',
+            'metadata' => [
+                'ai' => true,
+                'ai_name' => 'Ana',
+                'escalated' => true,
+                'reason' => 'foto do MAC enviada',
+            ],
+            'is_read' => true,
+        ]);
+
+        try {
+            app(\App\Services\NtfyService::class)->send(
+                '📷 Foto do MAC no chat',
+                "{$conversation->visitor_name} ({$conversation->visitor_phone})\nEnviou foto do MAC — conferir e liberar o aparelho certo.",
+                'high',
+                ['iphone', 'warning']
             );
         } catch (\Exception $e) {
         }

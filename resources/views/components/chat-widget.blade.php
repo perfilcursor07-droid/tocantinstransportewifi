@@ -581,6 +581,12 @@
             renderReceiptRequest(msg.message, adminName, time, msg.id);
         } else if (msg.type === 'receipt_upload' && msg.metadata && msg.metadata.receipt_url) {
             renderReceiptUpload(msg.metadata, time);
+        } else if (msg.type === 'mac_request') {
+            renderMacRequest(msg.message, adminName, time, msg.id);
+        } else if (msg.type === 'mac_upload' && msg.metadata && msg.metadata.mac_url) {
+            renderMacUpload(msg.metadata, time);
+        } else if (msg.type === 'mac_text' && msg.metadata && msg.metadata.mac_address) {
+            renderMacText(msg.metadata.mac_address, time);
         } else {
             addMessage(msg.message, isAdmin, adminName, time);
         }
@@ -710,6 +716,119 @@
             </div>
         `;
         appendChatNode(div);
+    }
+
+    function renderMacRequest(text, adminName, time, msgId) {
+        const div = document.createElement('div');
+        div.className = 'flex justify-start chat-message-enter';
+        const inputId = 'mac-file-' + (msgId || Date.now());
+        div.innerHTML = `
+            <div class="max-w-[92%] w-full bg-gradient-to-br from-sky-50 to-indigo-50 border-2 border-sky-300 rounded-xl p-3 shadow-sm">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-sky-600 flex items-center justify-center text-white text-base shadow">📶</div>
+                    <div class="flex-1">
+                        <p class="text-[10px] font-bold text-sky-800 uppercase tracking-wider">MAC da rede</p>
+                        <p class="text-[9px] text-gray-500">${adminName} · ${time}</p>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-700 mb-2 leading-snug chat-msg-body">${formatChatText(text)}</p>
+                <input type="file" id="${inputId}" accept="image/*" capture="environment" class="hidden" />
+                <button type="button" data-mac-input="${inputId}"
+                        class="mac-upload-btn w-full bg-sky-600 hover:bg-sky-700 text-white text-center py-2.5 rounded-lg font-semibold text-xs transition">
+                    📷 Enviar foto do MAC
+                </button>
+                <p class="text-[9px] text-gray-500 mt-1.5 text-center">Foto da tela de configurações · ou escreva o código no chat</p>
+                <p class="mac-upload-status text-[10px] text-sky-700 mt-1 text-center hidden"></p>
+            </div>
+        `;
+        appendChatNode(div);
+
+        const btn = div.querySelector('.mac-upload-btn');
+        const input = div.querySelector('#' + inputId);
+        const status = div.querySelector('.mac-upload-status');
+        btn.addEventListener('click', () => input.click());
+        input.addEventListener('change', () => {
+            if (input.files && input.files[0]) {
+                uploadMacFile(input.files[0], btn, status);
+            }
+        });
+    }
+
+    function renderMacUpload(meta, time) {
+        const div = document.createElement('div');
+        div.className = 'flex justify-end chat-message-enter';
+        const url = meta.mac_url || '';
+        div.innerHTML = `
+            <div class="max-w-[85%] bg-sky-600 text-white rounded-xl p-2.5 shadow-sm">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-sky-100 mb-1.5">Foto do MAC enviada · ${time}</p>
+                <div class="bg-white/95 rounded-lg p-1.5">
+                    <a href="${url}" target="_blank"><img src="${url}" alt="MAC da rede" class="max-h-40 mx-auto rounded-lg border border-sky-200 object-contain bg-white"></a>
+                </div>
+            </div>
+        `;
+        appendChatNode(div);
+    }
+
+    function renderMacText(mac, time) {
+        const div = document.createElement('div');
+        div.className = 'flex justify-end chat-message-enter';
+        div.innerHTML = `
+            <div class="max-w-[85%] bg-sky-600 text-white rounded-xl p-2.5 shadow-sm">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-sky-100 mb-1">MAC enviado · ${time}</p>
+                <p class="text-sm font-mono font-bold tracking-wider">${escapeHtml(mac)}</p>
+            </div>
+        `;
+        appendChatNode(div);
+    }
+
+    async function uploadMacFile(file, btn, statusEl) {
+        if (!chatSessionId) {
+            alert('Inicie a conversa antes de enviar a foto do MAC.');
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Arquivo muito grande. Máximo 5 MB.');
+            return;
+        }
+
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Enviando...';
+        statusEl.classList.remove('hidden');
+        statusEl.textContent = 'Enviando foto do MAC...';
+
+        try {
+            const form = new FormData();
+            form.append('session_id', chatSessionId);
+            form.append('mac_photo', file);
+
+            const res = await fetch('/api/chat/upload-mac', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    'Accept': 'application/json',
+                },
+                body: form,
+            });
+            const data = await res.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Falha ao enviar');
+            }
+
+            btn.textContent = '✓ Enviado';
+            btn.classList.remove('bg-sky-600', 'hover:bg-sky-700');
+            btn.classList.add('bg-emerald-600');
+            statusEl.textContent = 'Foto enviada!';
+
+            if (data.message) renderServerMessage(data.message);
+            if (data.ai_reply) presentAiReply(data.ai_reply);
+        } catch (e) {
+            console.error(e);
+            btn.disabled = false;
+            btn.textContent = originalText;
+            statusEl.textContent = e.message || 'Erro ao enviar. Tente de novo.';
+        }
     }
 
     async function uploadReceiptFile(file, btn, statusEl) {
@@ -981,7 +1100,8 @@
                     `;
                     
                     data.messages.forEach(msg => {
-                        if (msg.sender_type === 'admin') {
+                        const visitorCard = msg.sender_type === 'visitor' && ['receipt_upload', 'mac_upload', 'mac_text'].includes(msg.type || 'text');
+                        if (msg.sender_type === 'admin' || visitorCard) {
                             renderServerMessage(msg);
                         } else {
                             const time = new Date(msg.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});

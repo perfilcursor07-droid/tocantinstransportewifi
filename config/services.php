@@ -61,7 +61,7 @@ return [
         'api_url' => env('TOGETHER_API_URL', 'https://api.together.xyz/v1/chat/completions'),
         'model' => env('CHAT_AI_MODEL', 'deepseek-ai/DeepSeek-V3'),
         'timeout' => env('CHAT_AI_TIMEOUT', 15),
-        'max_turns' => env('CHAT_AI_MAX_TURNS', 6),
+        'max_turns' => env('CHAT_AI_MAX_TURNS', 10),
         'verify_ssl' => env('CHAT_AI_VERIFY_SSL', true),
     ],
 

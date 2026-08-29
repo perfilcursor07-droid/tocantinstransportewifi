@@ -131,6 +131,7 @@ Route::prefix('chat')->group(function () {
     Route::post('/start', [App\Http\Controllers\ChatApiController::class, 'startConversation']);
     Route::post('/send', [App\Http\Controllers\ChatApiController::class, 'sendMessage']);
     Route::post('/upload-receipt', [App\Http\Controllers\ChatApiController::class, 'uploadReceipt']);
+    Route::post('/upload-mac', [App\Http\Controllers\ChatApiController::class, 'uploadMac']);
     Route::get('/messages', [App\Http\Controllers\ChatApiController::class, 'getMessages']);
     Route::get('/check', [App\Http\Controllers\ChatApiController::class, 'checkNewMessages']);
 });
