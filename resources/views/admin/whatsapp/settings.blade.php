@@ -40,7 +40,7 @@
                     <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                         <div>
                             <p class="font-medium text-gray-800">Envio Automático</p>
-                            <p class="text-sm text-gray-500">Enviar mensagens automaticamente para pagamentos pendentes</p>
+                            <p class="text-sm text-gray-500">Enviar lembrete somente para passageiros que autorizaram atualizações de pagamento</p>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" name="auto_send_enabled" value="1" class="sr-only peer" {{ $settings['auto_send_enabled'] ? 'checked' : '' }}>
@@ -56,7 +56,7 @@
                         <p class="text-xs text-gray-500 mb-2">
                             Tempo mínimo que um pagamento deve estar pendente antes de enviar a mensagem
                         </p>
-                        <input type="number" name="pending_minutes" value="{{ $settings['pending_minutes'] }}" min="1" max="1440" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-tocantins-green focus:border-transparent" required>
+                        <input type="number" name="pending_minutes" value="{{ max(15, $settings['pending_minutes']) }}" min="15" max="1440" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-tocantins-green focus:border-transparent" required>
                         @error('pending_minutes')
                             <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                         @enderror
@@ -116,11 +116,10 @@
             Informações Importantes
         </h3>
         <ul class="text-sm text-blue-700 space-y-2">
-            <li>• O envio automático verifica pagamentos pendentes a cada 5 minutos</li>
-            <li>• Cada pagamento recebe apenas uma mensagem (não há reenvio automático)</li>
-            <li>• Mensagens com falha podem ser reenviadas manualmente</li>
-            <li>• O WhatsApp pode bloquear números que enviam muitas mensagens em pouco tempo</li>
-            <li>• Recomendamos manter um intervalo de pelo menos 15 minutos</li>
+            <li>• O lembrete só é enviado após pelo menos 15 minutos e somente uma vez por pagamento</li>
+            <li>• Apenas passageiros que marcaram a autorização no portal podem receber o envio automático</li>
+            <li>• Quem responder PARAR é removido imediatamente das mensagens automáticas</li>
+            <li>• Para disparos automáticos fora de uma conversa de 24 horas, use a API oficial do WhatsApp com modelo aprovado</li>
         </ul>
     </div>
 </div>

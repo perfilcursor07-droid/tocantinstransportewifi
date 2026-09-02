@@ -663,13 +663,14 @@ class WiFiPortal {
                 return;
             }
 
-            const data = {
-                phone: phone,
-                email: email,
-                user_id: this.currentUserId,
-                mac_address: this.deviceMac,
-                ip_address: this.deviceIp
-            };
+        const data = {
+            phone: phone,
+            email: email,
+            user_id: this.currentUserId,
+            mac_address: this.deviceMac,
+            ip_address: this.deviceIp,
+            whatsapp_payment_opt_in: document.getElementById('whatsapp-payment-opt-in')?.checked ? 1 : 0,
+        };
 
             console.log('📤 ENVIANDO PARA BACKEND:', { phone, mac: this.deviceMac, ip: this.deviceIp });
 
@@ -834,7 +835,9 @@ class WiFiPortal {
             ip_address: this.deviceIp,
             plan_duration: window.WIFI_SELECTED_PLAN?.duration || window.SESSION_DURATION || 12,
             plan_name: window.WIFI_SELECTED_PLAN?.name || 'Viagem completa',
-            plan_suffix: window.WIFI_SELECTED_PLAN?.suffix || '/ 12 horas'
+            plan_suffix: window.WIFI_SELECTED_PLAN?.suffix || '/ 12 horas',
+            whatsapp_payment_opt_in: document.getElementById('whatsapp-payment-opt-in')?.checked
+                || document.getElementById('whatsapp-payment-opt-in-payment')?.checked ? 1 : 0,
         };
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -1222,7 +1225,7 @@ class WiFiPortal {
         };
 
         popupTimer.textContent = value;
-        popupTimer.className = `text-4xl font-black ${textColors[color]} leading-none tabular-nums`;
+        popupTimer.className = `text-3xl font-black ${textColors[color]} leading-none tabular-nums`;
 
         if (bar) {
             bar.style.width = `${(left / total) * 100}%`;
@@ -1233,7 +1236,7 @@ class WiFiPortal {
         const box = document.getElementById('pix-copy-popup-timer-box');
         const boxHint = document.getElementById('pix-copy-popup-timer-hint');
         if (left <= 30) {
-            if (box) box.className = 'rounded-xl border-2 border-red-400 bg-red-50 px-3 py-2.5';
+            if (box) box.className = 'rounded-xl border-2 border-red-400 bg-red-50 px-3 py-2';
             if (label) {
                 label.className = 'text-[13px] font-bold text-red-900 leading-tight';
                 label.textContent = 'Está acabando!';
@@ -1361,14 +1364,14 @@ class WiFiPortal {
             text.className = 'text-[14px] text-gray-700 mb-3 leading-snug';
             text.textContent = 'Não se preocupe. Toque abaixo para gerar um novo código e continuar o pagamento.';
         }
-        if (timerBox) timerBox.className = 'rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2.5';
+        if (timerBox) timerBox.className = 'rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2';
         if (timerLabel) {
             timerLabel.className = 'text-[13px] font-bold text-red-900 leading-tight';
             timerLabel.textContent = 'Código expirado';
         }
         if (timer) {
             timer.textContent = '00:00';
-            timer.className = 'text-4xl font-black text-red-600 leading-none tabular-nums';
+            timer.className = 'text-3xl font-black text-red-600 leading-none tabular-nums';
         }
         if (timerBar) {
             timerBar.style.width = '0%';
@@ -1377,7 +1380,7 @@ class WiFiPortal {
         step2?.classList.add('hidden');
         if (okBtn) {
             okBtn.textContent = 'Gerar novo código PIX';
-            okBtn.className = 'mt-3 w-full bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-[16px] font-bold py-3.5 rounded-xl shadow-md';
+            okBtn.className = 'mt-2 w-full bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-[16px] font-bold py-3.5 rounded-xl shadow-md';
         }
         recopyBtn?.classList.add('hidden');
 
@@ -1509,7 +1512,7 @@ class WiFiPortal {
                                 <div id="after-copy-hint" class="hidden">
                                     <div id="after-copy-hint-box" class="bg-emerald-50 border border-emerald-300 rounded-lg p-2.5">
                                         <p id="after-copy-title" class="text-emerald-800 font-bold text-sm">✅ Código copiado! Agora abra o <strong>app do banco</strong> e cole o PIX.</p>
-                                        <p id="after-copy-sub" class="text-emerald-600 text-[12px] mt-1">WiFi liberado por 3 minutos para você pagar. Cole o código no banco.</p>
+                                        <p id="after-copy-sub" class="text-emerald-600 text-[12px] mt-1">Sua internet Starlink foi liberada por 3 minutos para você concluir o pagamento.</p>
                                     </div>
                                 </div>
                                 <div id="limit-copy-hint" class="hidden">
@@ -1966,8 +1969,8 @@ class WiFiPortal {
             overlay.id = 'pix-copy-popup';
             overlay.className = 'fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-3 bg-black/60 backdrop-blur-sm';
             overlay.innerHTML = `
-                <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-4 animate-slide-up max-h-[94vh] overflow-y-auto">
-                    <div class="flex items-center gap-2.5 mb-3">
+                <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-3 sm:p-4 animate-slide-up max-h-[94vh] overflow-y-auto">
+                    <div class="flex items-center gap-2.5 mb-2">
                         <div id="pix-copy-popup-icon" class="flex-shrink-0 w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shadow">
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                         </div>
@@ -1976,19 +1979,19 @@ class WiFiPortal {
                     <p id="pix-copy-popup-text" class="hidden text-[13px] text-gray-700 mb-3 leading-snug"></p>
 
                     <!-- TEMPO RESTANTE -->
-                    <div id="pix-copy-popup-timer-box" class="rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2.5">
+                    <div id="pix-copy-popup-timer-box" class="rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2">
                         <div class="flex items-center justify-between gap-2">
                             <p id="pix-copy-popup-timer-label" class="text-[13px] font-bold text-emerald-900 leading-tight">Tempo para pagar</p>
-                            <p id="pix-copy-popup-timer" class="text-4xl font-black text-emerald-700 leading-none tabular-nums">03:00</p>
+                            <p id="pix-copy-popup-timer" class="text-3xl font-black text-emerald-700 leading-none tabular-nums">03:00</p>
                         </div>
-                        <div class="mt-2 h-2.5 w-full rounded-full bg-gray-200 overflow-hidden">
+                        <div class="mt-1.5 h-2 w-full rounded-full bg-gray-200 overflow-hidden">
                             <div id="pix-copy-popup-timer-bar" class="h-full bg-emerald-500 rounded-full transition-all duration-1000 ease-linear" style="width:100%"></div>
                         </div>
                         <p id="pix-copy-popup-timer-hint" class="hidden text-center text-[13px] font-bold text-red-900 mt-2 leading-snug"></p>
                     </div>
 
                     <div id="pix-copy-popup-step2">
-                        <ol id="pix-copy-popup-steps" class="list-none mt-3 space-y-2">
+                        <ol id="pix-copy-popup-steps" class="list-none mt-2 space-y-1.5">
                             <li class="flex gap-2.5 items-center">
                                 <span class="flex-shrink-0 w-7 h-7 rounded-full bg-emerald-600 text-white font-black text-[13px] flex items-center justify-center">1</span>
                                 <p class="text-[15px] text-gray-800 leading-tight">Abra o <strong>app do seu banco</strong></p>
@@ -2007,7 +2010,7 @@ class WiFiPortal {
                             </li>
                         </ol>
 
-                        <div class="flex items-center justify-center gap-1.5 mt-3">
+                        <div class="flex items-center justify-center gap-1.5 mt-2">
                             <div class="flex gap-1">
                                 <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
                                 <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" style="animation-delay:0.2s"></div>
@@ -2017,7 +2020,7 @@ class WiFiPortal {
                         </div>
                     </div>
 
-                    <button type="button" id="pix-copy-popup-ok" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[16px] font-bold py-3.5 rounded-xl shadow-md">
+                    <button type="button" id="pix-copy-popup-ok" class="mt-2 w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[16px] font-bold py-3.5 rounded-xl shadow-md">
                         Fechar e abrir meu banco
                     </button>
                     <button type="button" id="pix-copy-popup-recopy" class="mt-1.5 w-full text-[13px] font-semibold text-gray-500 hover:text-gray-700 py-1.5 underline">
@@ -2070,7 +2073,7 @@ class WiFiPortal {
         const step1Default = 'Abra o <strong>app do seu banco</strong>';
         const step1With4G = 'Ligue o <strong>4G</strong> e abra o <strong>app do banco</strong>';
 
-        const btnBase = 'mt-3 w-full text-white text-[16px] font-bold py-3.5 rounded-xl shadow-md';
+        const btnBase = 'mt-2 w-full text-white text-[16px] font-bold py-3.5 rounded-xl shadow-md';
 
         if (mode === 'limit') {
             icon.className = 'flex-shrink-0 w-10 h-10 rounded-full bg-red-500 flex items-center justify-center shadow';
@@ -2081,7 +2084,7 @@ class WiFiPortal {
             text.innerHTML = 'Você já usou as 2 liberações de WiFi desta hora.';
             text.classList.remove('hidden');
             if (step1) step1.innerHTML = step1With4G;
-            timerBox.className = 'rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2.5';
+            timerBox.className = 'rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2';
             timerLabel.className = 'text-[13px] font-bold text-red-900 leading-tight';
             okBtn.className = `${btnBase} bg-red-600 hover:bg-red-700 active:bg-red-800`;
         } else if (mode === 'error' || mode === 'blocked') {
@@ -2093,17 +2096,19 @@ class WiFiPortal {
             text.innerHTML = options.message || 'Se o app do banco não abrir, ligue o <strong>4G</strong> só para pagar.';
             text.classList.remove('hidden');
             if (step1) step1.innerHTML = step1With4G;
-            timerBox.className = 'rounded-xl border-2 border-amber-300 bg-amber-50 px-3 py-2.5';
+            timerBox.className = 'rounded-xl border-2 border-amber-300 bg-amber-50 px-3 py-2';
             timerLabel.className = 'text-[13px] font-bold text-amber-900 leading-tight';
             okBtn.className = `${btnBase} bg-amber-600 hover:bg-amber-700 active:bg-amber-800`;
         } else if (mode === 'copied' || mode === 'checking') {
             icon.className = 'flex-shrink-0 w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center shadow';
             icon.innerHTML = '<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
             title.className = 'text-[17px] font-extrabold text-blue-800 leading-tight';
-            title.textContent = 'Código PIX copiado!';
-            text.classList.add('hidden');
+            title.textContent = 'CÓDIGO PIX JÁ FOI COPIADO!';
+            text.className = 'text-[14px] font-extrabold text-blue-900 mb-2 leading-snug bg-blue-100 border border-blue-300 rounded-lg px-3 py-2';
+            text.innerHTML = '✅ Já está no seu celular. No banco, toque em <strong>“Colar”</strong>.';
+            text.classList.remove('hidden');
             if (step1) step1.innerHTML = step1Default;
-            timerBox.className = 'rounded-xl border-2 border-blue-300 bg-blue-50 px-3 py-2.5';
+            timerBox.className = 'rounded-xl border-2 border-blue-300 bg-blue-50 px-3 py-2';
             timerLabel.className = 'text-[13px] font-bold text-blue-900 leading-tight';
             if (status) status.textContent = 'Liberando a internet para você pagar...';
             okBtn.className = `${btnBase} bg-blue-600 hover:bg-blue-700 active:bg-blue-800`;
@@ -2111,12 +2116,14 @@ class WiFiPortal {
             icon.className = 'flex-shrink-0 w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shadow';
             icon.innerHTML = '<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
             title.className = 'text-[17px] font-extrabold text-emerald-800 leading-tight';
-            title.textContent = 'Código PIX copiado!';
-            text.classList.add('hidden');
+            title.textContent = 'CÓDIGO PIX JÁ FOI COPIADO!';
+            text.className = 'text-[14px] font-extrabold text-emerald-900 mb-2 leading-snug bg-emerald-100 border border-emerald-300 rounded-lg px-3 py-2';
+            text.innerHTML = '✅ <strong>Starlink liberada por 3 minutos para pagar.</strong>';
+            text.classList.remove('hidden');
             if (step1) step1.innerHTML = step1Default;
-            timerBox.className = 'rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2.5';
+            timerBox.className = 'rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2';
             timerLabel.className = 'text-[13px] font-bold text-emerald-900 leading-tight';
-            if (status) status.textContent = 'O WiFi libera sozinho quando o PIX cair';
+            if (status) status.textContent = 'Siga os 4 passos acima. Após o PIX, o WiFi libera sozinho.';
             okBtn.className = `${btnBase} bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800`;
         }
 
@@ -2211,7 +2218,7 @@ class WiFiPortal {
             const remaining = options.remaining ?? 0;
             this._bypassRemaining = remaining;
             const extra = this.remainingBypassLabel(remaining);
-            titleEl.textContent = 'Internet liberada por 3 minutos!';
+            titleEl.textContent = 'Internet Starlink liberada por 3 minutos!';
             textEl.innerHTML = `O código PIX já foi copiado. Agora abra o app do banco e cole para pagar. O acesso completo libera automaticamente após o PIX.${extra}`;
         } else if (mode === 'limit') {
             titleEl.textContent = 'Limite de liberações usado';

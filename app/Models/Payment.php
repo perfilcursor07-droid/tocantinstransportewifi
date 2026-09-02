@@ -19,6 +19,7 @@ class Payment extends Model
         'payment_data',
         'paid_at',
         'unpaid_reminder_sent_at',
+        'whatsapp_confirmation_sent_at',
         'refund_receipt_path',
         'refunded_at',
         'refund_note',
@@ -30,6 +31,7 @@ class Payment extends Model
             'payment_data' => 'array',
             'paid_at' => 'datetime',
             'unpaid_reminder_sent_at' => 'datetime',
+            'whatsapp_confirmation_sent_at' => 'datetime',
             'refunded_at' => 'datetime',
             'amount' => 'decimal:2',
         ];

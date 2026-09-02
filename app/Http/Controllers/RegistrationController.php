@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\WhatsappOptOut;
 use App\Support\HotspotIdentity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -170,6 +171,7 @@ class RegistrationController extends Controller
                 'email' => 'nullable|email|max:255',
                 'mac_address' => 'nullable|string|max:17',
                 'ip_address' => 'nullable|ip',
+                'whatsapp_payment_opt_in' => 'nullable|boolean',
             ], [
                 'phone.required' => 'Telefone é obrigatório',
                 'phone.min' => 'Telefone deve ter pelo menos 10 dígitos',
@@ -224,6 +226,18 @@ class RegistrationController extends Controller
             // Limpar telefone (apenas números)
             $cleanPhone = preg_replace('/[^\d]/', '', $request->phone);
             $email = $request->input('email');
+            $whatsappOptIn = $request->boolean('whatsapp_payment_opt_in');
+            $whatsappConsent = $whatsappOptIn ? [
+                'whatsapp_payment_opt_in_at' => now(),
+                'whatsapp_payment_opt_in_phone' => $cleanPhone,
+                'whatsapp_payment_opt_in_source' => 'portal_payment',
+            ] : [];
+
+            // Uma nova aceitação também reativa um passageiro que antes havia
+            // pedido descadastro. Sem checkbox, nunca removemos o descadastro.
+            if ($whatsappOptIn) {
+                WhatsappOptOut::optIn($cleanPhone);
+            }
             
             // 🔧 FIX: Primeiro verificar se já existe usuário com este MAC (prioridade máxima)
             $existingUserByMac = $macAddress ? User::where('mac_address', $macAddress)->first() : null;
@@ -233,7 +247,7 @@ class RegistrationController extends Controller
                     'phone' => $cleanPhone,
                     'ip_address' => $ipAddress,
                     'registered_at' => now(),
-                ];
+                ] + $whatsappConsent;
                 if ($email) $updateData['email'] = $email;
 
                 // 🔧 FIX: NÃO resetar status para 'pending' se o usuário já tem acesso ativo
@@ -290,7 +304,7 @@ class RegistrationController extends Controller
                 $updateData = [
                     'phone' => $cleanPhone,
                     'registered_at' => now(),
-                ];
+                ] + $whatsappConsent;
 
                 if (HotspotIdentity::shouldReplaceMac($user->mac_address, $macAddress)) {
                     // Limpar MAC de outros registros que possam ter este mesmo MAC (constraint unique)
@@ -346,7 +360,7 @@ class RegistrationController extends Controller
 
             if ($existingUserByPhone) {
                 // Usuário já existe com este telefone - atualizar MAC/IP
-                $updateData = ['phone' => $cleanPhone];
+                $updateData = ['phone' => $cleanPhone] + $whatsappConsent;
                 $updateData['registered_at'] = now();
                 
                 // 🔧 FIX: Sempre atualizar o MAC para o MAC atual do dispositivo
@@ -414,7 +428,7 @@ class RegistrationController extends Controller
                 'phone' => $cleanPhone,
                 'registered_at' => now(),
                 'status' => 'pending',
-            ];
+            ] + $whatsappConsent;
 
             if ($email) $userData['email'] = $email;
             if ($macAddress) $userData['mac_address'] = $macAddress;

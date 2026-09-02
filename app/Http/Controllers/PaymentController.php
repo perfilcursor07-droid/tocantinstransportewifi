@@ -45,6 +45,7 @@ class PaymentController extends Controller
             'plan_duration' => 'nullable|numeric|min:0.1|max:168',
             'plan_name' => 'nullable|string|max:80',
             'plan_suffix' => 'nullable|string|max:20',
+            'whatsapp_payment_opt_in' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -138,6 +139,18 @@ class PaymentController extends Controller
                 // Buscar ou criar usuário pelo MAC
                 $user = $this->findOrCreateUser($macAddress, $clientIp);
             }
+            }
+
+            // O passageiro pode autorizar atualizações na própria etapa de
+            // pagamento. O consentimento fica vinculado ao telefone atual.
+            if ($request->boolean('whatsapp_payment_opt_in') && $user->phone) {
+                $cleanPhone = preg_replace('/\D/', '', $user->phone);
+                $user->update([
+                    'whatsapp_payment_opt_in_at' => now(),
+                    'whatsapp_payment_opt_in_phone' => $cleanPhone,
+                    'whatsapp_payment_opt_in_source' => 'portal_payment',
+                ]);
+                \App\Models\WhatsappOptOut::optIn($cleanPhone);
             }
 
             // Verificar qual gateway usar
@@ -383,6 +396,8 @@ class PaymentController extends Controller
         try {
             if (!$user->phone || strlen($user->phone) < 10) return;
             if (!\App\Models\WhatsappSetting::isConnected()) return;
+            if (!$user->hasWhatsappPaymentOptIn()) return;
+            if (\App\Models\WhatsappOptOut::isOptedOut($user->phone)) return;
 
             $phone = \App\Models\WhatsappMessage::formatPhone($user->phone);
             $amount = number_format((float) ($pixData['amount'] ?? $payment->amount), 2, ',', '.');
@@ -513,33 +528,24 @@ class PaymentController extends Controller
         try {
             if (!$user->phone || strlen($user->phone) < 10) return;
             if (!\App\Models\WhatsappSetting::isConnected()) return;
+            if (!$user->hasWhatsappPaymentOptIn()) return;
+            if (\App\Models\WhatsappOptOut::isOptedOut($user->phone)) return;
+
+            // Webhooks podem ser repetidos pelo gateway. Uma confirmação por
+            // pagamento é suficiente e evita duplicidade para o passageiro.
+            $payment->refresh();
+            if ($payment->whatsapp_confirmation_sent_at) return;
 
             $phone = \App\Models\WhatsappMessage::formatPhone($user->phone);
             $nome = $user->name ? trim(explode(' ', $user->name)[0]) : 'Cliente';
             $horasTexto = $hours == (int) $hours ? (int) $hours . ' horas' : $hours . ' horas';
             $amount = number_format((float) $payment->amount, 2, ',', '.');
 
-            $reativarUrl = url('/reativar');
-
             $message = "✅ *Pagamento confirmado!*\n\n"
                      . "Oi {$nome}! Recebemos seu PIX de *R\$ {$amount}*.\n\n"
-                     . "📶 Sua internet está liberada por *{$horasTexto}*.\n"
-                     . "Aproveite ao máximo! 🚌💨\n\n"
-                     . "━━━━━━━━━━━━━━\n"
-                     . "⚠️ *NÃO CONECTOU EM 30 SEGUNDOS?*\n"
-                     . "━━━━━━━━━━━━━━\n\n"
-                     . "Faça este passo a passo:\n\n"
-                     . "1️⃣ *Desconecte do WiFi* (segura no nome 'TocantinsTransporteWiFi' → 'Esquecer rede')\n\n"
-                     . "2️⃣ *Reconecte ao WiFi* na mesma rede\n\n"
-                     . "3️⃣ Abra o navegador e acesse: *{$reativarUrl}*\n\n"
-                     . "4️⃣ Informe seu telefone e clique em *RECUPERAR ACESSO*\n\n"
-                     . "━━━━━━━━━━━━━━\n\n"
-                     . "💡 *Dica importante (iPhone/Android novos):*\n"
-                     . "Alguns celulares geram um identificador novo a cada conexão. Se acontecer:\n\n"
-                     . "📱 *iPhone:* Ajustes → Wi-Fi → toque no (i) ao lado da rede → desative *Endereço Privado*\n\n"
-                     . "📱 *Android:* Configurações → Wi-Fi → segura na rede → Avançado → mude para *MAC do dispositivo*\n\n"
-                     . "💬 Qualquer problema, é só responder aqui!\n\n"
-                     . "Obrigado por viajar com a Tocantins Transporte! 🙏";
+                     . "📶 Sua internet será liberada em até 30 segundos por *{$horasTexto}*.\n\n"
+                     . "Se não conectar, abra: " . url('/reativar') . "\n\n"
+                     . "_Para parar as atualizações de pagamento, responda *PARAR*._";
 
             $msg = \App\Models\WhatsappMessage::create([
                 'user_id' => $user->id,
@@ -559,6 +565,7 @@ class PaymentController extends Controller
 
             if ($resp->successful()) {
                 $msg->markAsSent($resp->json('messageId'));
+                $payment->update(['whatsapp_confirmation_sent_at' => now()]);
                 Log::info('📱 WhatsApp: Confirmação de pagamento enviada', ['payment_id' => $payment->id]);
             } else {
                 $msg->markAsFailed($resp->body());

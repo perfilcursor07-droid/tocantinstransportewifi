@@ -21,6 +21,9 @@ class User extends Authenticatable
         'name',
         'email',
         'phone',
+        'whatsapp_payment_opt_in_at',
+        'whatsapp_payment_opt_in_phone',
+        'whatsapp_payment_opt_in_source',
         'password',
         'mac_address',
         'ip_address',
@@ -67,6 +70,7 @@ class User extends Authenticatable
             'expires_at' => 'datetime',
             'last_login_at' => 'datetime',
             'registered_at' => 'datetime',
+            'whatsapp_payment_opt_in_at' => 'datetime',
             'voucher_activated_at' => 'datetime',
             'voucher_last_connection' => 'datetime',
             'allowed_modules' => 'array',
@@ -97,6 +101,21 @@ class User extends Authenticatable
     public function isConnected(): bool
     {
         return $this->status === 'connected' && $this->expires_at && $this->expires_at->isFuture();
+    }
+
+    /**
+     * Consentimento explícito para atualizações transacionais deste telefone.
+     * O número faz parte do consentimento para evitar reutilizar uma aceitação
+     * antiga caso o passageiro informe outro telefone no portal.
+     */
+    public function hasWhatsappPaymentOptIn(): bool
+    {
+        $phone = preg_replace('/\D/', '', (string) $this->phone);
+        $consentedPhone = preg_replace('/\D/', '', (string) $this->whatsapp_payment_opt_in_phone);
+
+        return (bool) $this->whatsapp_payment_opt_in_at
+            && $phone !== ''
+            && $phone === $consentedPhone;
     }
 
     /**

@@ -130,7 +130,7 @@ class WhatsappController extends Controller
     public function updateSettings(Request $request)
     {
         $request->validate([
-            'pending_minutes' => 'required|integer|min:1|max:1440',
+            'pending_minutes' => 'required|integer|min:15|max:1440',
             'message_template' => 'required|string|max:1000',
             'auto_send_enabled' => 'nullable|boolean',
         ]);
@@ -410,6 +410,16 @@ HTML;
         ]);
 
         $phone = WhatsappMessage::formatPhone($request->phone);
+        $user = $request->user_id ? User::find($request->user_id) : null;
+
+        // O botão de envio de pendentes informa user_id. Exigimos a mesma
+        // autorização do envio automático para não contornar a proteção pela
+        // tela administrativa.
+        if ($user && (! $user->hasWhatsappPaymentOptIn() || WhatsappOptOut::isOptedOut($user->phone))) {
+            return response()->json([
+                'error' => 'Este passageiro não autorizou atualizações de pagamento pelo WhatsApp.',
+            ], 422);
+        }
         
         // Criar registro da mensagem
         $whatsappMessage = WhatsappMessage::create([
@@ -451,15 +461,13 @@ HTML;
             return response()->json(['error' => 'WhatsApp não está conectado'], 400);
         }
 
-        // 🛡️ Anti-ban exige delays longos entre mensagens (15-25s). Como isso pode
-        // ultrapassar o tempo de uma requisição web, soltamos o limite de execução e
-        // continuamos mesmo se o admin fechar a aba. Mesmo assim limitamos o lote por
-        // clique (MAX_PER_RUN) — quem sobrar é pego no próximo envio.
+        // O lote é deliberadamente pequeno. Não há tentativa de disfarçar
+        // automação: a proteção é consentimento, uma mensagem útil e API oficial.
         @set_time_limit(0);
         @ignore_user_abort(true);
-        $maxPerRun = 20;
+        $maxPerRun = 10;
 
-        $pendingMinutes = WhatsappSetting::getPendingMinutes();
+        $pendingMinutes = max(15, WhatsappSetting::getPendingMinutes());
         $messageTemplate = WhatsappSetting::getMessageTemplate();
 
         // IDs de usuários que já pagaram nas últimas 24 horas
@@ -488,18 +496,23 @@ HTML;
         $skipped = 0;
         $batchCount = 0;
 
-        // 🔀 Variações leves do template (anti-ban): se o template tiver marcadores,
-        // criamos 3 versões com pequenas diferenças de saudação/fechamento.
         $optOutFooter = "\n\n_Não quer mais receber? Responda *PARAR*._";
 
         foreach ($pendingPayments as $payment) {
-            // Teto por execução (anti-ban + evita request infinito)
+            // Teto por execução para limitar o contato iniciado pela empresa.
             if ($sent >= $maxPerRun) {
                 break;
             }
 
             // 🛡️ Respeita descadastro (opt-out)
             if (WhatsappOptOut::isOptedOut($payment->user->phone)) {
+                $skipped++;
+                continue;
+            }
+
+            // Somente quem aceitou receber atualizações deste pagamento pode
+            // receber contato iniciado pela empresa.
+            if (! $payment->user->hasWhatsappPaymentOptIn()) {
                 $skipped++;
                 continue;
             }
@@ -524,13 +537,7 @@ HTML;
                 $messageTemplate
             );
 
-            // Pequena variação de fechamento para não enviar texto 100% idêntico em massa
-            $closers = [
-                "\n\nQualquer dúvida, é só responder aqui! 💚",
-                "\n\nEstamos à disposição. 🚌",
-                "\n\nConte com a gente na sua viagem! ✨",
-            ];
-            $message .= $closers[array_rand($closers)] . $optOutFooter;
+            $message .= $optOutFooter;
 
             // Criar registro
             $whatsappMessage = WhatsappMessage::create([
@@ -555,12 +562,11 @@ HTML;
 
                 $batchCount++;
 
-                // 🛡️ Anti-ban: delay randomizado de 15-25s entre mensagens (parece humano)
-                // e pausa longa a cada 10 mensagens enviadas.
-                if ($batchCount % 10 === 0) {
-                    sleep(rand(60, 90));
-                } else {
-                    sleep(rand(15, 25));
+                // Espaçamento técnico curto para não sobrecarregar a conexão.
+                // Conformidade vem de consentimento e da API oficial, não de
+                // tentar simular um envio humano.
+                if ($batchCount < $maxPerRun) {
+                    usleep(500000);
                 }
             } catch (\Exception $e) {
                 $whatsappMessage->markAsFailed($e->getMessage());
@@ -586,6 +592,10 @@ HTML;
 
         if (!WhatsappSetting::isConnected()) {
             return response()->json(['error' => 'WhatsApp não está conectado'], 400);
+        }
+
+        if ($message->user && (! $message->user->hasWhatsappPaymentOptIn() || WhatsappOptOut::isOptedOut($message->user->phone))) {
+            return response()->json(['error' => 'O passageiro não autorizou ou cancelou atualizações pelo WhatsApp.'], 422);
         }
 
         try {

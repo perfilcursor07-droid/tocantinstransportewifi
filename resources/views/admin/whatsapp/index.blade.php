@@ -129,7 +129,7 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                         </svg>
-                        Enviar para Todos
+                        Enviar para autorizados
                     </button>
                 </div>
             </div>
@@ -164,9 +164,13 @@
                             </td>
                             <td class="px-4 py-3 text-center">
                                 <div class="inline-flex items-center gap-1.5">
-                                    <button onclick="sendSingleMessage('{{ $payment->user->phone }}', {{ $payment->user_id }}, {{ $payment->id }})" class="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50" {{ !$settings['is_connected'] ? 'disabled' : '' }}>
-                                        Enviar
-                                    </button>
+                                    @if($payment->user->hasWhatsappPaymentOptIn())
+                                        <button onclick="sendSingleMessage('{{ $payment->user->phone }}', {{ $payment->user_id }}, {{ $payment->id }})" class="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50" {{ !$settings['is_connected'] ? 'disabled' : '' }}>
+                                            Enviar
+                                        </button>
+                                    @else
+                                        <span class="text-xs font-medium text-gray-400" title="O passageiro ainda não autorizou atualizações de pagamento pelo WhatsApp">Sem autorização</span>
+                                    @endif
                                     @if(auth()->user()?->role === 'admin')
                                     <form method="POST" action="{{ route('admin.whatsapp.pending-payments.destroy', $payment) }}"
                                           onsubmit="return confirm('Excluir o pagamento pendente #{{ $payment->id }}?');">
@@ -493,7 +497,7 @@ async function disconnectWhatsApp() {
 
 // Enviar para todos os pendentes
 async function sendToAllPending() {
-    if (!confirm('Enviar mensagem para todos os pagamentos pendentes?')) return;
+    if (!confirm('Enviar lembrete somente aos passageiros autorizados com pagamento pendente?')) return;
 
     const btn = document.getElementById('btn-send-all');
     btn.disabled = true;
@@ -521,7 +525,7 @@ async function sendToAllPending() {
     }
 
     btn.disabled = false;
-    btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg> Enviar para Todos';
+    btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg> Enviar para autorizados';
 }
 
 // Enviar mensagem individual
