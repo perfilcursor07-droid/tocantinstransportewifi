@@ -1294,6 +1294,7 @@ class WiFiPortal {
 
     handlePixTimeout() {
         this.stopPixCountdown();
+        this.pixCodeExpired = true;
         if (this.paymentCheckInterval) {
             clearInterval(this.paymentCheckInterval);
             this.paymentCheckInterval = null;
@@ -1313,7 +1314,82 @@ class WiFiPortal {
             checkButton.classList.add('cursor-not-allowed');
         }
 
+        const copyButton = document.getElementById('copy-pix-code');
+        if (copyButton) {
+            copyButton.innerHTML = 'GERAR NOVO CÓDIGO PIX';
+            copyButton.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'bg-emerald-500');
+            copyButton.classList.add('bg-red-600', 'hover:bg-red-700');
+        }
+
+        // Se o aviso após a cópia estiver aberto (ou tiver sido fechado),
+        // deixa inequívoco que o código não pode mais ser usado. Antes, o
+        // texto orientava gerar um código novo, mas o botão ainda só copiava
+        // o código expirado.
+        this.showExpiredCopyPopup();
         this.showErrorMessage('Tempo para pagamento expirou. Gere um novo QR Code.');
+    }
+
+    /**
+     * Atualiza o aviso pós-cópia para o estado de código expirado.
+     * Não altera o fluxo de pagamento: apenas apresenta uma ação que gera
+     * efetivamente um novo PIX quando o anterior deixa de valer.
+     */
+    showExpiredCopyPopup() {
+        const overlay = document.getElementById('pix-copy-popup');
+        if (!overlay) return;
+
+        const icon = overlay.querySelector('#pix-copy-popup-icon');
+        const title = overlay.querySelector('#pix-copy-popup-title');
+        const text = overlay.querySelector('#pix-copy-popup-text');
+        const timerBox = overlay.querySelector('#pix-copy-popup-timer-box');
+        const timerLabel = overlay.querySelector('#pix-copy-popup-timer-label');
+        const timer = overlay.querySelector('#pix-copy-popup-timer');
+        const timerBar = overlay.querySelector('#pix-copy-popup-timer-bar');
+        const step2 = overlay.querySelector('#pix-copy-popup-step2');
+        const okBtn = overlay.querySelector('#pix-copy-popup-ok');
+        const recopyBtn = overlay.querySelector('#pix-copy-popup-recopy');
+
+        if (icon) {
+            icon.className = 'flex-shrink-0 w-10 h-10 rounded-full bg-red-500 flex items-center justify-center shadow';
+            icon.innerHTML = '<span class="text-white text-xl font-black">!</span>';
+        }
+        if (title) {
+            title.className = 'text-[17px] font-extrabold text-red-800 leading-tight';
+            title.textContent = 'Este código PIX expirou';
+        }
+        if (text) {
+            text.className = 'text-[14px] text-gray-700 mb-3 leading-snug';
+            text.textContent = 'Não se preocupe. Toque abaixo para gerar um novo código e continuar o pagamento.';
+        }
+        if (timerBox) timerBox.className = 'rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2.5';
+        if (timerLabel) {
+            timerLabel.className = 'text-[13px] font-bold text-red-900 leading-tight';
+            timerLabel.textContent = 'Código expirado';
+        }
+        if (timer) {
+            timer.textContent = '00:00';
+            timer.className = 'text-4xl font-black text-red-600 leading-none tabular-nums';
+        }
+        if (timerBar) {
+            timerBar.style.width = '0%';
+            timerBar.className = 'h-full bg-red-500 rounded-full';
+        }
+        step2?.classList.add('hidden');
+        if (okBtn) {
+            okBtn.textContent = 'Gerar novo código PIX';
+            okBtn.className = 'mt-3 w-full bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-[16px] font-bold py-3.5 rounded-xl shadow-md';
+        }
+        recopyBtn?.classList.add('hidden');
+
+        overlay.dataset.expired = 'true';
+        overlay.classList.remove('hidden');
+    }
+
+    /** Gera outro PIX depois que o anterior expirou. */
+    regeneratePixCode() {
+        this.hideCopyBypassPopup();
+        this.closePixModal();
+        this.processPixPayment();
     }
 
     /**
@@ -1321,6 +1397,7 @@ class WiFiPortal {
      */
     showPixQRCode(data) {
         this._bypassRan = false; // reset por modal (cada pagamento libera de novo)
+        this.pixCodeExpired = false;
         const modal = document.createElement('div');
         modal.id = 'pix-modal';
         modal.className = 'fixed inset-0 bg-black bg-opacity-80 z-50 backdrop-blur-sm';
@@ -1354,21 +1431,21 @@ class WiFiPortal {
                                 <div id="step-1" class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-sm font-bold shadow-md">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
                                 </div>
-                                <span id="step-1-text" class="text-[11px] mt-1 text-emerald-700 font-bold">Copiar</span>
+                                <span id="step-1-text" class="text-xs mt-1 text-emerald-700 font-bold">Copiar</span>
                             </div>
                             <div class="h-1 flex-1 bg-gray-200 rounded-full -mt-4 mx-1"><div id="line-1-2" class="h-full bg-gray-200 rounded-full transition-all duration-500" style="width:0%"></div></div>
                             <div class="flex flex-col items-center flex-1">
                                 <div id="step-2" class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm font-bold">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
                                 </div>
-                                <span id="step-2-text" class="text-[11px] mt-1 text-gray-400 font-medium">Banco</span>
+                                <span id="step-2-text" class="text-xs mt-1 text-gray-400 font-medium">Banco</span>
                             </div>
                             <div class="h-1 flex-1 bg-gray-200 rounded-full -mt-4 mx-1"><div id="line-2-3" class="h-full bg-gray-200 rounded-full transition-all duration-500" style="width:0%"></div></div>
                             <div class="flex flex-col items-center flex-1">
                                 <div id="step-3" class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm font-bold">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
                                 </div>
-                                <span id="step-3-text" class="text-[11px] mt-1 text-gray-400 font-medium">Conectar</span>
+                                <span id="step-3-text" class="text-xs mt-1 text-gray-400 font-medium">Conectar</span>
                             </div>
                         </div>
                     </div>
@@ -1386,8 +1463,8 @@ class WiFiPortal {
                                         <div class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
                                     </div>
                                     <div class="min-w-0">
-                                        <p id="bypass-banner-title" class="text-slate-900 font-extrabold text-sm leading-tight">Preparando pagamento...</p>
-                                        <p id="bypass-banner-text" class="text-slate-700 text-[11px] mt-1 leading-snug">
+                                        <p id="bypass-banner-title" class="text-slate-900 font-extrabold text-base leading-tight">Preparando pagamento...</p>
+                                        <p id="bypass-banner-text" class="text-slate-700 text-[13px] mt-1 leading-snug">
                                             <strong>1.</strong> Copie o código PIX abaixo<br>
                                             <strong>2.</strong> Abra o app do banco e <strong>cole</strong> o código<br>
                                             <strong>3.</strong> Confirme o pagamento — o WiFi libera sozinho
@@ -1402,21 +1479,21 @@ class WiFiPortal {
                                 <div class="bg-white p-2 rounded-xl border-2 border-dashed border-emerald-300 inline-block shadow-sm">
                                     <div id="pix-qr-local" class="w-36 h-36 mx-auto flex items-center justify-center"></div>
                                 </div>
-                                <p class="text-gray-400 text-[10px] mt-1">Pague neste celular (copie o código) ou escaneie o QR com outro aparelho.</p>
+                                <p class="text-gray-500 text-[12px] mt-1 leading-snug"><strong>Vai pagar neste celular?</strong> Copie o código abaixo. Use o QR Code somente para pagar com outro aparelho.</p>
                             </div>
 
                             <div class="flex items-center gap-2 mb-2">
                                 <div class="flex-1 h-px bg-gray-200"></div>
-                                <span class="text-[10px] ${isMobile ? 'text-blue-700 font-bold' : 'text-gray-400 font-medium'}">PASSO 1 — COPIE O CÓDIGO</span>
+                                <span class="text-[12px] ${isMobile ? 'text-blue-700 font-bold' : 'text-gray-500 font-medium'}">PASSO 1 — COPIE O CÓDIGO</span>
                                 <div class="flex-1 h-px bg-gray-200"></div>
                             </div>
                             
                             <!-- Copia e Cola -->
                             <div class="bg-blue-50 rounded-xl p-2.5 mb-2 border border-blue-200">
-                                <div class="bg-white border border-blue-200 rounded-lg p-2 mb-2 max-h-14 overflow-y-auto">
-                                    <p class="text-[10px] text-gray-600 break-all font-mono leading-relaxed" id="pix-code">${data.qr_code.emv_string}</p>
+                                <div class="bg-white border border-blue-200 rounded-lg p-2 mb-2 max-h-16 overflow-y-auto">
+                                    <p class="text-[11px] text-gray-600 break-all font-mono leading-relaxed" id="pix-code">${data.qr_code.emv_string}</p>
                                 </div>
-                                <button id="copy-pix-code" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold py-2 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm">
+                                <button id="copy-pix-code" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold py-3 rounded-lg text-base transition-all flex items-center justify-center gap-1.5 shadow-sm">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                                     COPIAR CÓDIGO PIX
                                 </button>
@@ -1426,13 +1503,13 @@ class WiFiPortal {
                             <div id="open-bank-area" class="hidden mb-2">
                                 <div class="flex items-center gap-2 mb-1.5">
                                     <div class="flex-1 h-px bg-gray-200"></div>
-                                    <span class="text-[10px] text-emerald-700 font-bold">PASSO 2 — ABRA O BANCO E COLE</span>
+                                    <span class="text-[12px] text-emerald-700 font-bold">PASSO 2 — ABRA O BANCO E COLE</span>
                                     <div class="flex-1 h-px bg-gray-200"></div>
                                 </div>
                                 <div id="after-copy-hint" class="hidden">
                                     <div id="after-copy-hint-box" class="bg-emerald-50 border border-emerald-300 rounded-lg p-2.5">
-                                        <p id="after-copy-title" class="text-emerald-800 font-bold text-xs">✅ Código copiado! Agora abra o <strong>app do banco</strong> e cole o PIX.</p>
-                                        <p id="after-copy-sub" class="text-emerald-600 text-[10px] mt-1">WiFi liberado por 3 minutos para você pagar. Cole o código no banco.</p>
+                                        <p id="after-copy-title" class="text-emerald-800 font-bold text-sm">✅ Código copiado! Agora abra o <strong>app do banco</strong> e cole o PIX.</p>
+                                        <p id="after-copy-sub" class="text-emerald-600 text-[12px] mt-1">WiFi liberado por 3 minutos para você pagar. Cole o código no banco.</p>
                                     </div>
                                 </div>
                                 <div id="limit-copy-hint" class="hidden">
@@ -1446,7 +1523,7 @@ class WiFiPortal {
                             <div class="flex items-center justify-center mb-2">
                                 <div class="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 border">
                                     <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                    <span class="text-[11px] text-gray-500 font-semibold">Tempo para pagar</span>
+                                    <span class="text-[13px] text-gray-500 font-semibold">Tempo para pagar</span>
                                     <span id="pix-timer-text" class="text-lg font-black text-gray-800 tabular-nums">03:00</span>
                                 </div>
                             </div>
@@ -1458,7 +1535,7 @@ class WiFiPortal {
                                     <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" style="animation-delay:0.2s"></div>
                                     <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" style="animation-delay:0.4s"></div>
                                 </div>
-                                <span class="text-[10px] text-gray-400">Verificando pagamento automaticamente</span>
+                                <span class="text-[12px] text-gray-500">Pagamento verificado automaticamente. O WiFi libera sozinho.</span>
                             </div>
                         </div>
                         
@@ -1611,6 +1688,13 @@ class WiFiPortal {
         this.currentPixEmv = data.qr_code.emv_string;
 
         document.getElementById('copy-pix-code')?.addEventListener('click', () => {
+            // Após expirar, este mesmo botão passa a gerar um PIX novo em vez
+            // de copiar um código que o banco já não aceitará.
+            if (this.pixCodeExpired) {
+                this.regeneratePixCode();
+                return;
+            }
+
             this.copyPixCode(data.qr_code.emv_string, { silent: true });
 
             // Liberação temporária de 3 min SÓ quando o usuário copia o código
@@ -1934,7 +2018,7 @@ class WiFiPortal {
                     </div>
 
                     <button type="button" id="pix-copy-popup-ok" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[16px] font-bold py-3.5 rounded-xl shadow-md">
-                        Entendi, vou pagar
+                        Fechar e abrir meu banco
                     </button>
                     <button type="button" id="pix-copy-popup-recopy" class="mt-1.5 w-full text-[13px] font-semibold text-gray-500 hover:text-gray-700 py-1.5 underline">
                         Copiar o código de novo
@@ -1942,8 +2026,18 @@ class WiFiPortal {
                 </div>
             `;
             document.body.appendChild(overlay);
-            overlay.querySelector('#pix-copy-popup-ok').addEventListener('click', () => this.hideCopyBypassPopup());
+            overlay.querySelector('#pix-copy-popup-ok').addEventListener('click', () => {
+                if (overlay.dataset.expired === 'true') {
+                    this.regeneratePixCode();
+                    return;
+                }
+                this.hideCopyBypassPopup();
+            });
             overlay.querySelector('#pix-copy-popup-recopy').addEventListener('click', (e) => {
+                if (overlay.dataset.expired === 'true') {
+                    this.regeneratePixCode();
+                    return;
+                }
                 if (!this.currentPixEmv) return;
                 this.copyPixCode(this.currentPixEmv, { silent: true });
                 const btn = e.currentTarget;
@@ -1969,6 +2063,7 @@ class WiFiPortal {
         const steps = overlay.querySelector('#pix-copy-popup-steps');
         const okBtn = overlay.querySelector('#pix-copy-popup-ok');
         const status = overlay.querySelector('#pix-copy-popup-status');
+        const recopyBtn = overlay.querySelector('#pix-copy-popup-recopy');
 
         // Passo 1 muda quando o usuário precisa ligar o 4G pra pagar
         const step1 = steps?.querySelector('li:first-child p');
@@ -2027,6 +2122,9 @@ class WiFiPortal {
 
         timerLabel.textContent = 'Tempo para pagar';
         step2.classList.remove('hidden');
+        recopyBtn?.classList.remove('hidden');
+        overlay.dataset.expired = 'false';
+        okBtn.textContent = 'Fechar e abrir meu banco';
 
         this._popupTimerTheme = (mode === 'limit') ? 'red'
             : (mode === 'error' || mode === 'blocked') ? 'amber'
