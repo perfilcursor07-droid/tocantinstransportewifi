@@ -1967,7 +1967,10 @@ class WiFiPortal {
         if (!overlay) {
             overlay = document.createElement('div');
             overlay.id = 'pix-copy-popup';
-            overlay.className = 'fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-3 bg-black/60 backdrop-blur-sm';
+            // No celular, centraliza em vez de ancorar no rodapé. Assim o aviso
+            // não fica sobre o botão de chat ou a barra do navegador. Em telas
+            // baixas, max-height + rolagem interna preservam todos os passos.
+            overlay.className = 'fixed inset-0 z-[10000] flex items-center justify-center p-3 bg-black/60 backdrop-blur-sm';
             overlay.innerHTML = `
                 <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-3 sm:p-4 animate-slide-up max-h-[94vh] overflow-y-auto">
                     <div class="flex items-center gap-2.5 mb-2">
