@@ -576,50 +576,38 @@
                     </div>
                 </section>
 
-                <!-- Ajuda: tudo em um card só -->
-                <section class="bg-white rounded-2xl border border-border shadow-card animate-slide-up-delay overflow-hidden">
-                    <p class="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted">Precisa de ajuda?</p>
-                    <div class="divide-y divide-gray-100">
-                        <button onclick="openVideoTutorial()" class="flex items-center justify-between px-4 py-3 w-full group">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 bg-red-pale rounded-xl flex items-center justify-center border border-red/20 flex-shrink-0">
-                                    <svg class="w-4 h-4 text-red" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-                                </div>
-                                <div class="text-left">
-                                    <p class="text-[13px] font-bold text-ink">Como se conectar?</p>
-                                    <p class="text-[11px] text-muted">Vídeo passo a passo</p>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-gray-300 group-hover:text-red group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                <!-- Ajuda compacta -->
+                <details class="group bg-white rounded-xl border border-border shadow-card animate-slide-up-delay overflow-hidden">
+                    <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-[13px] font-extrabold text-ink">
+                        Precisa de ajuda?
+                        <svg class="w-4 h-4 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </summary>
+                    <div class="divide-y divide-gray-100 border-t border-gray-100">
+                        <button onclick="openVideoTutorial()" class="flex items-center justify-between px-4 py-2.5 w-full group/help">
+                            <span class="text-left">
+                                <span class="block text-[12px] font-bold text-ink">Como se conectar?</span>
+                                <span class="block text-[10px] text-muted">Video passo a passo</span>
+                            </span>
+                            <svg class="w-3.5 h-3.5 text-gray-300 group-hover/help:text-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         </button>
 
-                        <button type="button" onclick="openRecoveryModal()" class="flex items-center justify-between px-4 py-3 w-full group">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center border border-amber-200 flex-shrink-0">
-                                    <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                </div>
-                                <div class="text-left">
-                                    <p class="text-[13px] font-bold text-ink">Já paguei mas sem internet?</p>
-                                    <p class="text-[11px] text-muted">Recuperar com seu telefone</p>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-gray-300 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <button type="button" onclick="openRecoveryModal()" class="flex items-center justify-between px-4 py-2.5 w-full group/help">
+                            <span class="text-left">
+                                <span class="block text-[12px] font-bold text-ink">Ja paguei mas sem internet?</span>
+                                <span class="block text-[10px] text-muted">Recuperar com telefone</span>
+                            </span>
+                            <svg class="w-3.5 h-3.5 text-gray-300 group-hover/help:text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         </button>
 
-                        <a href="{{ route('voucher.activate') }}{{ request()->has('mac') ? '?source=mikrotik&mac=' . request('mac') . '&ip=' . request('ip') : '' }}" class="flex items-center justify-between px-4 py-3 group">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 bg-gold-pale rounded-xl flex items-center justify-center border border-gold/20 flex-shrink-0">
-                                    <svg class="w-4 h-4 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
-                                </div>
-                                <div class="text-left">
-                                    <p class="text-[13px] font-bold text-ink">Motorista? Ative seu voucher</p>
-                                    <p class="text-[11px] text-muted">Acesso gratuito com código</p>
-                                </div>
-                            </div>
-                            <svg class="w-4 h-4 text-gray-300 group-hover:text-green group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <a href="{{ route('voucher.activate') }}{{ request()->has('mac') ? '?source=mikrotik&mac=' . request('mac') . '&ip=' . request('ip') : '' }}" class="flex items-center justify-between px-4 py-2.5 group/help">
+                            <span class="text-left">
+                                <span class="block text-[12px] font-bold text-ink">Motorista? Ative seu voucher</span>
+                                <span class="block text-[10px] text-muted">Acesso com codigo</span>
+                            </span>
+                            <svg class="w-3.5 h-3.5 text-gray-300 group-hover/help:text-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         </a>
                     </div>
-                </section>
+                </details>
 
             </div>
         </main>
