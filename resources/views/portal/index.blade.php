@@ -451,7 +451,7 @@
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
                             </div>
                             <p class="text-[13px] font-bold text-ink leading-tight">1. Entre no WiFi</p>
-                            <p class="text-[11px] text-muted leading-tight mt-0.5">rede do ônibus</p>
+                            <p class="text-[11px] text-muted leading-tight mt-0.5">TocantinsTransporteWifi</p>
                         </div>
                         <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         <div class="flex flex-col items-center text-center flex-1 px-0.5">

@@ -16,31 +16,30 @@
             <span data-plan-price-display class="text-base font-extrabold text-ink whitespace-nowrap">R${{ number_format($interval_plan['price_12h'] * 2, 2, ',', '.') }}</span>
         </button>
     </div>
-    <div id="interval-plan-fields" class="hidden py-3 space-y-3" data-max-days="{{ $interval_plan['max_days'] }}"
+    <div id="interval-plan-fields" class="hidden py-1.5 space-y-1.5" data-max-days="{{ $interval_plan['max_days'] }}"
         data-base-cents="{{ (int) round($interval_plan['price_12h'] * 100) }}" data-today="{{ $interval_plan['today'] }}">
-        <div class="grid grid-cols-2 gap-2">
-            <label class="block min-w-0 text-xs font-semibold text-ink" for="interval-start">Data inicial
+        <div class="grid grid-cols-2 gap-1.5">
+            <label class="block min-w-0 text-[10px] font-semibold leading-tight text-ink" for="interval-start">Inicio
                 <input id="interval-start" type="date" required min="{{ $interval_plan['today'] }}" value="{{ $interval_plan['today'] }}"
-                    class="block w-full min-w-0 mt-1 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm">
+                    class="block w-full min-w-0 mt-0.5 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs">
             </label>
-            <label class="block min-w-0 text-xs font-semibold text-ink" for="interval-end">Data final
+            <label class="block min-w-0 text-[10px] font-semibold leading-tight text-ink" for="interval-end">Final
                 <input id="interval-end" type="date" required min="{{ $interval_plan['tomorrow'] }}" value="{{ $interval_plan['tomorrow'] }}"
-                    class="block w-full min-w-0 mt-1 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm">
+                    class="block w-full min-w-0 mt-0.5 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs">
             </label>
         </div>
         <fieldset>
-            <legend class="text-xs font-semibold text-ink mb-1">Acesso por dia</legend>
-            <div class="grid grid-cols-2 gap-2">
-                <label class="flex items-center justify-center gap-2 border border-gray-300 rounded-lg p-2 text-sm">
-                    <input type="radio" name="interval-hours" value="12" checked class="accent-green-600"> 12 horas
+            <legend class="text-[10px] font-semibold leading-tight text-ink mb-0.5">Por dia</legend>
+            <div class="grid grid-cols-2 gap-1.5">
+                <label class="flex items-center justify-center gap-1.5 border border-gray-300 rounded-md px-2 py-1 text-xs">
+                    <input type="radio" name="interval-hours" value="12" checked class="accent-green-600"> 12h
                 </label>
-                <label class="flex items-center justify-center gap-2 border border-gray-300 rounded-lg p-2 text-sm">
-                    <input type="radio" name="interval-hours" value="24" class="accent-green-600"> 24 horas
+                <label class="flex items-center justify-center gap-1.5 border border-gray-300 rounded-md px-2 py-1 text-xs">
+                    <input type="radio" name="interval-hours" value="24" class="accent-green-600"> 24h
                 </label>
             </div>
         </fieldset>
-        <p id="interval-summary" class="text-sm font-bold text-green-dark" aria-live="polite"></p>
+        <p id="interval-summary" class="text-xs font-bold leading-tight text-green-dark" aria-live="polite"></p>
         <p id="interval-error" class="text-xs text-red-700 hidden" role="alert"></p>
-        <p class="text-xs text-muted leading-relaxed">Ideal para onibus de turismo e passageiros que viajam por varios dias. Escolha de 2 a {{ $interval_plan['max_days'] }} dias, incluindo inicio e fim. Horas corridas a partir da primeira abertura do portal no Wi-Fi em cada dia. Reconectar nao reinicia o tempo. Dias nao usados nao acumulam. Uma diaria iniciada a noite continua apos a meia-noite.</p>
     </div>
 @endif

@@ -15,7 +15,7 @@
             const dailyCents = Number(fields.dataset.baseCents) * (hours / 12);
             const totalCents = valid ? dailyCents * days : 0;
             document.getElementById('interval-summary').textContent = valid
-                ? `${days} dia(s) × ${money(dailyCents)} = ${money(totalCents)}` : '';
+                ? `${days} dias · Total ${money(totalCents)}` : '';
             const error = document.getElementById('interval-error');
             error.textContent = valid ? '' : `Escolha de 2 a ${fields.dataset.maxDays} dias. Para um único dia, escolha Viagem completa.`;
             error.classList.toggle('hidden', valid);
