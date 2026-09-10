@@ -444,30 +444,30 @@
                 @endif
 
                 <!-- Como funciona: 3 passos (antes dos planos, guia o usuário) -->
-                <section class="bg-white rounded-2xl border border-border shadow-card px-4 py-3.5 animate-slide-up">
+                <section class="bg-white rounded-xl border border-border shadow-card px-3 py-2 animate-slide-up">
                     <div class="flex items-start justify-between gap-1">
                         <div class="flex flex-col items-center text-center flex-1 px-0.5">
-                            <div class="w-10 h-10 rounded-full bg-green-pale text-green-dark flex items-center justify-center mb-1.5 border border-green/20">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
+                            <div class="w-7 h-7 rounded-full bg-green-pale text-green-dark flex items-center justify-center mb-1 border border-green/20">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
                             </div>
-                            <p class="text-[13px] font-bold text-ink leading-tight">1. Entre no WiFi</p>
-                            <p class="text-[11px] text-muted leading-tight mt-0.5">TocantinsTransporteWifi</p>
+                            <p class="text-[10px] font-bold text-ink leading-tight">1. WiFi</p>
+                            <p class="text-[9px] text-muted leading-tight">TocantinsTransporteWifi</p>
                         </div>
-                        <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <svg class="w-3 h-3 text-gray-300 flex-shrink-0 mt-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         <div class="flex flex-col items-center text-center flex-1 px-0.5">
-                            <div class="w-10 h-10 rounded-full bg-blue-pale text-blue flex items-center justify-center mb-1.5 border border-blue/20">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg>
+                            <div class="w-7 h-7 rounded-full bg-blue-pale text-blue flex items-center justify-center mb-1 border border-blue/20">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg>
                             </div>
-                            <p class="text-[13px] font-bold text-ink leading-tight">2. Pague no PIX</p>
-                            <p class="text-[11px] text-muted leading-tight mt-0.5">copie e cole no banco</p>
+                            <p class="text-[10px] font-bold text-ink leading-tight">2. PIX</p>
+                            <p class="text-[9px] text-muted leading-tight">copie e cole</p>
                         </div>
-                        <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <svg class="w-3 h-3 text-gray-300 flex-shrink-0 mt-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         <div class="flex flex-col items-center text-center flex-1 px-0.5">
-                            <div class="w-10 h-10 rounded-full bg-green text-white flex items-center justify-center mb-1.5 shadow-sm">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                            <div class="w-7 h-7 rounded-full bg-green text-white flex items-center justify-center mb-1 shadow-sm">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                             </div>
-                            <p class="text-[13px] font-bold text-ink leading-tight">3. Pronto!</p>
-                            <p class="text-[11px] text-muted leading-tight mt-0.5">internet na hora</p>
+                            <p class="text-[10px] font-bold text-ink leading-tight">3. Pronto</p>
+                            <p class="text-[9px] text-muted leading-tight">libera rapido</p>
                         </div>
                     </div>
                 </section>
