@@ -73,6 +73,11 @@ class ProcessPendingPayment extends Command
             
             $this->info("✅ Pagamento atualizado para 'completed'");
             $this->newLine();
+            if (\App\Services\IntervalPlanService::isInterval($payment)) {
+                DB::commit();
+                $this->info('Intervalo confirmado. A diária começa quando o passageiro abrir o portal no Wi-Fi.');
+                return 0;
+            }
             
             // Buscar usuário
             $user = User::find($payment->user_id);

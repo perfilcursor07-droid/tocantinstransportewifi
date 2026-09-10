@@ -12,6 +12,9 @@ class SettingsController extends Controller
     public function index()
     {
         $settings = [
+            'plan_interval_enabled' => SystemSetting::getValue('plan_interval_enabled', '0'),
+            'plan_interval_max_days' => SystemSetting::getValue('plan_interval_max_days', '30'),
+            'plan_interval_price_12h' => SystemSetting::getValue('plan_interval_price_12h', '6.99'),
             'wifi_price' => SystemSetting::getValue('wifi_price', '5.99'),
             'wifi_price_full' => SystemSetting::getValue('wifi_price_full', '6.99'),
             'pix_gateway' => SystemSetting::getValue('pix_gateway', 'pagbank'),
@@ -37,6 +40,9 @@ class SettingsController extends Controller
     public function update(Request $request)
     {
         $request->validate([
+            'plan_interval_enabled' => 'nullable|in:0,1',
+            'plan_interval_max_days' => 'required|integer|min:2|max:90',
+            'plan_interval_price_12h' => 'required|numeric|min:0.05|max:999.99|decimal:0,2',
             'wifi_price' => 'required|numeric|min:0.01|max:999.99',
             'wifi_price_full' => 'required|numeric|min:0.01|max:999.99',
             'pix_gateway' => 'required|in:woovi,pagbank,santander',
@@ -56,6 +62,9 @@ class SettingsController extends Controller
         ]);
 
         SystemSetting::setValue('wifi_price', $request->wifi_price);
+        SystemSetting::setValue('plan_interval_enabled', $request->input('plan_interval_enabled', '0'));
+        SystemSetting::setValue('plan_interval_max_days', $request->plan_interval_max_days);
+        SystemSetting::setValue('plan_interval_price_12h', $request->plan_interval_price_12h);
         SystemSetting::setValue('wifi_price_full', $request->wifi_price_full);
         SystemSetting::setValue('pix_gateway', $request->pix_gateway);
         SystemSetting::setValue('session_duration', $request->session_duration);

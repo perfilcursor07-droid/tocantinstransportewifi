@@ -29,7 +29,8 @@ class WiFiPortal {
      */
     calculateExpirationTime() {
         const now = new Date();
-        const expiresAt = new Date(now.getTime() + (this.sessionDurationHours * 60 * 60 * 1000));
+        const expiresAt = this.intervalExpiresAt ? new Date(this.intervalExpiresAt)
+            : new Date(now.getTime() + (this.sessionDurationHours * 60 * 60 * 1000));
         
         const hours = expiresAt.getHours().toString().padStart(2, '0');
         const minutes = expiresAt.getMinutes().toString().padStart(2, '0');
@@ -48,11 +49,12 @@ class WiFiPortal {
     init() {
         this.setupElements();
         this.setupEventListeners();
-        this.detectDevice().then(() => {
+        this.detectDevice().then(async () => {
             // 🚀 PREFETCH: se já temos MAC, começar a gerar o QR em background
             // Assim quando o usuário clicar, o QR já está pronto (ou quase).
             if (this.deviceMac && this.isValidMacAddress(this.deviceMac)) {
-                this.prefetchPixQR();
+                const access = await window.IntervalAccess?.connect(this);
+                if (!access || ['none', 'scheduled', 'error'].includes(access.state)) this.prefetchPixQR();
             }
         });
         this.checkConnectionStatus();
@@ -742,7 +744,7 @@ class WiFiPortal {
             this.setLoadingMessage('Gerando QR Code PIX...', 'Isso pode levar alguns segundos');
             const response = await this.fetchPixQRWithRetry();
 
-            if (response.status === 422) {
+            if (response.status === 422 && window.WIFI_SELECTED_PLAN?.plan_type !== 'interval') {
                 this.showNoWifiWarning();
                 return;
             }
@@ -779,6 +781,8 @@ class WiFiPortal {
      */
     async prefetchPixQR() {
         try {
+            if (window.WIFI_SELECTED_PLAN?.plan_type === 'interval') return;
+            const planKey = JSON.stringify(window.WIFI_SELECTED_PLAN);
             // 1. Verificar se o usuário existe e não está ativo
             const checkResp = await fetch(`/api/user/check-mac/${this.deviceMac}`);
             const checkData = await checkResp.json();
@@ -789,6 +793,7 @@ class WiFiPortal {
             }
 
             this.currentUserId = checkData.user_id;
+            if (planKey !== JSON.stringify(window.WIFI_SELECTED_PLAN)) return;
             console.log('🚀 Prefetch: usuário encontrado, gerando QR em background...');
 
             // 2. Gerar o QR Code em background (timeout generoso, sem retry aqui)
@@ -811,7 +816,7 @@ class WiFiPortal {
 
             if (response.ok) {
                 const result = await response.json();
-                if (result.success && result.qr_code) {
+                if (result.success && result.qr_code && planKey === JSON.stringify(window.WIFI_SELECTED_PLAN)) {
                     this._prefetchedQR = result;
                     console.log('🚀 Prefetch: QR Code pronto! payment_id:', result.payment_id);
                 }
@@ -828,7 +833,11 @@ class WiFiPortal {
      * Retorna o response do fetch (compatível com o fluxo existente).
      */
     async fetchPixQRWithRetry(maxRetries = 2, timeoutMs = 20000) {
+        if (window.WIFI_SELECTED_PLAN?.plan_type === 'interval' && !window.WIFI_SELECTED_PLAN.valid) {
+            throw new Error('Escolha as datas do intervalo antes de pagar.');
+        }
         const payload = {
+            ...(window.IntervalPlan?.payload() || {}),
             amount: window.WIFI_PRICE || 5.99,
             mac_address: this.deviceMac,
             user_id: this.currentUserId,
@@ -1031,6 +1040,7 @@ class WiFiPortal {
      * Verifica se usuário existe e decide se mostra cadastro ou pagamento
      */
     async handleConnectClick() {
+        if (window.WIFI_SELECTED_PLAN?.plan_type === 'interval' && !window.WIFI_SELECTED_PLAN.valid) return;
         // 🛡️ BLOQUEAR se não está no WiFi (sem MAC/IP)
         if (window._noWifiBlocked) {
             const warning = document.getElementById('no-wifi-warning');
@@ -1054,6 +1064,15 @@ class WiFiPortal {
                 return;
             }
 
+            const intervalAccess = await window.IntervalAccess?.connect(this);
+            if (intervalAccess && ['active', 'ready'].includes(intervalAccess.state)
+                && window.WIFI_SELECTED_PLAN?.plan_type !== 'interval') {
+                this.hideLoading();
+                if (intervalAccess.state === 'active') this.showSuccessMessage(intervalAccess.message);
+                else this.showErrorMessage(intervalAccess.message);
+                return;
+            }
+
             // Verificar se usuário já existe
             const response = await fetch(`/api/user/check-mac/${this.deviceMac}`);
             const data = await response.json();
@@ -1065,7 +1084,7 @@ class WiFiPortal {
                 this.currentUserId = data.user_id;
                 
                 // 🔧 FIX: Se já tem sessão ativa, não pedir pagamento
-                if (data.already_active) {
+                if (data.already_active && window.WIFI_SELECTED_PLAN?.plan_type !== 'interval') {
                     console.log('✅ Usuário já tem acesso ativo! MAC já está liberado.');
                     this.showSuccessMessage('✅ Você já tem acesso ativo! Conectando...');
                     await this.allowDevice(this.deviceMac);
@@ -1137,7 +1156,7 @@ class WiFiPortal {
             this.setLoadingMessage('Gerando QR Code PIX...', 'Isso pode levar alguns segundos');
             const response = await this.fetchPixQRWithRetry();
 
-            if (response.status === 422) {
+            if (response.status === 422 && window.WIFI_SELECTED_PLAN?.plan_type !== 'interval') {
                 this.showNoWifiWarning();
                 return;
             }
@@ -1399,6 +1418,7 @@ class WiFiPortal {
      * Exibe modal com QR Code PIX - Interface com 5 passos
      */
     showPixQRCode(data) {
+        this.intervalExpiresAt = null;
         this._bypassRan = false; // reset por modal (cada pagamento libera de novo)
         this.pixCodeExpired = false;
         const modal = document.createElement('div');
@@ -1427,6 +1447,7 @@ class WiFiPortal {
                         </div>
                     </div>
                     
+                    <p id="pix-interval-summary" class="hidden px-4 py-2 text-xs text-gray-700 border-b"></p>
                     <!-- Timeline 3 Passos - Simplificada -->
                     <div class="bg-gray-50 px-4 py-2 border-b">
                         <div class="flex items-center justify-between">
@@ -1668,6 +1689,11 @@ class WiFiPortal {
         document.body.appendChild(modal);
         
         // Mostrar passo 1 (QR Code) direto
+        if (data.interval) {
+            const summary = document.getElementById('pix-interval-summary');
+            summary.textContent = `${data.interval.start.split('-').reverse().join('/')} a ${data.interval.end.split('-').reverse().join('/')} · ${data.interval.hours_per_day}h por dia · ${data.interval.days} dias`;
+            summary.classList.remove('hidden');
+        }
         document.getElementById('step-1-content').classList.remove('hidden');
 
         // Renderizar QR Code localmente (qrcode.min.js) — a API externa
@@ -2306,6 +2332,19 @@ class WiFiPortal {
             console.log('📊 Resultado da verificação:', result);
             
             if (result.success && result.payment.status === 'completed') {
+                if (result.payment.plan_type === 'interval') {
+                    const access = await window.IntervalAccess.connect(this);
+                    if (access.state !== 'active') {
+                        this.pixPaymentConfirmed = true;
+                        this.stopPixCountdown();
+                        clearInterval(this.paymentCheckInterval);
+                        clearInterval(this.manualCheckInterval);
+                        this.closePixModal();
+                        this.pixPaymentConfirmed = true;
+                        this.showSuccessMessage('Pagamento confirmado. ' + (access.message || 'Abra o portal no Wi-Fi para iniciar sua diária.'));
+                        return;
+                    }
+                }
                 console.log('✅ Pagamento confirmado!');
                 this._manualCheckCount = 0;
                 

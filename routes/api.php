@@ -38,6 +38,7 @@ Route::post('/check-user', [RegistrationController::class, 'checkUser']);
 
 // Verificar usuário por MAC
 Route::get('/user/check-mac/{mac}', [RegistrationController::class, 'checkMacAddress']);
+Route::post('/interval/connect', [\App\Http\Controllers\IntervalAccessController::class, 'connect'])->middleware('throttle:30,1');
 
 // Pagamentos
 Route::prefix('payment')->group(function () {

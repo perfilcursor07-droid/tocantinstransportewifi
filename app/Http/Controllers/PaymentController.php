@@ -36,6 +36,20 @@ class PaymentController extends Controller
      */
     public function generatePixQRCode(Request $request)
     {
+        $intervalQuote = null;
+        if ($request->input('plan_type') === 'interval') {
+            try {
+                $intervalQuote = app(\App\Services\IntervalPlanService::class)->quote($request->all());
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                return response()->json(['success' => false, 'message' => $e->validator->errors()->first(), 'errors' => $e->errors()], 422);
+            }
+            $request->merge([
+                'amount' => $intervalQuote['interval']['total_cents'] / 100,
+                'plan_duration' => $intervalQuote['duration_hours'],
+                'plan_name' => $intervalQuote['plan_name'],
+                'plan_suffix' => $intervalQuote['plan_suffix'],
+            ]);
+        }
         // Validação dos dados
         $validator = Validator::make($request->all(), [
             'amount' => 'required|numeric|min:0.05',
@@ -141,6 +155,14 @@ class PaymentController extends Controller
             }
             }
 
+            if ($intervalQuote && $user->payments()->where('status', 'completed')
+                ->where('payment_data->plan_type', 'interval')
+                ->where('payment_data->interval->start', '<=', $intervalQuote['interval']['end'])
+                ->where('payment_data->interval->end', '>=', $intervalQuote['interval']['start'])->exists()) {
+                DB::rollBack();
+                return response()->json(['success' => false, 'message' => 'Você já possui um intervalo pago nessas datas. Escolha outras datas ou use sua diária.'], 422);
+            }
+
             // O passageiro pode autorizar atualizações na própria etapa de
             // pagamento. O consentimento fica vinculado ao telefone atual.
             if ($request->boolean('whatsapp_payment_opt_in') && $user->phone) {
@@ -167,7 +189,7 @@ class PaymentController extends Controller
                 'payment_type' => 'pix',
                 'status' => 'pending',
                 'transaction_id' => $this->generateTransactionId(),
-                'payment_data' => [
+                'payment_data' => $intervalQuote ?? [
                     'plan_name' => $planName,
                     'plan_suffix' => $planSuffix,
                     'duration_hours' => $planDuration,
@@ -364,6 +386,7 @@ class PaymentController extends Controller
                 'payment_id' => $payment->id,
                 'gateway' => $gateway,
                 'qr_code' => $response,
+                'interval' => $intervalQuote['interval'] ?? null,
             ]);
 
         } catch (\Exception $e) {
@@ -546,6 +569,16 @@ class PaymentController extends Controller
                      . "📶 Sua internet será liberada em até 30 segundos por *{$horasTexto}*.\n\n"
                      . "Se não conectar, abra: " . url('/reativar') . "\n\n"
                      . "_Para parar as atualizações de pagamento, responda *PARAR*._";
+
+            if (\App\Services\IntervalPlanService::isInterval($payment)) {
+                $interval = $payment->payment_data['interval'];
+                $start = \Carbon\Carbon::parse($interval['start'])->format('d/m/Y');
+                $end = \Carbon\Carbon::parse($interval['end'])->format('d/m/Y');
+                $message = "Pagamento confirmado!\n\nOi {$nome}! Recebemos seu PIX de R$ {$amount}.\n\n"
+                    . "Intervalo: {$start} a {$end}, com {$interval['hours_per_day']}h corridas por dia. "
+                    . "Cada diária começa ao abrir o portal no Wi-Fi do ônibus. Dias não usados não acumulam.\n\n"
+                    . 'Portal: '.url('/')."\n\nPara parar as atualizações de pagamento, responda PARAR.";
+            }
 
             $msg = \App\Models\WhatsappMessage::create([
                 'user_id' => $user->id,
@@ -972,6 +1005,8 @@ class PaymentController extends Controller
                 'amount' => $payment->amount,
                 'created_at' => $payment->created_at,
                 'paid_at' => $payment->paid_at,
+                'plan_type' => data_get($payment->payment_data, 'plan_type'),
+                'interval' => data_get($payment->payment_data, 'interval'),
             ],
         ]);
 
@@ -1305,6 +1340,14 @@ class PaymentController extends Controller
      */
     public function activateUserAccess(Payment $payment)
     {
+        if (\App\Services\IntervalPlanService::isInterval($payment)) {
+            // Only a foreground connection starts a daily window, never a payment webhook.
+            Cache::forget('mikrotik_sync_lists_all');
+            if ($payment->user) {
+                $this->sendPaymentConfirmedWhatsapp($payment->user, $payment, (float) data_get($payment->payment_data, 'interval.hours_per_day', 12));
+            }
+            return;
+        }
         $startTime = microtime(true);
 
         try {
@@ -2157,7 +2200,13 @@ class PaymentController extends Controller
             // Buscar pagamento recente completado
             $payment = Payment::where('user_id', $user->id)
                 ->where('status', 'completed')
-                ->where('paid_at', '>', now()->subHours(168))
+                ->where(function ($query) {
+                    $query->where('paid_at', '>', now()->subHours(168))
+                        ->orWhere(function ($interval) {
+                            $interval->where('payment_data->plan_type', 'interval')
+                                ->where('payment_data->interval->end', '>=', now()->subDay()->toDateString());
+                        });
+                })
                 ->orderBy('paid_at', 'desc')
                 ->first();
 
@@ -2240,6 +2289,21 @@ class PaymentController extends Controller
             }
 
             // Reativar acesso
+            if (\App\Services\IntervalPlanService::isInterval($payment)) {
+                $access = $currentMac && $currentMac === $user->mac_address
+                    ? app(IntervalAccessController::class)->connect(
+                        $request->duplicate(null, ['mac_address' => $currentMac, 'ip_address' => $clientIp]),
+                        app(\App\Services\IntervalPlanService::class)
+                    )->getData(true)
+                    : app(\App\Services\IntervalPlanService::class)->access($user);
+                return response()->json([
+                    'success' => $access['state'] === 'active',
+                    'message' => $access['message'],
+                    'interval_access' => $access,
+                    'expires_at' => $access['expires_at'],
+                    'mac_address' => $user->mac_address,
+                ]);
+            }
             $sessionDuration = max((float) data_get($payment->payment_data, 'duration_hours', \App\Helpers\SettingsHelper::getSessionDuration()), 0.1);
             $paidAt = $payment->paid_at ? \Carbon\Carbon::parse($payment->paid_at) : now();
             $expiresAt = $paidAt->copy()->addHours($sessionDuration);

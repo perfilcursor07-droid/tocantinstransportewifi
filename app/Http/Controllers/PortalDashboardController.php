@@ -47,6 +47,11 @@ class PortalDashboardController extends Controller
             $payment = $user->payments()
                 ->where('id', $request->payment_id)
                 ->firstOrFail();
+            if (\App\Services\IntervalPlanService::isInterval($payment)) {
+                return redirect('/?'.http_build_query([
+                    'choose_plan' => 1, 'mac' => $user->mac_address, 'ip' => $user->ip_address,
+                ]))->with('info', 'Selecione as datas do intervalo para gerar um novo PIX.');
+            }
             $amount = $payment->amount;
         }
 
@@ -67,4 +72,3 @@ class PortalDashboardController extends Controller
             ->with('gateway', $result['gateway']);
     }
 }
-

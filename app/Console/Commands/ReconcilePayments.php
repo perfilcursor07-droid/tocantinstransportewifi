@@ -161,6 +161,10 @@ class ReconcilePayments extends Command
             if (! $user) {
                 continue;
             }
+            if (\App\Services\IntervalPlanService::isInterval($payment)) {
+                app(\App\Services\IntervalPlanService::class)->access($user);
+                continue;
+            }
 
             $hasAccess = in_array($user->status, ['connected', 'active', 'temp_bypass'])
                 && $user->expires_at

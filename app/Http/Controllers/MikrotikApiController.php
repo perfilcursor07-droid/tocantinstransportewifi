@@ -745,6 +745,11 @@ class MikrotikApiController extends Controller
             }
 
             // Forçar status connected e expires_at
+            $latestPaid = $user->payments()->where('status', 'completed')->latest('paid_at')->first();
+            if ($latestPaid && \App\Services\IntervalPlanService::isInterval($latestPaid)) {
+                $access = app(\App\Services\IntervalPlanService::class)->access($user);
+                return response()->json(['success' => $access['state'] === 'active', 'message' => $access['message'], 'interval_access' => $access]);
+            }
             $sessionDuration = config('wifi.pricing.session_duration_hours', 12);
             $expiresAt = now()->addHours($sessionDuration);
 
@@ -980,6 +985,10 @@ class MikrotikApiController extends Controller
                     ->first();
 
                 if ($latestPayment && $latestPayment->paid_at) {
+                    if (\App\Services\IntervalPlanService::isInterval($latestPayment)) {
+                        app(\App\Services\IntervalPlanService::class)->access($healUser);
+                        continue;
+                    }
                     $newExpires = Carbon::parse($latestPayment->paid_at)->addHours($sessionDuration);
 
                     if ($newExpires > now()) {

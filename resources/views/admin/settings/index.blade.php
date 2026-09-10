@@ -179,6 +179,36 @@
                 </div>
             </div>
 
+            <section class="bg-white border border-gray-200 rounded-lg p-6">
+                <div class="flex items-center justify-between gap-4 mb-4">
+                    <h2 class="text-lg font-bold text-gray-800">Plano por intervalo</h2>
+                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700" for="plan_interval_enabled">
+                        <input type="hidden" name="plan_interval_enabled" value="0">
+                        <input id="plan_interval_enabled" type="checkbox" name="plan_interval_enabled" value="1"
+                            class="h-5 w-5 rounded border-gray-300 accent-green-600"
+                            @checked(old('plan_interval_enabled', $settings['plan_interval_enabled']))>
+                        Ativo
+                    </label>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="plan_interval_max_days" class="block text-sm font-semibold mb-2">Máximo de dias por intervalo</label>
+                        <input id="plan_interval_max_days" name="plan_interval_max_days" type="number" min="2" max="90" required
+                            value="{{ old('plan_interval_max_days', $settings['plan_interval_max_days']) }}"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        @error('plan_interval_max_days')<p class="text-sm text-red-600 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label for="plan_interval_price_12h" class="block text-sm font-semibold mb-2">Preço de 12h por dia (R$)</label>
+                        <input id="plan_interval_price_12h" name="plan_interval_price_12h" type="number" min="0.05" max="999.99" step="0.01" required
+                            value="{{ old('plan_interval_price_12h', $settings['plan_interval_price_12h']) }}"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        @error('plan_interval_price_12h')<p class="text-sm text-red-600 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mt-3">24h custam duas vezes o valor de 12h. As datas inicial e final estão incluídas. Cada diária começa ao abrir o portal no Wi-Fi do ônibus; as horas são corridas, inclusive após a meia-noite. Dias não utilizados não acumulam.</p>
+            </section>
+
             <!-- Card: Desconto por Vídeo -->
             <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
                 <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">

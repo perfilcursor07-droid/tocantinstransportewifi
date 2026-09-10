@@ -61,7 +61,7 @@ class PortalController extends Controller
         $clientIp = $request->ip();
         
         // Redirecionar usuários autenticados para dashboard
-        if (auth()->check() && ! in_array(auth()->user()->role, ['admin', 'manager'], true)) {
+        if (auth()->check() && ! in_array(auth()->user()->role, ['admin', 'manager'], true) && ! $request->boolean('choose_plan')) {
             return redirect()->route('portal.dashboard');
         }
         
@@ -108,6 +108,7 @@ class PortalController extends Controller
             'wifi_price_full' => \App\Helpers\SettingsHelper::getWifiPriceFull(),
             'plan_short_enabled' => \App\Helpers\SettingsHelper::isPlanShortCurrentlyActive(),
             'plan_full_enabled' => (bool) \App\Models\SystemSetting::getValue('plan_full_enabled', '1'),
+            'interval_plan' => \App\Services\IntervalPlanService::settings(),
             'video_discount_enabled' => \App\Helpers\SettingsHelper::isVideoDiscountEnabled(),
             'video_discount_amount' => \App\Helpers\SettingsHelper::getVideoDiscountAmount(),
             'connected_user' => $existingUser,

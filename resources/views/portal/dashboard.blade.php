@@ -14,6 +14,11 @@
             </form>
         </div>
 
+        <div id="interval-access-status" hidden class="mb-4 border-l-4 border-green-600 bg-green-50 px-4 py-3 text-sm" aria-live="polite">
+            <p data-interval-message></p>
+            <button type="button" hidden class="mt-2 font-bold text-green-700 underline">Verificar diária</button>
+        </div>
+
         @if (session('success'))
             <div class="mb-6 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl">
                 {{ session('success') }}
@@ -180,3 +185,15 @@
 
 @endsection
 
+@push('scripts')
+<script src="{{ asset('js/interval-plan.js') }}?v={{ filemtime(public_path('js/interval-plan.js')) }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        window.wifiPortal = {
+            deviceMac: @json($user->mac_address),
+            deviceIp: @json(request('ip') ?: $user->ip_address),
+        };
+        window.IntervalAccess.connect(window.wifiPortal);
+    });
+</script>
+@endpush

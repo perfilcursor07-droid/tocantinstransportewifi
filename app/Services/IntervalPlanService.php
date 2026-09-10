@@ -1,0 +1,147 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\IntervalAccessDay;
+use App\Models\Payment;
+use App\Models\Session;
+use App\Models\SystemSetting;
+use App\Models\User;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
+
+class IntervalPlanService
+{
+    public static function settings(): array
+    {
+        return [
+            'enabled' => (bool) SystemSetting::getValue('plan_interval_enabled', '0'),
+            'max_days' => max(2, (int) SystemSetting::getValue('plan_interval_max_days', '30')),
+            'price_12h' => (float) SystemSetting::getValue('plan_interval_price_12h', '6.99'),
+            'today' => now()->toDateString(),
+            'tomorrow' => now()->addDay()->toDateString(),
+        ];
+    }
+
+    public static function isInterval(Payment $payment): bool
+    {
+        return data_get($payment->payment_data, 'plan_type') === 'interval';
+    }
+
+    public function quote(array $input): array
+    {
+        $settings = self::settings();
+        if (! $settings['enabled']) {
+            throw ValidationException::withMessages(['plan_type' => 'O plano por intervalo está indisponível.']);
+        }
+        $data = Validator::make($input, [
+            'interval_start' => 'required|date_format:Y-m-d|after_or_equal:today|before_or_equal:'.now()->addYear()->toDateString(),
+            'interval_end' => 'required|date_format:Y-m-d|after_or_equal:interval_start',
+            'interval_hours' => 'required|integer|in:12,24',
+        ])->validate();
+        $start = CarbonImmutable::parse($data['interval_start']);
+        $end = CarbonImmutable::parse($data['interval_end']);
+        $days = (int) $start->diffInDays($end) + 1;
+        if ($days < 2 || $days > $settings['max_days']) {
+            throw ValidationException::withMessages(['interval_end' => "Escolha de 2 a {$settings['max_days']} dias. Para um único dia, escolha Viagem completa."]);
+        }
+        $baseCents = (int) round($settings['price_12h'] * 100);
+        $dailyCents = $baseCents * ((int) $data['interval_hours'] / 12);
+
+        return [
+            'plan_type' => 'interval',
+            'plan_name' => 'Plano por intervalo',
+            'plan_suffix' => "/ {$days} dia(s)",
+            'duration_hours' => (int) $data['interval_hours'],
+            'interval' => [
+                'start' => $data['interval_start'],
+                'end' => $data['interval_end'],
+                'days' => $days,
+                'hours_per_day' => (int) $data['interval_hours'],
+                'base_price_cents' => $baseCents,
+                'daily_price_cents' => (int) $dailyCents,
+                'total_cents' => (int) ($dailyCents * $days),
+                'timezone' => config('app.timezone'),
+            ],
+        ];
+    }
+
+    /** Only a foreground portal request may consume a new day, never DHCP reports or webhooks. */
+    public function access(User $user, bool $startNewDay = false): array
+    {
+        if (! Payment::where('user_id', $user->id)->where('status', 'completed')
+            ->where('payment_data->plan_type', 'interval')->exists()) {
+            return $this->result('none', 'Nenhum intervalo disponível.');
+        }
+        return DB::transaction(function () use ($user, $startNewDay) {
+            $lockedUser = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $now = now();
+            $today = $now->toDateString();
+            $day = IntervalAccessDay::where('user_id', $user->id)
+                ->where('expires_at', '>', $now)
+                ->whereHas('payment', fn ($q) => $q->where('status', 'completed'))
+                ->orderByDesc('expires_at')->first();
+            if ($day) {
+                $this->restoreDay($lockedUser, $day);
+                return $this->result('active', 'Sua diária está ativa. Liberação em até 30 segundos.', $day);
+            }
+
+            $payment = Payment::where('user_id', $user->id)->where('status', 'completed')
+                ->where('payment_data->plan_type', 'interval')
+                ->where('payment_data->interval->end', '>=', $today)
+                ->orderBy('payment_data->interval->start')->orderBy('id')->first();
+            if (! $payment) {
+                return $this->result('none', 'Nenhum intervalo disponível.');
+            }
+            $interval = $payment->payment_data['interval'];
+            if ($interval['start'] > $today) {
+                $date = CarbonImmutable::parse($interval['start'])->format('d/m/Y');
+                return $this->result('scheduled', "Plano pago. Disponível a partir de {$date}.");
+            }
+            if (in_array($lockedUser->status, ['connected', 'active']) && $lockedUser->expires_at?->isFuture()) {
+                return $this->result('existing_access', 'Você já possui acesso ativo. Sua próxima diária ainda não começou.');
+            }
+            if (IntervalAccessDay::where('user_id', $user->id)->where('access_date', $today)->exists()) {
+                return $this->result('used', $interval['end'] > $today
+                    ? 'A diária de hoje já terminou. A próxima fica disponível amanhã.'
+                    : 'A última diária deste intervalo já terminou.');
+            }
+            if (! $startNewDay) {
+                return $this->result('ready', 'Diária disponível. Abra o portal conectado ao Wi-Fi do ônibus.');
+            }
+
+            $day = IntervalAccessDay::create([
+                'user_id' => $user->id,
+                'payment_id' => $payment->id,
+                'access_date' => $today,
+                'started_at' => $now,
+                'expires_at' => $now->copy()->addHours($interval['hours_per_day']),
+            ]);
+            Session::create([
+                'user_id' => $user->id, 'payment_id' => $payment->id,
+                'started_at' => $now, 'session_status' => 'active',
+            ]);
+            $this->restoreDay($lockedUser, $day);
+
+            return $this->result('active', 'Sua diária começou. Liberação em até 30 segundos.', $day);
+        });
+    }
+
+    private function restoreDay(User $user, IntervalAccessDay $day): void
+    {
+        // A separate valid purchase must not be shortened by an interval reconnect.
+        if (in_array($user->status, ['connected', 'active']) && $user->expires_at?->gte($day->expires_at)) {
+            return;
+        }
+        $user->update(['status' => 'connected', 'connected_at' => $day->started_at, 'expires_at' => $day->expires_at]);
+        Cache::forget('mikrotik_sync_lists_all');
+    }
+
+    private function result(string $state, string $message, ?IntervalAccessDay $day = null): array
+    {
+        return ['state' => $state, 'message' => $message, 'expires_at' => $day?->expires_at->toISOString()];
+    }
+}

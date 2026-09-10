@@ -480,6 +480,10 @@
                             <span class="text-[9px] font-bold text-green-dark bg-green-pale px-2 py-0.5 rounded-full">PIX instantâneo</span>
                         </div>
 
+                        <div id="interval-access-status" hidden class="mb-3 border-l-4 border-green bg-green-pale px-3 py-2 text-sm" aria-live="polite">
+                            <p data-interval-message></p>
+                            <button type="button" hidden class="mt-2 font-bold text-green-dark underline">Verificar diária</button>
+                        </div>
                         <div class="space-y-2" id="wifi-plan-options">
                             @if($plan_short_enabled ?? true)
                             <!-- Plano 1 hora (compacto) -->
@@ -496,28 +500,34 @@
 
                             @if($plan_full_enabled ?? true)
                             <!-- Plano Viagem Completa (PRÉ-SELECIONADO) -->
-                            <button type="button" data-plan-option data-plan-price="{{ $wifi_price_full ?? 6.99 }}" data-plan-duration="{{ $session_duration ?? 12 }}" data-plan-name="Viagem completa" data-plan-suffix="/ {{ $session_duration ?? 12 }} horas" data-plan-default="true"
-                                class="wifi-plan-card plan-card-selected relative flex w-full rounded-xl border-2 border-green text-left transition-all duration-200 hover:shadow-hover focus:outline-none focus:ring-2 focus:ring-green/20">
-                                <span class="absolute -top-2 right-3 price-pill text-[8px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm z-10">Mais escolhido</span>
-                                <div class="flex items-center gap-2.5 px-3 py-2.5">
-                                    <span data-plan-radio class="h-4 w-4 rounded-full border-[4px] border-green bg-white flex-shrink-0 transition-all duration-200"></span>
-                                    <div class="min-w-0 flex-1">
-                                        <p class="text-[15px] font-extrabold text-ink leading-tight">Viagem completa</p>
-                                        <p class="text-[10px] text-green-dark font-medium">{{ $session_duration ?? 12 }} horas de acesso · Internet até o destino</p>
-                                        @if(($savings ?? 0) > 0)
-                                        <p class="text-[9px] text-amber-700 font-semibold mt-0.5">Economize R${{ number_format($savings, 2, ',', '.') }}</p>
-                                        @endif
-                                    </div>
-                                    <div class="text-right flex-shrink-0">
-                                        <div class="flex items-center gap-1 justify-end">
-                                            <span class="text-[10px] text-gray-400 line-through">R${{ number_format($original_price ?? 9.99, 2, ',', '.') }}</span>
-                                            <span class="text-[9px] font-bold text-white bg-red-500 rounded px-1 py-px leading-none">-{{ $discount_percentage ?? 30 }}%</span>
-                                        </div>
-                                        <p data-plan-price-display class="text-[22px] font-black text-green-dark tracking-tight leading-none mt-0.5">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
-                                    </div>
+                            <div>
+                                <div class="inline-block rounded-t-lg border-x-2 border-t-2 border-green bg-green-pale px-3 py-1 text-[10px] font-extrabold leading-tight text-green-dark">
+                                    Ate {{ $session_duration ?? 12 }}h de viagem
                                 </div>
-                            </button>
+                                <button type="button" data-plan-option data-plan-price="{{ $wifi_price_full ?? 6.99 }}" data-plan-duration="{{ $session_duration ?? 12 }}" data-plan-name="Viagem completa" data-plan-suffix="/ {{ $session_duration ?? 12 }} horas" data-plan-default="true"
+                                    class="wifi-plan-card plan-card-selected relative -mt-px flex w-full rounded-xl rounded-tl-none border-2 border-green text-left transition-all duration-200 hover:shadow-hover focus:outline-none focus:ring-2 focus:ring-green/20">
+                                    <span class="absolute -top-2 right-3 price-pill text-[8px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm z-10">Mais escolhido</span>
+                                    <div class="flex items-center gap-2.5 px-3 py-2.5">
+                                        <span data-plan-radio class="h-4 w-4 rounded-full border-[4px] border-green bg-white flex-shrink-0 transition-all duration-200"></span>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-[15px] font-extrabold text-ink leading-tight">Viagem completa</p>
+                                            <p class="text-[10px] text-green-dark font-medium">{{ $session_duration ?? 12 }} horas de acesso · internet durante o trajeto</p>
+                                            @if(($savings ?? 0) > 0)
+                                            <p class="text-[9px] text-amber-700 font-semibold mt-0.5">Economize R${{ number_format($savings, 2, ',', '.') }}</p>
+                                            @endif
+                                        </div>
+                                        <div class="text-right flex-shrink-0">
+                                            <div class="flex items-center gap-1 justify-end">
+                                                <span class="text-[10px] text-gray-400 line-through">R${{ number_format($original_price ?? 9.99, 2, ',', '.') }}</span>
+                                                <span class="text-[9px] font-bold text-white bg-red-500 rounded px-1 py-px leading-none">-{{ $discount_percentage ?? 30 }}%</span>
+                                            </div>
+                                            <p data-plan-price-display class="text-[22px] font-black text-green-dark tracking-tight leading-none mt-0.5">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
                             @endif
+                            @include('portal.partials.interval-plan')
                         </div>
                     </div>
 
@@ -874,6 +884,7 @@
 
             // Atualizar preços nos cards de plano
             document.querySelectorAll('[data-plan-option]').forEach(function(card) {
+                if (card.dataset.planType === 'interval') return;
                 var originalPrice = Number(card.dataset.planOriginalPrice || card.dataset.planPrice);
                 if (!card.dataset.planOriginalPrice) {
                     card.dataset.planOriginalPrice = card.dataset.planPrice;
@@ -1213,13 +1224,26 @@
         window.WIFI_SELECTED_PLAN = null;
 
         function selectWifiPlan(card) {
-            const amount = Number(card.dataset.planPrice);
-            const duration = Number(card.dataset.planDuration);
-            const name = card.dataset.planName;
-            const suffix = card.dataset.planSuffix;
+            const interval = card.dataset.planType === 'interval';
+            const plan = interval ? window.IntervalPlan.selection() : {
+                amount: Number(card.dataset.planPrice), duration: Number(card.dataset.planDuration),
+                name: card.dataset.planName, suffix: card.dataset.planSuffix
+            };
+            const { amount, duration, name, suffix } = plan;
             window.WIFI_PRICE = amount;
             window.SESSION_DURATION = duration;
-            window.WIFI_SELECTED_PLAN = { amount, duration, name, suffix };
+            window.WIFI_SELECTED_PLAN = plan;
+            if (window.wifiPortal) window.wifiPortal._prefetchedQR = null;
+            document.getElementById('interval-plan-fields')?.classList.toggle('hidden', !interval);
+            document.getElementById('interval-plan-option')?.setAttribute('aria-expanded', String(interval));
+            ['connect-btn', 'connect-btn-desktop'].forEach(id => {
+                const button = document.getElementById(id);
+                if (!button) return;
+                button.disabled = interval && !plan.valid;
+                button.style.opacity = button.disabled ? '0.5' : '';
+                button.children[0].textContent = interval ? 'PAGAR INTERVALO' : 'CONECTAR AGORA';
+                button.children[1].textContent = interval ? 'Pagamento único via PIX' : 'Pague via PIX e navegue na hora · rápido e fácil';
+            });
             if (window.wifiPortal) window.wifiPortal.sessionDurationHours = duration;
 
             document.querySelectorAll('[data-plan-option]').forEach(option => {
@@ -1242,7 +1266,9 @@
             const priceEl = document.getElementById('selected-plan-price');
             const nameEl = document.getElementById('selected-plan-name');
             if (priceEl) priceEl.textContent = formatted;
-            if (nameEl) nameEl.textContent = `${name} ${suffix}`;
+            if (nameEl) nameEl.textContent = interval
+                ? `${name}: ${plan.interval_start.split('-').reverse().join('/')} a ${plan.interval_end.split('-').reverse().join('/')} · ${duration}h por dia`
+                : `${name} ${suffix}`;
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -1259,6 +1285,7 @@
 
     <script src="{{ asset('js/mac-detector.js') }}?v={{ filemtime(public_path('js/mac-detector.js')) }}"></script>
     <script src="{{ asset('js/qrcode.min.js') }}"></script>
+    <script src="{{ asset('js/interval-plan.js') }}?v={{ filemtime(public_path('js/interval-plan.js')) }}"></script>
     <script src="{{ asset('js/portal.js') }}?v={{ filemtime(public_path('js/portal.js')) }}"></script>
 
     @if($video_discount_enabled ?? false)
@@ -1279,6 +1306,7 @@
 
                 // Interceptar processPixPayment (usuário já cadastrado)
                 window.wifiPortal.processPixPayment = function() {
+                    if (window.WIFI_SELECTED_PLAN?.plan_type === 'interval') return originalProcessPix();
                     if (typeof window.VIDEO_DISCOUNT_INTERCEPT === 'function') {
                         window.VIDEO_DISCOUNT_INTERCEPT(originalProcessPix);
                     } else {
@@ -1288,6 +1316,7 @@
 
                 // Interceptar processPixPaymentFast (após cadastro de telefone)
                 window.wifiPortal.processPixPaymentFast = function() {
+                    if (window.WIFI_SELECTED_PLAN?.plan_type === 'interval') return originalProcessPixFast();
                     if (typeof window.VIDEO_DISCOUNT_INTERCEPT === 'function') {
                         window.VIDEO_DISCOUNT_INTERCEPT(originalProcessPixFast);
                     } else {
