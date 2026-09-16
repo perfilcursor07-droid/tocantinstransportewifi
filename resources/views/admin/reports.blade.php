@@ -364,7 +364,7 @@
                                     <div id="payment-actions-{{ $payment->id }}"
                                          class="payment-actions-menu hidden absolute right-0 top-full mt-1 z-30 w-44 overflow-hidden rounded-xl border border-border bg-white shadow-lg">
                                         <button type="button"
-                                                onclick='openPaymentEditModal(@json($payment->id), @json($serial), @json($vehicleLabel))'
+                                                onclick='openPaymentEditModal(@json($payment->id), @json($serial), @json($vehicleLabel), @json((float) $payment->amount))'
                                                 class="block w-full px-3 py-2 text-left text-[11px] font-semibold text-ink2 hover:bg-surface">
                                             Editar
                                         </button>
@@ -551,8 +551,19 @@
                     <p id="payment-edit-current-vehicle" class="text-sm font-semibold text-ink">—</p>
                 </div>
                 <div>
+                    <label for="payment-edit-amount" class="block text-[11px] font-semibold text-ink2 uppercase tracking-wider mb-1.5">Valor pago</label>
+                    <div class="flex items-center rounded-lg border border-border bg-surface focus-within:ring-2 focus-within:ring-green/30 focus-within:border-green">
+                        <span class="pl-3 text-sm font-semibold text-muted">R$</span>
+                        <input id="payment-edit-amount" type="number" name="amount" required
+                               min="0.01" max="99999999.99" step="0.01" inputmode="decimal"
+                               class="w-full px-2 py-2 text-sm font-semibold text-ink bg-transparent focus:outline-none"
+                               placeholder="0,00">
+                    </div>
+                    <p class="text-[10px] text-muted mt-1">O novo valor será usado no Líquido, Ticket médio e gráficos.</p>
+                </div>
+                <div>
                     <label class="block text-[11px] font-semibold text-ink2 uppercase tracking-wider mb-1.5">Transferir para veículo</label>
-                    <select id="payment-edit-vehicle" name="mikrotik_serial" required
+                    <select id="payment-edit-vehicle" name="mikrotik_serial"
                             class="w-full px-3 py-2 text-sm text-ink bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green/30 focus:border-green">
                         <option value="">Selecione o veículo</option>
                         @foreach($busList as $bus)
@@ -561,7 +572,7 @@
                     </select>
                 </div>
                 <p class="text-xs text-muted leading-relaxed">
-                    Esta alteração transfere este pagamento para outro veículo no relatório. Não altera valor, status ou datas do pagamento.
+                    Você pode corrigir o valor pago e, se necessário, transferir o registro para outro veículo. O status e as datas do pagamento não serão alterados.
                 </p>
                 <div class="flex gap-2 pt-1">
                     <button type="button" onclick="closePaymentEditModal()"
@@ -639,19 +650,22 @@
             menu.classList.toggle('hidden', !willOpen);
         }
 
-        function openPaymentEditModal(paymentId, currentSerial, currentLabel) {
+        function openPaymentEditModal(paymentId, currentSerial, currentLabel, currentAmount) {
             closePaymentActionMenus();
             const modal = document.getElementById('payment-edit-modal');
             const form = document.getElementById('payment-edit-form');
             const select = document.getElementById('payment-edit-vehicle');
-            if (!modal || !form || !select) return;
+            const amount = document.getElementById('payment-edit-amount');
+            if (!modal || !form || !select || !amount) return;
 
             form.action = paymentEditRouteTemplate.replace('__ID__', paymentId);
             document.getElementById('payment-edit-id-label').textContent = paymentId;
             document.getElementById('payment-edit-current-vehicle').textContent = currentLabel || 'Sem veículo';
             select.value = currentSerial || '';
+            amount.value = Number(currentAmount).toFixed(2);
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+            window.setTimeout(() => amount.focus(), 50);
         }
 
         function closePaymentEditModal() {

@@ -398,27 +398,55 @@ class ReportsController extends Controller
         }
 
         $validated = $request->validate([
-            'mikrotik_serial' => ['required', 'string', 'exists:buses,mikrotik_serial'],
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:99999999.99', 'decimal:0,2'],
+            'mikrotik_serial' => ['nullable', 'string', 'exists:buses,mikrotik_serial'],
         ], [
+            'amount.required' => 'Informe o valor do pagamento.',
+            'amount.numeric' => 'Informe um valor válido.',
+            'amount.min' => 'O valor deve ser maior que zero.',
+            'amount.decimal' => 'Use no máximo duas casas decimais.',
             'mikrotik_serial.exists' => 'Selecione um veículo válido.',
         ]);
 
-        $targetBus = Bus::where('mikrotik_serial', $validated['mikrotik_serial'])->firstOrFail();
+        $newAmount = round((float) $validated['amount'], 2);
+        $oldAmount = round((float) $payment->amount, 2);
+        $targetBus = filled($validated['mikrotik_serial'] ?? null)
+            ? Bus::where('mikrotik_serial', $validated['mikrotik_serial'])->firstOrFail()
+            : null;
         $currentBus = data_get($payment->payment_data, 'transferred_mikrotik_id')
             ?: $payment->user?->last_mikrotik_id;
 
         $paymentData = $payment->payment_data ?? [];
-        $paymentData['transferred_mikrotik_id'] = $targetBus->mikrotik_serial;
-        $paymentData['transferred_mikrotik_from'] = $currentBus;
-        $paymentData['transferred_at'] = now()->toDateTimeString();
-        $paymentData['transferred_by'] = auth()->id();
+        $changes = [];
+
+        if ($oldAmount !== $newAmount) {
+            $paymentData['amount_edited_from'] = $oldAmount;
+            $paymentData['amount_edited_at'] = now()->toDateTimeString();
+            $paymentData['amount_edited_by'] = auth()->id();
+            $payment->amount = $newAmount;
+            $changes[] = 'valor alterado de R$ ' . number_format($oldAmount, 2, ',', '.')
+                . ' para R$ ' . number_format($newAmount, 2, ',', '.');
+        }
+
+        if ($targetBus && $targetBus->mikrotik_serial !== $currentBus) {
+            $paymentData['transferred_mikrotik_id'] = $targetBus->mikrotik_serial;
+            $paymentData['transferred_mikrotik_from'] = $currentBus;
+            $paymentData['transferred_at'] = now()->toDateTimeString();
+            $paymentData['transferred_by'] = auth()->id();
+            $changes[] = "transferido para {$targetBus->name} ({$targetBus->mikrotik_serial})";
+        }
 
         $payment->payment_data = $paymentData;
         $payment->save();
 
+        if ($changes === []) {
+            return back()->with('success', "Pagamento #{$payment->id} não teve alterações.");
+        }
+
         return back()->with(
             'success',
-            "Pagamento #{$payment->id} transferido para {$targetBus->name} ({$targetBus->mikrotik_serial})."
+            "Pagamento #{$payment->id}: " . implode(' e ', $changes)
+                . '. Os totais do relatório foram atualizados.'
         );
     }
 
