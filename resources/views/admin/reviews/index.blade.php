@@ -44,7 +44,7 @@
                 <div class="w-10 h-10 shrink-0 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg">★</div>
                 <div>
                     <h3 class="text-base font-bold text-emerald-950">Gerar convites de avaliação</h3>
-                    <p class="mt-0.5 text-xs leading-5 text-emerald-800">Selecione passageiros reais pela data da viagem e preencha a avaliação de teste com nota e horário de resposta.</p>
+                    <p class="mt-0.5 text-xs leading-5 text-emerald-800">Preencha avaliações pendentes de uma data de viagem com nota e horário de resposta para teste.</p>
                 </div>
             </div>
         </div>
@@ -100,7 +100,7 @@
                     Gerar avaliações de teste
                 </button>
             </div>
-            <p class="mt-3 text-xs leading-5 text-gray-500"><strong>Importante:</strong> a data acima pega todos os passageiros cadastrados naquela data de viagem. A nota será sorteada dentro do intervalo de estrelas escolhido e o campo <strong>Respondido em</strong> será sorteado dentro do intervalo informado.</p>
+            <p class="mt-3 text-xs leading-5 text-gray-500"><strong>Importante:</strong> a data acima pega somente avaliações pendentes daquela data de viagem. A nota será sorteada dentro do intervalo de estrelas escolhido e o campo <strong>Respondido em</strong> será sorteado dentro do intervalo informado.</p>
         </form>
     </div>
     @endif
@@ -484,18 +484,23 @@
                         <td class="px-4 py-3 text-gray-600 text-xs">{{ $review->registration_at?->format('d/m/Y H:i') ?: '-' }}</td>
                         <td class="px-4 py-3">
                             @php
-                                $sendBadge = match($review->whatsapp_status) {
-                                    'sent' => 'bg-green-100 text-green-700',
-                                    'failed' => 'bg-red-100 text-red-700',
-                                    'skipped' => $review->submitted_at ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700',
-                                    default => 'bg-yellow-100 text-yellow-700',
-                                };
-                                $sendLabel = match($review->whatsapp_status) {
-                                    'sent' => 'Enviado',
-                                    'failed' => 'Falha',
-                                    'skipped' => $review->submitted_at ? 'Enviado' : 'Não enviado',
-                                    default => 'Pendente',
-                                };
+                                if ($review->submitted_at) {
+                                    $sendBadge = 'bg-green-100 text-green-700';
+                                    $sendLabel = 'Enviado';
+                                } else {
+                                    $sendBadge = match($review->whatsapp_status) {
+                                        'sent' => 'bg-green-100 text-green-700',
+                                        'failed' => 'bg-red-100 text-red-700',
+                                        'skipped' => 'bg-gray-100 text-gray-700',
+                                        default => 'bg-yellow-100 text-yellow-700',
+                                    };
+                                    $sendLabel = match($review->whatsapp_status) {
+                                        'sent' => 'Enviado',
+                                        'failed' => 'Falha',
+                                        'skipped' => 'Não enviado',
+                                        default => 'Pendente',
+                                    };
+                                }
                             @endphp
                             <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ $sendBadge }}">{{ $sendLabel }}</span>
                         </td>

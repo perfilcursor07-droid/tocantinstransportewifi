@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ServiceReview;
-use App\Models\User;
 use App\Models\WhatsappOptOut;
 use App\Models\WhatsappSetting;
 use App\Services\ServiceReviewWhatsappService;
@@ -173,7 +172,7 @@ class ServiceReviewController extends Controller
     }
 
     /**
-     * Gera avaliações de teste para passageiros reais de uma data de viagem.
+     * Gera avaliações de teste somente nos convites pendentes de uma data de viagem.
      * Esta acao nao envia mensagens pelo WhatsApp.
      */
     public function generateInvitations(Request $request)
@@ -200,27 +199,21 @@ class ServiceReviewController extends Controller
         $ratingMin = (int) $validated['rating_min'];
         $ratingMax = (int) $validated['rating_max'];
 
-        $passengerQuery = User::query()
-            ->whereNotNull('phone')
-            ->where('phone', '!=', '')
-            ->where(function ($query) {
-                $query->whereNull('role')
-                    ->orWhereNotIn('role', ['admin', 'manager']);
-            });
-
-        $passengersOnTravelDate = (clone $passengerQuery)
-            ->whereDate('registered_at', $travelDate)
+        $pendingReviews = ServiceReview::with('user')
+            ->whereDate('batch_date', $travelDate)
+            ->whereNull('submitted_at')
+            ->whereNull('rating')
+            ->orderByDesc('created_at')
             ->get();
 
-        $eligiblePassengers = $passengersOnTravelDate
-            ->reject(fn (User $user) => WhatsappOptOut::isOptedOut($user->phone))
-            ->unique(fn (User $user) => WhatsappOptOut::last8($user->phone))
-            ->shuffle();
+        $eligibleReviews = $pendingReviews
+            ->reject(fn (ServiceReview $review) => blank($review->phone ?: $review->user?->phone))
+            ->reject(fn (ServiceReview $review) => WhatsappOptOut::isOptedOut($review->phone ?: $review->user?->phone))
+            ->unique(fn (ServiceReview $review) => WhatsappOptOut::last8($review->phone ?: $review->user?->phone));
 
-        $selectedPassengers = $eligiblePassengers->take((int) $validated['quantity']);
+        $selectedReviews = $eligibleReviews->take((int) $validated['quantity']);
 
-        foreach ($selectedPassengers as $passenger) {
-            $review = $this->reviewWhatsappService->prepareReviewForUser($passenger, $travelDate);
+        foreach ($selectedReviews as $review) {
             $submittedAt = $answeredFrom->copy()->addSeconds(random_int(
                 0,
                 (int) max(0, $answeredFrom->diffInSeconds($answeredTo))
@@ -234,10 +227,10 @@ class ServiceReviewController extends Controller
             ]);
         }
 
-        $selectedCount = $selectedPassengers->count();
+        $selectedCount = $selectedReviews->count();
         $message = $selectedCount === 0
-            ? 'Nenhum passageiro elegível foi encontrado nessa data de viagem.'
-            : "$selectedCount avaliação(ões) de teste gerada(s) com nota entre {$ratingMin} e {$ratingMax} estrela(s) e Respondido em dentro do intervalo informado. Nenhuma mensagem foi enviada.";
+            ? 'Nenhuma avaliação pendente elegível foi encontrada nessa data de viagem.'
+            : "$selectedCount avaliação(ões) pendente(s) preenchida(s) com nota entre {$ratingMin} e {$ratingMax} estrela(s) e Respondido em dentro do intervalo informado. Nenhuma mensagem foi enviada.";
 
         $redirectFilters = [
             'date_from' => $travelDate->toDateString(),
