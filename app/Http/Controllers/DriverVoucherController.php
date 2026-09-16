@@ -529,22 +529,25 @@ class DriverVoucherController extends Controller
     }
 
     /**
-     * Verifica o status do voucher via CPF/documento
+     * Verifica o status do voucher via CPF/documento ou codigo do voucher
      */
     public function checkStatus(Request $request)
     {
         $request->validate([
-            'driver_document' => 'required|string|max:20',
+            'driver_document' => 'required|string|max:30',
         ]);
 
-        // Limpar CPF (remover pontos, traços, etc)
-        $driverDocument = preg_replace('/\D/', '', $request->driver_document);
+        $searchTerm = trim($request->driver_document);
+        $driverDocument = preg_replace('/\D/', '', $searchTerm);
 
-        // Primeiro buscar voucher pelo documento
-        $voucher = Voucher::where('driver_document', 'LIKE', '%' . $driverDocument . '%')->first();
+        $voucher = Voucher::where('code', strtoupper($searchTerm))->first();
+
+        if (!$voucher && $driverDocument !== '') {
+            $voucher = Voucher::where('driver_document', 'LIKE', '%' . $driverDocument . '%')->first();
+        }
         
         if (!$voucher) {
-            return back()->with('error', 'Nenhum voucher encontrado para este CPF.');
+            return back()->with('error', 'Nenhum voucher encontrado para este CPF ou número do voucher.');
         }
 
         // Buscar usuário que usou este voucher
@@ -709,4 +712,3 @@ class DriverVoucherController extends Controller
         return back()->with('success', 'Desconectado com sucesso.');
     }
 }
-

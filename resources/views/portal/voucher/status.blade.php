@@ -1,22 +1,40 @@
 @extends('portal.layout')
 
 @section('content')
-<div class="min-h-screen bg-gradient-to-br from-green-50 via-blue-50/30 to-cyan-50/30 py-10">
+<div class="min-h-screen bg-[#F8F9FA] py-8 px-4" style="font-family:'Inter',sans-serif">
     <div class="container mx-auto px-4 max-w-md">
         <!-- Logo/Header -->
-        <div class="text-center mb-8">
-            <div class="bg-white rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center shadow-lg">
-                <span class="text-4xl">📊</span>
+        <div class="text-center mb-6">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl {{ session('success') ? 'bg-gradient-to-br from-[#00A335] to-[#00C040]' : 'bg-gradient-to-br from-[#007A28] to-[#00A335]' }} shadow-[0_4px_12px_rgba(0,0,0,0.1)] mb-3">
+                @if(session('success'))
+                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 13l4 4L19 7"/></svg>
+                @else
+                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+                @endif
             </div>
-            <h1 class="text-3xl font-bold text-gray-800">Status do Voucher</h1>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-[#00A335] mb-0.5">Starlink · Tocantins Transporte</p>
+            <h1 class="text-xl font-bold text-[#111] leading-tight">{{ session('success') ? 'Voucher ativado' : 'Status do Voucher' }}</h1>
+            <p class="text-xs text-[#888] mt-1">{{ session('success') ? 'Agora voce ja pode navegar' : 'Consulte seu acesso por CPF ou voucher' }}</p>
         </div>
 
         <!-- Mensagens -->
         @if (session('success'))
-            <div class="mb-6 bg-green-50 border-l-4 border-green-500 text-green-800 px-4 py-3 rounded-xl shadow-sm">
-                <div class="flex items-center">
-                    <span class="text-xl mr-2">✅</span>
-                    <span>{{ session('success') }}</span>
+            <div class="mb-4 overflow-hidden rounded-2xl border border-[#00A335]/20 bg-white shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
+                <div class="bg-gradient-to-r from-[#007A28] via-[#00A335] to-[#00C040] px-5 py-4 text-white">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-base font-extrabold leading-tight">Voucher ativado com sucesso!</p>
+                            <p class="text-xs text-white/80 mt-0.5">Seu acesso foi liberado. Agora voce pode navegar.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="px-5 py-4">
+                    <p class="text-xs leading-5 text-[#555]">
+                        Se a internet nao liberar em alguns segundos, desligue e ligue o Wi-Fi do celular ou abra uma nova pagina no navegador.
+                    </p>
                 </div>
             </div>
             <script>
@@ -65,38 +83,42 @@
 
         @if (!isset($user))
             <!-- Formulário de Consulta -->
-            <div class="bg-white rounded-3xl p-8 shadow-2xl">
+            <div class="bg-white rounded-2xl border border-[#E5E5E5] overflow-hidden shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
+                <div class="px-5 py-3 bg-[#111] text-white">
+                    <p class="text-sm font-bold">Consultar status</p>
+                    <p class="text-[10px] text-white/60 mt-0.5">Confira se o voucher esta ativo neste aparelho</p>
+                </div>
                 <form action="{{ route('voucher.status.check') }}" method="POST">
                     @csrf
 
-                    <div class="mb-6">
-                        <label for="driver_document" class="block text-sm font-semibold text-gray-700 mb-2">
-                            🪪 Digite seu CPF
+                    <div class="p-5 pb-0">
+                        <label for="driver_document" class="block text-[11px] font-semibold text-[#333] uppercase tracking-wider mb-1.5">
+                            CPF ou número do voucher
                         </label>
                         <input 
                             type="text" 
                             id="driver_document" 
                             name="driver_document" 
-                            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:outline-none transition text-center text-lg"
-                            placeholder="000.000.000-00"
+                            class="w-full px-4 py-3.5 text-center text-lg font-bold text-[#111] bg-[#F8F9FA] border border-[#E5E5E5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00A335]/30 focus:border-[#00A335] transition-all placeholder:text-[#888] placeholder:font-normal placeholder:text-base"
+                            placeholder="CPF ou número do voucher"
                             value="{{ $document ?? $phone ?? '' }}"
                             required
-                            maxlength="14"
+                            maxlength="30"
                         >
-                        <p class="text-xs text-gray-500 mt-1 text-center">Digite o CPF cadastrado no seu voucher</p>
+                        <p class="text-[10px] text-[#888] mt-1 text-center">Use o CPF cadastrado ou o codigo do voucher.</p>
                     </div>
 
                     <button 
                         type="submit" 
-                        class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition transform hover:scale-105 flex items-center justify-center gap-2"
+                        class="m-5 mt-4 w-[calc(100%-2.5rem)] bg-[#00A335] hover:bg-[#00C040] active:bg-[#007A28] text-white font-bold py-3.5 px-6 rounded-xl shadow-[0_4px_12px_rgba(0,163,53,0.3)] transition-all flex items-center justify-center gap-2 text-sm"
                     >
-                        <span class="text-xl">🔍</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                         <span>Verificar Status</span>
                     </button>
                 </form>
 
-                <div class="mt-6 text-center">
-                    <a href="{{ route('voucher.activate') }}" class="text-sm text-gray-600 hover:text-green-600 transition">
+                <div class="px-5 pb-5 text-center">
+                    <a href="{{ route('voucher.activate') }}" class="text-xs text-[#888] hover:text-[#00A335] transition">
                         ← Voltar para ativar voucher
                     </a>
                 </div>
@@ -215,7 +237,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const cpfInput = document.getElementById('driver_document');
     if (cpfInput) {
         cpfInput.addEventListener('input', function(e) {
-            let value = e.target.value.replace(/\D/g, '');
+            let raw = e.target.value.trim();
+
+            if (/[A-Za-z-]/.test(raw)) {
+                e.target.value = raw.toUpperCase();
+                return;
+            }
+
+            let value = raw.replace(/\D/g, '');
             if (value.length > 11) value = value.slice(0, 11);
             
             if (value.length > 9) {
@@ -273,4 +302,3 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 </style>
 @endsection
-
