@@ -219,9 +219,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('search_term');
     if (searchInput) {
         searchInput.addEventListener('input', function(e) {
-            if (e.target.value.toUpperCase().startsWith('WIFI') || e.target.value.includes('-')) {
-                e.target.value = e.target.value.toUpperCase();
+            let raw = e.target.value.trim();
+
+            if (/[A-Za-z]/.test(raw)) {
+                e.target.value = raw.toUpperCase();
+                return;
             }
+
+            let value = raw.replace(/\D/g, '');
+            if (value.length > 11) value = value.slice(0, 11);
+
+            if (value.length > 9) {
+                value = value.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2}).*/, '$1.$2.$3-$4');
+            } else if (value.length > 6) {
+                value = value.replace(/^(\d{3})(\d{3})(\d{0,3}).*/, '$1.$2.$3');
+            } else if (value.length > 3) {
+                value = value.replace(/^(\d{3})(\d{0,3})/, '$1.$2');
+            }
+
+            e.target.value = value;
         });
     }
 

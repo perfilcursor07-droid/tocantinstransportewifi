@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
         cpfInput.addEventListener('input', function(e) {
             let raw = e.target.value.trim();
 
-            if (/[A-Za-z-]/.test(raw)) {
+            if (/[A-Za-z]/.test(raw)) {
                 e.target.value = raw.toUpperCase();
                 return;
             }

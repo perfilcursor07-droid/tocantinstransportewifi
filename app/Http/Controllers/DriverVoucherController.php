@@ -67,25 +67,7 @@ class DriverVoucherController extends Controller
         $macAddress = $request->input('mac_address') ?? session('mikrotik_mac');
         $ipAddress = $request->input('ip_address') ?? session('mikrotik_ip');
 
-        $searchTerm = trim($request->search_term);
-        
-        // Limpar CPF/documento (remover pontos, traços, etc)
-        $cleanedTerm = preg_replace('/\D/', '', $searchTerm);
-        
-        // Buscar por código do voucher (formato WIFI-XXXX-XXXX)
-        $voucher = Voucher::where('code', strtoupper($searchTerm))->first();
-        
-        // Se não encontrou por código, buscar por documento (CPF)
-        if (!$voucher && strlen($cleanedTerm) >= 11) {
-            $voucher = Voucher::where('driver_document', 'LIKE', '%' . $cleanedTerm . '%')
-                ->orWhere('driver_document', 'LIKE', '%' . $searchTerm . '%')
-                ->first();
-        }
-        
-        // Se ainda não encontrou, tentar buscar pelo termo original no documento
-        if (!$voucher) {
-            $voucher = Voucher::where('driver_document', $searchTerm)->first();
-        }
+        $voucher = $this->findVoucherByCpfOrCode($request->search_term);
 
         if (!$voucher) {
             return back()
@@ -114,6 +96,40 @@ class DriverVoucherController extends Controller
             'voucherStatus' => $voucherStatus,
             'searched' => true,
         ]);
+    }
+
+    /**
+     * Busca voucher por código ou CPF, aceitando CPF com ou sem pontuação.
+     */
+    private function findVoucherByCpfOrCode(string $term): ?Voucher
+    {
+        $searchTerm = trim($term);
+
+        if ($searchTerm === '') {
+            return null;
+        }
+
+        $voucher = Voucher::whereRaw('UPPER(code) = ?', [strtoupper($searchTerm)])->first();
+
+        if ($voucher) {
+            return $voucher;
+        }
+
+        $cleanedTerm = preg_replace('/\D/', '', $searchTerm);
+
+        if ($cleanedTerm === '') {
+            return null;
+        }
+
+        $likeCleanedTerm = '%' . $cleanedTerm . '%';
+        $likeSearchTerm = '%' . $searchTerm . '%';
+
+        return Voucher::where(function ($query) use ($likeCleanedTerm, $likeSearchTerm) {
+            $query
+                ->whereRaw("REPLACE(REPLACE(REPLACE(driver_document, '.', ''), '-', ''), ' ', '') LIKE ?", [$likeCleanedTerm])
+                ->orWhere('driver_document', 'LIKE', $likeSearchTerm)
+                ->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(driver_phone, '(', ''), ')', ''), '-', ''), ' ', ''), '+', '') LIKE ?", [$likeCleanedTerm]);
+        })->first();
     }
 
     /**
@@ -537,14 +553,7 @@ class DriverVoucherController extends Controller
             'driver_document' => 'required|string|max:30',
         ]);
 
-        $searchTerm = trim($request->driver_document);
-        $driverDocument = preg_replace('/\D/', '', $searchTerm);
-
-        $voucher = Voucher::where('code', strtoupper($searchTerm))->first();
-
-        if (!$voucher && $driverDocument !== '') {
-            $voucher = Voucher::where('driver_document', 'LIKE', '%' . $driverDocument . '%')->first();
-        }
+        $voucher = $this->findVoucherByCpfOrCode($request->driver_document);
         
         if (!$voucher) {
             return back()->with('error', 'Nenhum voucher encontrado para este CPF ou número do voucher.');
