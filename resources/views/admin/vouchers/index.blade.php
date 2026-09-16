@@ -135,13 +135,25 @@
     <div class="bg-white rounded-xl border border-border shadow-card overflow-hidden">
         <div class="flex items-center justify-between border-b border-border px-5 py-3">
             <h3 class="text-sm font-bold text-ink">Lista de Vouchers</h3>
-            <span class="text-[9px] font-bold uppercase tracking-wider bg-green/10 text-green px-2 py-0.5 rounded">{{ $vouchers->total() }} registros</span>
+            <div class="flex items-center gap-2">
+                <form id="bulkDeleteVouchersForm" method="POST" action="{{ route('admin.vouchers.bulk-destroy') }}" onsubmit="return confirmBulkDeleteVouchers()">
+                    @csrf
+                    @method('DELETE')
+                    <button id="bulkDeleteVouchersButton" type="submit" disabled class="px-3 py-1.5 bg-red-pale text-red rounded-lg text-[10px] font-bold opacity-50 cursor-not-allowed transition-colors">
+                        Excluir selecionados (0)
+                    </button>
+                </form>
+                <span class="text-[9px] font-bold uppercase tracking-wider bg-green/10 text-green px-2 py-0.5 rounded">{{ $vouchers->total() }} registros</span>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
             <table class="w-full">
                 <thead>
                     <tr class="border-b border-border bg-surface">
+                        <th class="px-5 py-2.5 text-center w-10">
+                            <input type="checkbox" id="selectAllVouchers" class="rounded border-border accent-green" onchange="toggleAllVouchers(this)">
+                        </th>
                         <th class="px-5 py-2.5 text-left text-[10px] font-bold text-muted uppercase tracking-wider">Código</th>
                         <th class="px-5 py-2.5 text-left text-[10px] font-bold text-muted uppercase tracking-wider">Motorista</th>
                         <th class="px-5 py-2.5 text-center text-[10px] font-bold text-muted uppercase tracking-wider">Tipo</th>
@@ -154,6 +166,9 @@
                 <tbody class="divide-y divide-border">
                     @forelse($vouchers as $voucher)
                     <tr class="hover:bg-surface transition-colors">
+                        <td class="px-5 py-3.5 text-center">
+                            <input type="checkbox" class="voucher-checkbox rounded border-border accent-green" value="{{ $voucher->id }}" onchange="updateBulkDeleteVouchersState()">
+                        </td>
                         <td class="px-5 py-3.5">
                             <div class="flex items-center gap-2.5">
                                 <div class="w-8 h-8 rounded-lg {{ $voucher->voucher_type === 'unlimited' ? 'bg-blue-pale' : 'bg-green-pale' }} flex items-center justify-center flex-shrink-0">
@@ -260,7 +275,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="py-12 text-center">
+                        <td colspan="8" class="py-12 text-center">
                             <div class="w-12 h-12 bg-surface rounded-full flex items-center justify-center mx-auto mb-3">
                                 <svg class="w-6 h-6 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
                             </div>
@@ -290,6 +305,47 @@
     </div>
 
     <script>
+        function updateBulkDeleteVouchersState() {
+            const selected = Array.from(document.querySelectorAll('.voucher-checkbox:checked'));
+            const all = Array.from(document.querySelectorAll('.voucher-checkbox'));
+            const form = document.getElementById('bulkDeleteVouchersForm');
+            const button = document.getElementById('bulkDeleteVouchersButton');
+            const selectAll = document.getElementById('selectAllVouchers');
+
+            form.querySelectorAll('input[name="voucher_ids[]"]').forEach(input => input.remove());
+            selected.forEach(checkbox => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'voucher_ids[]';
+                input.value = checkbox.value;
+                form.appendChild(input);
+            });
+
+            button.textContent = `Excluir selecionados (${selected.length})`;
+            button.disabled = selected.length === 0;
+            button.classList.toggle('opacity-50', selected.length === 0);
+            button.classList.toggle('cursor-not-allowed', selected.length === 0);
+            button.classList.toggle('hover:bg-red/10', selected.length > 0);
+
+            if (selectAll) {
+                selectAll.checked = all.length > 0 && selected.length === all.length;
+                selectAll.indeterminate = selected.length > 0 && selected.length < all.length;
+            }
+        }
+
+        function toggleAllVouchers(source) {
+            document.querySelectorAll('.voucher-checkbox').forEach(checkbox => {
+                checkbox.checked = source.checked;
+            });
+            updateBulkDeleteVouchersState();
+        }
+
+        function confirmBulkDeleteVouchers() {
+            const count = document.querySelectorAll('.voucher-checkbox:checked').length;
+            if (count === 0) return false;
+            return confirm(`Excluir ${count} voucher(s) selecionado(s)?`);
+        }
+
         function copyCode(code, el) {
             navigator.clipboard.writeText(code).then(() => {
                 const original = el.textContent;

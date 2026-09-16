@@ -202,6 +202,23 @@ class VoucherController extends Controller
     }
 
     /**
+     * Deleta vouchers selecionados em lote
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $validated = $request->validate([
+            'voucher_ids' => ['required', 'array', 'min:1'],
+            'voucher_ids.*' => ['integer', 'exists:vouchers,id'],
+        ]);
+
+        $count = Voucher::whereIn('id', collect($validated['voucher_ids'])->unique())->delete();
+
+        return redirect()
+            ->route('admin.vouchers.index')
+            ->with('success', "{$count} voucher(s) excluído(s) com sucesso!");
+    }
+
+    /**
      * Gera código único de voucher
      */
     private function generateVoucherCode(): string

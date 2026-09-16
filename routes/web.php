@@ -118,6 +118,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
         Route::get('/vouchers', [AdminVoucherController::class, 'index'])->name('vouchers.index');
         Route::get('/vouchers/create', [AdminVoucherController::class, 'create'])->name('vouchers.create');
         Route::post('/vouchers', [AdminVoucherController::class, 'store'])->name('vouchers.store');
+        Route::delete('/vouchers', [AdminVoucherController::class, 'bulkDestroy'])->name('vouchers.bulk-destroy');
         Route::get('/vouchers/{voucher}/edit', [AdminVoucherController::class, 'edit'])->name('vouchers.edit');
         Route::put('/vouchers/{voucher}', [AdminVoucherController::class, 'update'])->name('vouchers.update');
         Route::post('/vouchers/{voucher}/toggle', [AdminVoucherController::class, 'toggleStatus'])->name('vouchers.toggle');
