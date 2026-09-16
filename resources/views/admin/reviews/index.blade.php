@@ -44,18 +44,40 @@
                 <div class="w-10 h-10 shrink-0 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg">★</div>
                 <div>
                     <h3 class="text-base font-bold text-emerald-950">Gerar convites de avaliação</h3>
-                    <p class="mt-0.5 text-xs leading-5 text-emerald-800">Selecione passageiros reais pela data da viagem. A seleção é aleatória e evita telefones duplicados e descadastrados.</p>
+                    <p class="mt-0.5 text-xs leading-5 text-emerald-800">Selecione passageiros reais pela data da viagem e preencha a avaliação de teste com nota e horário de resposta.</p>
                 </div>
             </div>
         </div>
         <form method="POST" action="{{ route('admin.reviews.generate-invitations') }}" class="p-5">
             @csrf
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                 <div>
                     <label for="travel_date" class="block text-xs font-semibold text-gray-700 mb-1.5">Data da viagem</label>
                     <input id="travel_date" type="date" name="travel_date" value="{{ old('travel_date', now()->subDay()->toDateString()) }}" max="{{ now()->toDateString() }}" required
                            class="w-full px-3 py-2.5 border @error('travel_date') border-red-400 @else border-gray-300 @enderror rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm">
                     @error('travel_date')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label for="answered_from_generate" class="block text-xs font-semibold text-gray-700 mb-1.5">Respondido em (início)</label>
+                    <input id="answered_from_generate" type="datetime-local" name="answered_from" value="{{ old('answered_from', now()->subHour()->format('Y-m-d\TH:i')) }}" required
+                           class="w-full px-3 py-2.5 border @error('answered_from') border-red-400 @else border-gray-300 @enderror rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm">
+                    @error('answered_from')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label for="answered_to_generate" class="block text-xs font-semibold text-gray-700 mb-1.5">Respondido em (fim)</label>
+                    <input id="answered_to_generate" type="datetime-local" name="answered_to" value="{{ old('answered_to', now()->format('Y-m-d\TH:i')) }}" required
+                           class="w-full px-3 py-2.5 border @error('answered_to') border-red-400 @else border-gray-300 @enderror rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm">
+                    @error('answered_to')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label for="rating_generate" class="block text-xs font-semibold text-gray-700 mb-1.5">Avaliação</label>
+                    <select id="rating_generate" name="rating" required
+                            class="w-full px-3 py-2.5 border @error('rating') border-red-400 @else border-gray-300 @enderror rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm">
+                        @for($rating = 5; $rating >= 1; $rating--)
+                        <option value="{{ $rating }}" {{ (string) old('rating', 5) === (string) $rating ? 'selected' : '' }}>{{ $rating }} estrela{{ $rating > 1 ? 's' : '' }} ★</option>
+                        @endfor
+                    </select>
+                    @error('rating')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <div>
                     <label for="quantity" class="block text-xs font-semibold text-gray-700 mb-1.5">Quantidade máxima</label>
@@ -66,10 +88,10 @@
             </div>
             <div class="mt-4 flex justify-end">
                 <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors">
-                    Gerar convites reais
+                    Gerar avaliações de teste
                 </button>
             </div>
-            <p class="mt-3 text-xs leading-5 text-gray-500"><strong>Importante:</strong> a data acima pega todos os passageiros cadastrados naquela data de viagem. Para filtrar avaliações por horário, use o intervalo de <strong>Respondido em</strong> nos filtros abaixo.</p>
+            <p class="mt-3 text-xs leading-5 text-gray-500"><strong>Importante:</strong> a data acima pega todos os passageiros cadastrados naquela data de viagem. A nota escolhida será gravada e o campo <strong>Respondido em</strong> será sorteado dentro do intervalo informado.</p>
         </form>
     </div>
     @endif
@@ -462,7 +484,7 @@
                                 $sendLabel = match($review->whatsapp_status) {
                                     'sent' => 'Enviado',
                                     'failed' => 'Falha',
-                                    'skipped' => 'Ignorado',
+                                    'skipped' => 'Não enviado',
                                     default => 'Pendente',
                                 };
                             @endphp

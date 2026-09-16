@@ -173,27 +173,28 @@ class ServiceReviewController extends Controller
     }
 
     /**
-     * Cria convites pendentes para passageiros reais de uma data de viagem.
-     * Esta acao nao envia mensagens e nunca preenche notas: a avaliacao e
-     * sempre respondida pelo passageiro no seu proprio link.
+     * Gera avaliações de teste para passageiros reais de uma data de viagem.
+     * Esta acao nao envia mensagens pelo WhatsApp.
      */
     public function generateInvitations(Request $request)
     {
         $validated = $request->validate([
             'travel_date' => ['required', 'date', 'before_or_equal:today'],
+            'answered_from' => ['required', 'date'],
+            'answered_to' => ['required', 'date', 'after_or_equal:answered_from'],
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
             'quantity' => ['required', 'integer', 'min:1', 'max:100'],
         ], [
             'travel_date.before_or_equal' => 'Escolha uma data de viagem de hoje ou anterior.',
+            'answered_from.required' => 'Informe o início do intervalo de Respondido em.',
+            'answered_to.required' => 'Informe o fim do intervalo de Respondido em.',
+            'answered_to.after_or_equal' => 'O fim do intervalo precisa ser igual ou posterior ao início.',
             'quantity.max' => 'Para conferência, gere no máximo 100 convites por vez.',
         ]);
 
         $travelDate = Carbon::parse($validated['travel_date'])->startOfDay();
-
-        $alreadyInvited = ServiceReview::query()
-            ->whereDate('batch_date', $travelDate)
-            ->whereNotNull('user_id')
-            ->pluck('user_id')
-            ->flip();
+        $answeredFrom = Carbon::parse($validated['answered_from']);
+        $answeredTo = Carbon::parse($validated['answered_to'])->endOfMinute();
 
         $passengerQuery = User::query()
             ->whereNotNull('phone')
@@ -207,12 +208,7 @@ class ServiceReviewController extends Controller
             ->whereDate('registered_at', $travelDate)
             ->get();
 
-        $alreadyInvitedCount = $passengersOnTravelDate
-            ->filter(fn (User $user) => $alreadyInvited->has($user->id))
-            ->count();
-
         $eligiblePassengers = $passengersOnTravelDate
-            ->reject(fn (User $user) => $alreadyInvited->has($user->id))
             ->reject(fn (User $user) => WhatsappOptOut::isOptedOut($user->phone))
             ->unique(fn (User $user) => WhatsappOptOut::last8($user->phone))
             ->shuffle();
@@ -220,21 +216,33 @@ class ServiceReviewController extends Controller
         $selectedPassengers = $eligiblePassengers->take((int) $validated['quantity']);
 
         foreach ($selectedPassengers as $passenger) {
-            $this->reviewWhatsappService->prepareReviewForUser($passenger, $travelDate);
+            $review = $this->reviewWhatsappService->prepareReviewForUser($passenger, $travelDate);
+            $submittedAt = $answeredFrom->copy()->addSeconds(random_int(
+                0,
+                (int) max(0, $answeredFrom->diffInSeconds($answeredTo))
+            ));
+
+            $review->update([
+                'rating' => (int) $validated['rating'],
+                'reason' => null,
+                'submitted_at' => $submittedAt,
+                'whatsapp_status' => 'skipped',
+            ]);
         }
 
         $selectedCount = $selectedPassengers->count();
         $message = $selectedCount === 0
-            ? ($alreadyInvitedCount > 0
-                ? "$alreadyInvitedCount passageiro(s) dessa data já possuem convite registrado. Nenhum convite duplicado foi criado."
-                : 'Nenhum passageiro elegível foi encontrado nessa data de viagem.')
-            : "$selectedCount convite(s) pendente(s) criado(s). Nenhuma mensagem foi enviada e nenhuma nota foi preenchida.";
+            ? 'Nenhum passageiro elegível foi encontrado nessa data de viagem.'
+            : "$selectedCount avaliação(ões) de teste gerada(s) com nota {$validated['rating']} e Respondido em dentro do intervalo informado. Nenhuma mensagem foi enviada.";
 
         return redirect()
             ->route('admin.reviews.index', [
                 'date_from' => $travelDate->toDateString(),
                 'date_to' => $travelDate->toDateString(),
-                'status' => 'not_sent',
+                'status' => 'answered',
+                'rating' => $validated['rating'],
+                'answered_from' => $answeredFrom->format('Y-m-d\TH:i'),
+                'answered_to' => $answeredTo->format('Y-m-d\TH:i'),
             ])
             ->with('success', $message);
     }
