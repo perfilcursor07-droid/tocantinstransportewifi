@@ -196,14 +196,21 @@ class ServiceReviewController extends Controller
             ->pluck('user_id')
             ->flip();
 
-        $eligiblePassengers = User::query()
-            ->whereBetween('registered_at', [$start, $end])
+        $passengerQuery = User::query()
             ->whereNotNull('phone')
             ->where('phone', '!=', '')
             ->where(function ($query) {
                 $query->whereNull('role')
                     ->orWhereNotIn('role', ['admin', 'manager']);
-            })
+            });
+
+        $dayTravelRange = (clone $passengerQuery)
+            ->whereDate('registered_at', $travelDate)
+            ->selectRaw('MIN(registered_at) as first_trip_at, MAX(registered_at) as last_trip_at, COUNT(*) as total')
+            ->first();
+
+        $eligiblePassengers = (clone $passengerQuery)
+            ->whereBetween('registered_at', [$start, $end])
             ->get()
             ->reject(fn (User $user) => $alreadyInvited->has($user->id))
             ->reject(fn (User $user) => WhatsappOptOut::isOptedOut($user->phone))
@@ -217,9 +224,17 @@ class ServiceReviewController extends Controller
         }
 
         $selectedCount = $selectedPassengers->count();
-        $message = $selectedCount === 0
-            ? 'Nenhum passageiro elegível foi encontrado para essa data e faixa de horário.'
-            : "$selectedCount convite(s) pendente(s) criado(s). Nenhuma mensagem foi enviada e nenhuma nota foi preenchida.";
+        if ($selectedCount === 0) {
+            $dayTotal = (int) ($dayTravelRange->total ?? 0);
+            $firstTrip = $dayTravelRange?->first_trip_at ? Carbon::parse($dayTravelRange->first_trip_at)->format('H:i') : null;
+            $lastTrip = $dayTravelRange?->last_trip_at ? Carbon::parse($dayTravelRange->last_trip_at)->format('H:i') : null;
+
+            $message = $dayTotal > 0
+                ? "Nenhum passageiro foi encontrado entre {$validated['start_time']} e {$validated['end_time']}. Neste dia há {$dayTotal} registro(s) de viagem entre {$firstTrip} e {$lastTrip}."
+                : 'Nenhum passageiro com telefone foi encontrado nessa data de viagem.';
+        } else {
+            $message = "$selectedCount convite(s) pendente(s) criado(s). Nenhuma mensagem foi enviada e nenhuma nota foi preenchida.";
+        }
 
         return redirect()
             ->route('admin.reviews.index', [
