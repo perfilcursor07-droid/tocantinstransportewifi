@@ -333,8 +333,9 @@
                             @if(auth()->user()?->role === 'admin')
                             <td class="py-3 px-3">
                                 @php
-                                    $serial = $payment->user->last_mikrotik_id ?? null;
+                                    $serial = data_get($payment->payment_data, 'transferred_mikrotik_id') ?: ($payment->user->last_mikrotik_id ?? null);
                                     $busName = $serial ? ($busSerialMap[$serial] ?? null) : null;
+                                    $vehicleLabel = $busName ? "{$busName} ({$serial})" : ($serial ?: 'Sem veículo');
                                 @endphp
                                 @if($busName)
                                     <span class="inline-flex items-center gap-1 text-[10px] font-bold bg-blue/10 text-blue px-1.5 py-0.5 rounded">
@@ -353,38 +354,54 @@
                             <td class="py-3 px-3 text-xs text-muted">{{ $payment->created_at->format('d/m/Y H:i') }}</td>
                             @if(auth()->user()?->role === 'admin')
                             <td class="py-3 px-3">
-                                <div class="flex items-center gap-1.5 flex-wrap justify-end">
-                                    @if(in_array($payment->status, ['pending', 'failed', 'refunded'], true))
-                                    <form method="POST" action="{{ route('admin.reports.payments.toggle-status', $payment) }}"
-                                          onsubmit="return confirm('Marcar pagamento #{{ $payment->id }} como PAGO?\nO valor entrará nos totais de receita.');">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="hidden" name="status" value="completed">
-                                        <button type="submit" class="text-[10px] font-bold bg-green/10 text-green px-2 py-1 rounded-lg hover:bg-green/20 transition-colors whitespace-nowrap">
-                                            Marcar pago
-                                        </button>
-                                    </form>
-                                    @endif
-                                    @if($payment->status === 'completed')
-                                    <form method="POST" action="{{ route('admin.reports.payments.toggle-status', $payment) }}"
-                                          onsubmit="return confirm('Marcar pagamento #{{ $payment->id }} como PENDENTE?\nO valor sairá dos totais de receita.');">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="hidden" name="status" value="pending">
-                                        <button type="submit" class="text-[10px] font-bold bg-gold/10 text-gold px-2 py-1 rounded-lg hover:bg-gold/20 transition-colors whitespace-nowrap">
-                                            Marcar pendente
-                                        </button>
-                                    </form>
+                                <div class="relative flex justify-end">
                                     <button type="button"
-                                            onclick="openRefundModal({{ $payment->id }}, '{{ number_format($payment->amount, 2, ',', '.') }}')"
-                                            class="text-[10px] font-bold bg-red/10 text-red px-2 py-1 rounded-lg hover:bg-red/20 transition-colors whitespace-nowrap">
-                                        Estorno
+                                            onclick="togglePaymentActions('payment-actions-{{ $payment->id }}')"
+                                            class="inline-flex items-center gap-1.5 text-[10px] font-bold bg-surface border border-border text-ink2 px-2.5 py-1.5 rounded-lg hover:bg-border transition-colors">
+                                        Ações
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                                     </button>
-                                    @endif
-                                    <form method="POST" action="{{ route('admin.reports.payments.destroy', $payment) }}" onsubmit="return confirm('Excluir este registro de pagamento?');">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="text-[10px] font-bold bg-red-pale text-red px-2 py-1 rounded-lg hover:bg-red/10 transition-colors">Excluir</button>
-                                    </form>
+                                    <div id="payment-actions-{{ $payment->id }}"
+                                         class="payment-actions-menu hidden absolute right-0 top-full mt-1 z-30 w-44 overflow-hidden rounded-xl border border-border bg-white shadow-lg">
+                                        <button type="button"
+                                                onclick='openPaymentEditModal(@json($payment->id), @json($serial), @json($vehicleLabel))'
+                                                class="block w-full px-3 py-2 text-left text-[11px] font-semibold text-ink2 hover:bg-surface">
+                                            Editar
+                                        </button>
+                                        @if(in_array($payment->status, ['pending', 'failed', 'refunded'], true))
+                                        <form method="POST" action="{{ route('admin.reports.payments.toggle-status', $payment) }}"
+                                              onsubmit="return confirm('Marcar pagamento #{{ $payment->id }} como PAGO?\nO valor entrará nos totais de receita.');">
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="hidden" name="status" value="completed">
+                                            <button type="submit" class="block w-full px-3 py-2 text-left text-[11px] font-semibold text-green hover:bg-green/10">
+                                                Marcar pago
+                                            </button>
+                                        </form>
+                                        @endif
+                                        @if($payment->status === 'completed')
+                                        <form method="POST" action="{{ route('admin.reports.payments.toggle-status', $payment) }}"
+                                              onsubmit="return confirm('Marcar pagamento #{{ $payment->id }} como PENDENTE?\nO valor sairá dos totais de receita.');">
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="hidden" name="status" value="pending">
+                                            <button type="submit" class="block w-full px-3 py-2 text-left text-[11px] font-semibold text-gold hover:bg-gold/10">
+                                                Marcar pendente
+                                            </button>
+                                        </form>
+                                        <button type="button"
+                                                onclick="openRefundModal({{ $payment->id }}, '{{ number_format($payment->amount, 2, ',', '.') }}')"
+                                                class="block w-full px-3 py-2 text-left text-[11px] font-semibold text-red hover:bg-red/10">
+                                            Estorno
+                                        </button>
+                                        @endif
+                                        <form method="POST" action="{{ route('admin.reports.payments.destroy', $payment) }}" onsubmit="return confirm('Excluir este registro de pagamento?');">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="block w-full px-3 py-2 text-left text-[11px] font-semibold text-red hover:bg-red/10">
+                                                Excluir
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
                             </td>
                             @endif
@@ -516,6 +533,50 @@
     </div>
 
     @if(auth()->user()?->role === 'admin')
+    <!-- Modal Editar Pagamento -->
+    <div id="payment-edit-modal" class="fixed inset-0 z-[10000] hidden items-center justify-center bg-black/40 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-border overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-border bg-surface">
+                <div>
+                    <h3 class="text-sm font-bold text-ink">Editar pagamento</h3>
+                    <p class="text-[11px] text-muted">Pagamento #<span id="payment-edit-id-label"></span></p>
+                </div>
+                <button type="button" onclick="closePaymentEditModal()" class="w-8 h-8 rounded-lg hover:bg-border text-muted">×</button>
+            </div>
+            <form id="payment-edit-form" method="POST" class="p-5 space-y-4">
+                @csrf
+                @method('PATCH')
+                <div>
+                    <p class="text-[10px] text-muted font-bold uppercase tracking-wider mb-1">Veículo atual</p>
+                    <p id="payment-edit-current-vehicle" class="text-sm font-semibold text-ink">—</p>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-ink2 uppercase tracking-wider mb-1.5">Transferir para veículo</label>
+                    <select id="payment-edit-vehicle" name="mikrotik_serial" required
+                            class="w-full px-3 py-2 text-sm text-ink bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-green/30 focus:border-green">
+                        <option value="">Selecione o veículo</option>
+                        @foreach($busList as $bus)
+                            <option value="{{ $bus->mikrotik_serial }}">{{ $bus->name }} — {{ $bus->mikrotik_serial }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <p class="text-xs text-muted leading-relaxed">
+                    Esta alteração transfere este pagamento para outro veículo no relatório. Não altera valor, status ou datas do pagamento.
+                </p>
+                <div class="flex gap-2 pt-1">
+                    <button type="button" onclick="closePaymentEditModal()"
+                            class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg border border-border text-ink2 hover:bg-surface">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-green text-white hover:opacity-90">
+                        Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal Estorno -->
     <div id="refund-modal" class="fixed inset-0 z-[10000] hidden items-center justify-center bg-black/40 p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-border overflow-hidden">
@@ -560,8 +621,50 @@
     <!-- Scripts específicos da página -->
     <script>
         const refundRouteTemplate = @json(url('/admin/reports/payments/__ID__/refund'));
+        const paymentEditRouteTemplate = @json(url('/admin/reports/payments/__ID__'));
+
+        function closePaymentActionMenus(exceptId = null) {
+            document.querySelectorAll('.payment-actions-menu').forEach(menu => {
+                if (menu.id !== exceptId) {
+                    menu.classList.add('hidden');
+                }
+            });
+        }
+
+        function togglePaymentActions(menuId) {
+            const menu = document.getElementById(menuId);
+            if (!menu) return;
+            const willOpen = menu.classList.contains('hidden');
+            closePaymentActionMenus(menuId);
+            menu.classList.toggle('hidden', !willOpen);
+        }
+
+        function openPaymentEditModal(paymentId, currentSerial, currentLabel) {
+            closePaymentActionMenus();
+            const modal = document.getElementById('payment-edit-modal');
+            const form = document.getElementById('payment-edit-form');
+            const select = document.getElementById('payment-edit-vehicle');
+            if (!modal || !form || !select) return;
+
+            form.action = paymentEditRouteTemplate.replace('__ID__', paymentId);
+            document.getElementById('payment-edit-id-label').textContent = paymentId;
+            document.getElementById('payment-edit-current-vehicle').textContent = currentLabel || 'Sem veículo';
+            select.value = currentSerial || '';
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closePaymentEditModal() {
+            const modal = document.getElementById('payment-edit-modal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            const form = document.getElementById('payment-edit-form');
+            if (form) form.reset();
+        }
 
         function openRefundModal(paymentId, amount) {
+            closePaymentActionMenus();
             const modal = document.getElementById('refund-modal');
             const form = document.getElementById('refund-form');
             if (!modal || !form) return;
@@ -581,8 +684,18 @@
             if (form) form.reset();
         }
 
+        document.getElementById('payment-edit-modal')?.addEventListener('click', function(e) {
+            if (e.target === this) closePaymentEditModal();
+        });
+
         document.getElementById('refund-modal')?.addEventListener('click', function(e) {
             if (e.target === this) closeRefundModal();
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.payment-actions-menu') && !e.target.closest('button[onclick^="togglePaymentActions"]')) {
+                closePaymentActionMenus();
+            }
         });
         // Toggle filtros avançados
         (function() {

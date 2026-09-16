@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Bus;
 use App\Models\Payment;
 use App\Models\User;
 use App\Models\Session;
@@ -90,7 +91,13 @@ class ReportsController extends Controller
         // Helper: aplica filtro de ônibus a uma query de Payment
         $applyBus = function ($query) use ($busFilter) {
             if ($busFilter !== 'all') {
-                $query->whereHas('user', fn($q) => $q->where('last_mikrotik_id', $busFilter));
+                $query->where(function ($q) use ($busFilter) {
+                    $q->where('payment_data->transferred_mikrotik_id', $busFilter)
+                        ->orWhere(function ($q) use ($busFilter) {
+                            $q->whereNull('payment_data->transferred_mikrotik_id')
+                                ->whereHas('user', fn($userQuery) => $userQuery->where('last_mikrotik_id', $busFilter));
+                        });
+                });
             }
             return $query;
         };
@@ -155,7 +162,13 @@ class ReportsController extends Controller
         }
 
         if ($busFilter !== 'all') {
-            $query->whereHas('user', fn($q) => $q->where('last_mikrotik_id', $busFilter));
+            $query->where(function ($q) use ($busFilter) {
+                $q->where('payment_data->transferred_mikrotik_id', $busFilter)
+                    ->orWhere(function ($q) use ($busFilter) {
+                        $q->whereNull('payment_data->transferred_mikrotik_id')
+                            ->whereHas('user', fn($userQuery) => $userQuery->where('last_mikrotik_id', $busFilter));
+                    });
+            });
         }
         
         return $query->orderBy('created_at', 'desc')
@@ -259,12 +272,13 @@ class ReportsController extends Controller
     {
         $dateRange = [$startDateTime, $endDateTime];
         $busNames = \App\Models\Bus::getSerialNameMap();
+        $busIdExpression = "COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(payments.payment_data, '$.transferred_mikrotik_id')), ''), users.last_mikrotik_id, 'desconhecido')";
 
         $completed = Payment::where('payments.status', 'completed')
             ->whereBetween('payments.created_at', $dateRange)
             ->join('users', 'payments.user_id', '=', 'users.id')
             ->select(
-                DB::raw("COALESCE(users.last_mikrotik_id, 'desconhecido') as bus_id"),
+                DB::raw("$busIdExpression as bus_id"),
                 DB::raw('SUM(payments.amount) as total'),
                 DB::raw('COUNT(payments.id) as count')
             )
@@ -276,7 +290,7 @@ class ReportsController extends Controller
             ->whereBetween('payments.created_at', $dateRange)
             ->join('users', 'payments.user_id', '=', 'users.id')
             ->select(
-                DB::raw("COALESCE(users.last_mikrotik_id, 'desconhecido') as bus_id"),
+                DB::raw("$busIdExpression as bus_id"),
                 DB::raw('SUM(payments.amount) as total'),
                 DB::raw('COUNT(payments.id) as count')
             )
@@ -375,6 +389,37 @@ class ReportsController extends Controller
             report($e);
             return back()->with('error', 'Não foi possível excluir o registro neste momento.');
         }
+    }
+
+    public function updatePaymentRecord(Request $request, Payment $payment)
+    {
+        if (!auth()->check() || auth()->user()->role !== 'admin') {
+            return back()->with('error', 'Apenas administradores podem editar pagamentos.');
+        }
+
+        $validated = $request->validate([
+            'mikrotik_serial' => ['required', 'string', 'exists:buses,mikrotik_serial'],
+        ], [
+            'mikrotik_serial.exists' => 'Selecione um veículo válido.',
+        ]);
+
+        $targetBus = Bus::where('mikrotik_serial', $validated['mikrotik_serial'])->firstOrFail();
+        $currentBus = data_get($payment->payment_data, 'transferred_mikrotik_id')
+            ?: $payment->user?->last_mikrotik_id;
+
+        $paymentData = $payment->payment_data ?? [];
+        $paymentData['transferred_mikrotik_id'] = $targetBus->mikrotik_serial;
+        $paymentData['transferred_mikrotik_from'] = $currentBus;
+        $paymentData['transferred_at'] = now()->toDateTimeString();
+        $paymentData['transferred_by'] = auth()->id();
+
+        $payment->payment_data = $paymentData;
+        $payment->save();
+
+        return back()->with(
+            'success',
+            "Pagamento #{$payment->id} transferido para {$targetBus->name} ({$targetBus->mikrotik_serial})."
+        );
     }
 
     /**
@@ -656,4 +701,3 @@ class ReportsController extends Controller
         return back()->with('error', 'Formato de exportação não suportado');
     }
 }
-

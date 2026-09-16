@@ -178,6 +178,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
             ->name('reports.payments.bulk-destroy');
         Route::delete('/reports/payments/{payment}', [ReportsController::class, 'destroyPaymentRecord'])
             ->name('reports.payments.destroy');
+        Route::patch('/reports/payments/{payment}', [ReportsController::class, 'updatePaymentRecord'])
+            ->name('reports.payments.update');
         Route::patch('/reports/payments/{payment}/status', [ReportsController::class, 'togglePaymentStatus'])
             ->name('reports.payments.toggle-status');
         Route::post('/reports/payments/{payment}/refund', [ReportsController::class, 'refundPayment'])
