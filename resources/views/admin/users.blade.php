@@ -88,12 +88,14 @@
             'user'    => ['label' => 'Usuarios',       'icon' => 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', 'color' => 'gray'],
             'manager' => ['label' => 'Gestores',       'icon' => 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z', 'color' => 'purple'],
             'admin'   => ['label' => 'Administradores','icon' => 'M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.745 3.745 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z', 'color' => 'red'],
+            'named'   => ['label' => 'Usuarios com nome', 'icon' => 'M15.232 5.232a3 3 0 114.243 4.243L8.5 20.45 3 22l1.55-5.5L15.232 5.232zM13.5 6.964l3.536 3.536', 'color' => 'green'],
         ];
         $colorMap = [
             'blue'   => ['active' => 'bg-blue-600 text-white shadow-sm',    'inactive' => 'text-gray-600 hover:bg-gray-100', 'badge' => 'bg-blue-100 text-blue-700'],
             'gray'   => ['active' => 'bg-gray-700 text-white shadow-sm',    'inactive' => 'text-gray-600 hover:bg-gray-100', 'badge' => 'bg-gray-200 text-gray-700'],
             'purple' => ['active' => 'bg-purple-600 text-white shadow-sm',  'inactive' => 'text-gray-600 hover:bg-gray-100', 'badge' => 'bg-purple-100 text-purple-700'],
             'red'    => ['active' => 'bg-red-600 text-white shadow-sm',     'inactive' => 'text-gray-600 hover:bg-gray-100', 'badge' => 'bg-red-100 text-red-700'],
+            'green'  => ['active' => 'bg-emerald-600 text-white shadow-sm', 'inactive' => 'text-gray-600 hover:bg-gray-100', 'badge' => 'bg-emerald-100 text-emerald-700'],
         ];
     @endphp
     <div class="bg-white rounded-xl border shadow-sm mb-4 p-2">
@@ -178,6 +180,7 @@
                         @case('user')      Usuarios @break
                         @case('manager')   Gestores @break
                         @case('admin')     Administradores @break
+                        @case('named')     Usuarios com nome @break
                         @default           Lista de Usuarios
                     @endswitch
                 </h3>

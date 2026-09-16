@@ -560,7 +560,7 @@ class AdminController extends Controller
         }
 
         // Filtro: tipo de acesso (tabs)
-        // Aceita: 'all' (default), 'user', 'manager', 'admin'
+        // Aceita: 'all' (default), 'user', 'manager', 'admin', 'named'
         $role = $request->get('role', 'all');
         if ($role === 'user') {
             // Considera "usuário comum" tudo que NÃO é admin/manager (inclui null)
@@ -568,6 +568,17 @@ class AdminController extends Controller
                 $q->whereNull('role')
                   ->orWhereNotIn('role', ['admin', 'manager']);
             });
+        } elseif ($role === 'named') {
+            $query->where(function ($q) {
+                $q->whereNull('role')
+                  ->orWhereNotIn('role', ['admin', 'manager']);
+            })
+                ->whereNotNull('name')
+                ->whereRaw("TRIM(name) <> ''")
+                ->whereRaw("LOWER(TRIM(name)) NOT IN (?, ?)", [
+                    'nome nao informado',
+                    'nome não informado',
+                ]);
         } elseif (in_array($role, ['admin', 'manager'], true)) {
             $query->where('role', $role);
         }
@@ -594,6 +605,16 @@ class AdminController extends Controller
             })->count(),
             'manager' => User::where('role', 'manager')->count(),
             'admin' => User::where('role', 'admin')->count(),
+            'named' => User::where(function ($q) {
+                $q->whereNull('role')->orWhereNotIn('role', ['admin', 'manager']);
+            })
+                ->whereNotNull('name')
+                ->whereRaw("TRIM(name) <> ''")
+                ->whereRaw("LOWER(TRIM(name)) NOT IN (?, ?)", [
+                    'nome nao informado',
+                    'nome não informado',
+                ])
+                ->count(),
         ];
 
         return view('admin.users', compact('users', 'stats', 'roleCounts', 'role'));
