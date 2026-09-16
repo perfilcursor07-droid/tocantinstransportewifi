@@ -83,4 +83,24 @@ class DriverRequestController extends Controller
 
         return back()->with('success', "Pedido de {$driverRequest->name} rejeitado.");
     }
+
+    public function destroy(DriverRequest $driverRequest)
+    {
+        $name = $driverRequest->name;
+        $driverRequest->delete();
+
+        return back()->with('success', "Pedido de {$name} excluido com sucesso.");
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $validated = $request->validate([
+            'request_ids' => ['required', 'array', 'min:1'],
+            'request_ids.*' => ['integer', 'exists:driver_requests,id'],
+        ]);
+
+        $count = DriverRequest::whereIn('id', collect($validated['request_ids'])->unique())->delete();
+
+        return back()->with('success', "{$count} pedido(s) excluido(s) com sucesso.");
+    }
 }

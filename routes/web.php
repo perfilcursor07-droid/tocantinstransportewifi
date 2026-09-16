@@ -211,8 +211,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
 
         // Pedidos de motoristas (vouchers)
         Route::get('/pedidos-motoristas', [AdminDriverRequestController::class, 'index'])->name('driver-requests.index');
+        Route::delete('/pedidos-motoristas', [AdminDriverRequestController::class, 'bulkDestroy'])->name('driver-requests.bulk-destroy');
         Route::patch('/pedidos-motoristas/{driverRequest}/aprovar', [AdminDriverRequestController::class, 'approve'])->name('driver-requests.approve');
         Route::patch('/pedidos-motoristas/{driverRequest}/rejeitar', [AdminDriverRequestController::class, 'reject'])->name('driver-requests.reject');
+        Route::delete('/pedidos-motoristas/{driverRequest}', [AdminDriverRequestController::class, 'destroy'])->name('driver-requests.destroy');
 
         // Pagamentos PIX motoristas
         Route::get('/pagamentos-motoristas', [AdminDriverPixController::class, 'index'])->name('driver-pix.index');
