@@ -64,9 +64,8 @@
                     @error('quantity')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
             </div>
-            <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <p class="text-xs leading-5 text-amber-900"><strong>Importante:</strong> esta ação só cria convites pendentes. Não envia WhatsApp, não cria respostas e não preenche “Respondido em”. A nota de 1 a 5 e o horário da resposta são sempre registrados quando o passageiro responde.</p>
-                <button type="submit" class="shrink-0 inline-flex justify-center items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors">
+            <div class="mt-4 flex justify-end">
+                <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors">
                     Gerar convites reais
                 </button>
             </div>
