@@ -478,7 +478,7 @@
                                 $sendBadge = match($review->whatsapp_status) {
                                     'sent' => 'bg-green-100 text-green-700',
                                     'failed' => 'bg-red-100 text-red-700',
-                                    'skipped' => 'bg-gray-100 text-gray-700',
+                                    'skipped' => $review->submitted_at ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700',
                                     default => 'bg-yellow-100 text-yellow-700',
                                 };
                                 $sendLabel = match($review->whatsapp_status) {
