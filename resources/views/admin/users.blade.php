@@ -174,7 +174,7 @@
     {{-- Lista --}}
     <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b bg-gray-50">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h3 class="text-gray-800 font-semibold">
                     @switch($role ?? 'all')
                         @case('user')      Usuarios @break
@@ -184,7 +184,18 @@
                         @default           Lista de Usuarios
                     @endswitch
                 </h3>
-                <span class="px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700">{{ $users->total() }} registros</span>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button"
+                            id="bulkDeleteUsersBtn"
+                            onclick="deleteSelectedUsers()"
+                            disabled
+                            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-3h4m-4 0a1 1 0 00-1 1v1h6V5a1 1 0 00-1-1m-4 0h4"/></svg>
+                        Excluir selecionados
+                        <span id="selectedUsersCount" class="hidden px-1.5 py-0.5 rounded bg-white/70 text-red-700">0</span>
+                    </button>
+                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700">{{ $users->total() }} registros</span>
+                </div>
             </div>
         </div>
 
@@ -192,6 +203,13 @@
             <table class="w-full">
                 <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
                     <tr>
+                        <th class="px-4 py-3 text-left w-10">
+                            <input type="checkbox"
+                                   id="selectAllUsers"
+                                   onchange="toggleAllUsers(this)"
+                                   class="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                                   title="Selecionar todos">
+                        </th>
                         <th class="px-4 py-3 text-left">Usuario</th>
                         <th class="px-4 py-3 text-left">Contato</th>
                         <th class="px-4 py-3 text-left">Dispositivo</th>
@@ -229,6 +247,12 @@
                         }
                     @endphp
                     <tr class="hover:bg-gray-50 transition">
+                        <td class="px-4 py-3">
+                            <input type="checkbox"
+                                   value="{{ $user->id }}"
+                                   onchange="updateSelectedUsersState()"
+                                   class="user-select-checkbox w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                        </td>
                         <td class="px-4 py-3">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-semibold">
@@ -289,7 +313,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="px-4 py-10 text-center">
+                        <td colspan="9" class="px-4 py-10 text-center">
                             <div class="flex flex-col items-center">
                                 <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                                     <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-5-4m-6 6H6v-2a4 4 0 014-4m2-6a4 4 0 11-8 0 4 4 0 018 0m6 6a4 4 0 100-8 4 4 0 000 8z"/></svg>
@@ -331,6 +355,73 @@
 
 @push('scripts')
 <script>
+function getSelectedUserIds() {
+    return Array.from(document.querySelectorAll('.user-select-checkbox:checked')).map(checkbox => checkbox.value);
+}
+
+function updateSelectedUsersState() {
+    const checkboxes = Array.from(document.querySelectorAll('.user-select-checkbox'));
+    const selectedIds = getSelectedUserIds();
+    const selectAll = document.getElementById('selectAllUsers');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteUsersBtn');
+    const selectedCount = document.getElementById('selectedUsersCount');
+
+    if (selectAll) {
+        selectAll.checked = checkboxes.length > 0 && selectedIds.length === checkboxes.length;
+        selectAll.indeterminate = selectedIds.length > 0 && selectedIds.length < checkboxes.length;
+    }
+
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.disabled = selectedIds.length === 0;
+    }
+
+    if (selectedCount) {
+        selectedCount.textContent = selectedIds.length;
+        selectedCount.classList.toggle('hidden', selectedIds.length === 0);
+    }
+}
+
+function toggleAllUsers(source) {
+    document.querySelectorAll('.user-select-checkbox').forEach(checkbox => {
+        checkbox.checked = source.checked;
+    });
+
+    updateSelectedUsersState();
+}
+
+function deleteSelectedUsers() {
+    const ids = getSelectedUserIds();
+
+    if (ids.length === 0) {
+        alert('Selecione pelo menos um usuario para excluir.');
+        return;
+    }
+
+    if (!confirm(`Deseja realmente excluir ${ids.length} usuario(s) selecionado(s)? Esta acao nao pode ser desfeita.`)) return;
+
+    fetch('/admin/users/bulk-delete', {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ ids })
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message || 'Usuarios excluidos com sucesso!');
+                location.reload();
+            } else {
+                alert(data.message || 'Erro ao excluir usuarios selecionados.');
+            }
+        })
+        .catch(() => {
+            alert('Erro ao excluir usuarios selecionados.');
+        });
+}
+
 function viewUser(userId) {
     // Mapeamento MikroTik serial → número do carro
     const busMap = {
@@ -461,5 +552,7 @@ function closeUserModal() {
 document.getElementById('userModal').addEventListener('click', function(e) {
     if (e.target === this) closeUserModal();
 });
+
+updateSelectedUsersState();
 </script>
 @endpush

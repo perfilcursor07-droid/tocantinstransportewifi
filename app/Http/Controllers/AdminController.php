@@ -821,6 +821,60 @@ class AdminController extends Controller
         }
     }
 
+    /**
+     * Excluir usuários selecionados
+     */
+    public function bulkDeleteUsers(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:users,id',
+        ]);
+
+        try {
+            $users = User::whereIn('id', $data['ids'])->get();
+            $adminCount = $users->where('role', 'admin')->count();
+            $deletableUsers = $users->where('role', '!=', 'admin');
+
+            if ($deletableUsers->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Nenhum usuário selecionado pode ser excluído.',
+                ], 403);
+            }
+
+            $deletedCount = 0;
+
+            DB::transaction(function () use ($deletableUsers, &$deletedCount) {
+                foreach ($deletableUsers as $user) {
+                    $user->sessions()->where('session_status', 'active')->update([
+                        'session_status' => 'ended',
+                        'ended_at' => now(),
+                    ]);
+
+                    $user->delete();
+                    $deletedCount++;
+                }
+            });
+
+            $message = "{$deletedCount} usuário(s) excluído(s) com sucesso!";
+            if ($adminCount > 0) {
+                $message .= " {$adminCount} administrador(es) foram ignorados.";
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao excluir usuários: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function apiSettings()
     {
         $currentGateway = SystemSetting::getValue('pix_gateway', 'santander');
