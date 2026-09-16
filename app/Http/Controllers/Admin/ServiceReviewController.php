@@ -226,7 +226,7 @@ class ServiceReviewController extends Controller
                 'rating' => (int) $validated['rating'],
                 'reason' => null,
                 'submitted_at' => $submittedAt,
-                'whatsapp_status' => 'skipped',
+                'whatsapp_status' => 'sent',
             ]);
         }
 

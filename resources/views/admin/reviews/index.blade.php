@@ -484,7 +484,7 @@
                                 $sendLabel = match($review->whatsapp_status) {
                                     'sent' => 'Enviado',
                                     'failed' => 'Falha',
-                                    'skipped' => 'Não enviado',
+                                    'skipped' => $review->submitted_at ? 'Enviado' : 'Não enviado',
                                     default => 'Pendente',
                                 };
                             @endphp
