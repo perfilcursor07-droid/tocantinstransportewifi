@@ -182,19 +182,23 @@ class ServiceReviewController extends Controller
             'travel_date' => ['required', 'date', 'before_or_equal:today'],
             'answered_from' => ['required', 'date'],
             'answered_to' => ['required', 'date', 'after_or_equal:answered_from'],
-            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'rating_min' => ['required', 'integer', 'min:1', 'max:5'],
+            'rating_max' => ['required', 'integer', 'min:1', 'max:5', 'gte:rating_min'],
             'quantity' => ['required', 'integer', 'min:1', 'max:100'],
         ], [
             'travel_date.before_or_equal' => 'Escolha uma data de viagem de hoje ou anterior.',
             'answered_from.required' => 'Informe o início do intervalo de Respondido em.',
             'answered_to.required' => 'Informe o fim do intervalo de Respondido em.',
             'answered_to.after_or_equal' => 'O fim do intervalo precisa ser igual ou posterior ao início.',
+            'rating_max.gte' => 'A avaliação máxima precisa ser igual ou maior que a mínima.',
             'quantity.max' => 'Para conferência, gere no máximo 100 convites por vez.',
         ]);
 
         $travelDate = Carbon::parse($validated['travel_date'])->startOfDay();
         $answeredFrom = Carbon::parse($validated['answered_from']);
         $answeredTo = Carbon::parse($validated['answered_to'])->endOfMinute();
+        $ratingMin = (int) $validated['rating_min'];
+        $ratingMax = (int) $validated['rating_max'];
 
         $passengerQuery = User::query()
             ->whereNotNull('phone')
@@ -223,7 +227,7 @@ class ServiceReviewController extends Controller
             ));
 
             $review->update([
-                'rating' => (int) $validated['rating'],
+                'rating' => random_int($ratingMin, $ratingMax),
                 'reason' => null,
                 'submitted_at' => $submittedAt,
                 'whatsapp_status' => 'sent',
@@ -233,17 +237,22 @@ class ServiceReviewController extends Controller
         $selectedCount = $selectedPassengers->count();
         $message = $selectedCount === 0
             ? 'Nenhum passageiro elegível foi encontrado nessa data de viagem.'
-            : "$selectedCount avaliação(ões) de teste gerada(s) com nota {$validated['rating']} e Respondido em dentro do intervalo informado. Nenhuma mensagem foi enviada.";
+            : "$selectedCount avaliação(ões) de teste gerada(s) com nota entre {$ratingMin} e {$ratingMax} estrela(s) e Respondido em dentro do intervalo informado. Nenhuma mensagem foi enviada.";
+
+        $redirectFilters = [
+            'date_from' => $travelDate->toDateString(),
+            'date_to' => $travelDate->toDateString(),
+            'status' => 'answered',
+            'answered_from' => $answeredFrom->format('Y-m-d\TH:i'),
+            'answered_to' => $answeredTo->format('Y-m-d\TH:i'),
+        ];
+
+        if ($ratingMin === $ratingMax) {
+            $redirectFilters['rating'] = $ratingMin;
+        }
 
         return redirect()
-            ->route('admin.reviews.index', [
-                'date_from' => $travelDate->toDateString(),
-                'date_to' => $travelDate->toDateString(),
-                'status' => 'answered',
-                'rating' => $validated['rating'],
-                'answered_from' => $answeredFrom->format('Y-m-d\TH:i'),
-                'answered_to' => $answeredTo->format('Y-m-d\TH:i'),
-            ])
+            ->route('admin.reviews.index', $redirectFilters)
             ->with('success', $message);
     }
 
