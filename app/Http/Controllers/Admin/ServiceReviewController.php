@@ -49,11 +49,21 @@ class ServiceReviewController extends Controller
             }
 
             if ($request->filled('answered_from')) {
-                $query->whereDate('submitted_at', '>=', $request->answered_from);
+                $answeredFrom = Carbon::parse($request->answered_from);
+                $query->where('submitted_at', '>=', $answeredFrom);
             }
 
             if ($request->filled('answered_to')) {
-                $query->whereDate('submitted_at', '<=', $request->answered_to);
+                $answeredToInput = (string) $request->answered_to;
+                $answeredTo = Carbon::parse($answeredToInput);
+
+                if (! str_contains($answeredToInput, 'T') && ! str_contains($answeredToInput, ':')) {
+                    $answeredTo->endOfDay();
+                } elseif (preg_match('/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}$/', $answeredToInput)) {
+                    $answeredTo->endOfMinute();
+                }
+
+                $query->where('submitted_at', '<=', $answeredTo);
             }
 
             return $query;
@@ -163,7 +173,7 @@ class ServiceReviewController extends Controller
     }
 
     /**
-     * Cria convites pendentes para passageiros reais de uma faixa de viagem.
+     * Cria convites pendentes para passageiros reais de uma data de viagem.
      * Esta acao nao envia mensagens e nunca preenche notas: a avaliacao e
      * sempre respondida pelo passageiro no seu proprio link.
      */

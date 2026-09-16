@@ -44,7 +44,7 @@
                 <div class="w-10 h-10 shrink-0 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg">★</div>
                 <div>
                     <h3 class="text-base font-bold text-emerald-950">Gerar convites de avaliação</h3>
-                    <p class="mt-0.5 text-xs leading-5 text-emerald-800">Selecione todos os passageiros reais de uma data de viagem. A seleção é aleatória e evita telefones duplicados e descadastrados.</p>
+                    <p class="mt-0.5 text-xs leading-5 text-emerald-800">Selecione passageiros reais pela data da viagem. A seleção é aleatória e evita telefones duplicados e descadastrados.</p>
                 </div>
             </div>
         </div>
@@ -69,6 +69,7 @@
                     Gerar convites reais
                 </button>
             </div>
+            <p class="mt-3 text-xs leading-5 text-gray-500"><strong>Importante:</strong> a data acima pega todos os passageiros cadastrados naquela data de viagem. Para filtrar avaliações por horário, use o intervalo de <strong>Respondido em</strong> nos filtros abaixo.</p>
         </form>
     </div>
     @endif
@@ -84,6 +85,28 @@
                 'failed' => 'Envio com falha',
                 'not_sent' => 'Não enviadas',
             ];
+            $formatDateTimeFilter = function (?string $value): string {
+                if (blank($value)) {
+                    return '...';
+                }
+
+                $format = str_contains($value, 'T') || str_contains($value, ':') ? 'd/m/Y H:i' : 'd/m/Y';
+
+                return \Carbon\Carbon::parse($value)->format($format);
+            };
+            $dateTimeInputValue = function (?string $value, bool $endOfDay = false): string {
+                if (blank($value)) {
+                    return '';
+                }
+
+                $date = \Carbon\Carbon::parse($value);
+
+                if ($endOfDay && ! str_contains($value, 'T') && ! str_contains($value, ':')) {
+                    $date->endOfDay();
+                }
+
+                return $date->format('Y-m-d\TH:i');
+            };
         @endphp
 
         <div class="flex items-center justify-between mb-4">
@@ -144,7 +167,7 @@
                 </div>
             </div>
 
-            {{-- Filtros avançados (colapsáveis): Nota + Resposta de/até --}}
+            {{-- Filtros avançados (colapsáveis): Nota + Respondido em de/até --}}
             <div id="filtersAdvanced" class="{{ $hasActiveFilters && (request()->hasAny(['rating','answered_from','answered_to'])) ? '' : 'hidden' }} mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 mb-1.5">Nota</label>
@@ -156,13 +179,13 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1.5">Respondida (de)</label>
-                    <input type="date" name="answered_from" value="{{ request('answered_from') }}"
+                    <label class="block text-xs font-semibold text-gray-700 mb-1.5">Respondido em (início)</label>
+                    <input type="datetime-local" name="answered_from" value="{{ $dateTimeInputValue(request('answered_from')) }}"
                            class="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-gray-700 mb-1.5">Respondida (até)</label>
-                    <input type="date" name="answered_to" value="{{ request('answered_to') }}"
+                    <label class="block text-xs font-semibold text-gray-700 mb-1.5">Respondido em (fim)</label>
+                    <input type="datetime-local" name="answered_to" value="{{ $dateTimeInputValue(request('answered_to'), true) }}"
                            class="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm">
                 </div>
             </div>
@@ -206,7 +229,7 @@
             @endif
             @if(request('answered_from') || request('answered_to'))
             <span class="px-2 py-1 bg-purple-50 text-purple-700 rounded-lg border border-purple-200">
-                Respondida: {{ request('answered_from') ? \Carbon\Carbon::parse(request('answered_from'))->format('d/m/Y') : '...' }} → {{ request('answered_to') ? \Carbon\Carbon::parse(request('answered_to'))->format('d/m/Y') : '...' }}
+                Respondido em: {{ $formatDateTimeFilter(request('answered_from')) }} → {{ $formatDateTimeFilter(request('answered_to')) }}
             </span>
             @endif
             <span class="ml-auto text-gray-500">{{ $reviews->total() }} resultado(s)</span>
