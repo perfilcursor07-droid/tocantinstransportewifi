@@ -44,30 +44,18 @@
                 <div class="w-10 h-10 shrink-0 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg">★</div>
                 <div>
                     <h3 class="text-base font-bold text-emerald-950">Gerar convites de avaliação</h3>
-                    <p class="mt-0.5 text-xs leading-5 text-emerald-800">Selecione passageiros reais pela data e pelo horário da viagem. A seleção é aleatória e evita telefones duplicados e descadastrados.</p>
+                    <p class="mt-0.5 text-xs leading-5 text-emerald-800">Selecione todos os passageiros reais de uma data de viagem. A seleção é aleatória e evita telefones duplicados e descadastrados.</p>
                 </div>
             </div>
         </div>
         <form method="POST" action="{{ route('admin.reviews.generate-invitations') }}" class="p-5">
             @csrf
-            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 items-end">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                 <div>
                     <label for="travel_date" class="block text-xs font-semibold text-gray-700 mb-1.5">Data da viagem</label>
                     <input id="travel_date" type="date" name="travel_date" value="{{ old('travel_date', now()->subDay()->toDateString()) }}" max="{{ now()->toDateString() }}" required
                            class="w-full px-3 py-2.5 border @error('travel_date') border-red-400 @else border-gray-300 @enderror rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm">
                     @error('travel_date')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                </div>
-                <div>
-                    <label for="start_time" class="block text-xs font-semibold text-gray-700 mb-1.5">Horário da viagem (inicial)</label>
-                    <input id="start_time" type="time" name="start_time" value="{{ old('start_time', '07:30') }}" min="07:30" required
-                           class="w-full px-3 py-2.5 border @error('start_time') border-red-400 @else border-gray-300 @enderror rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm">
-                    @error('start_time')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                </div>
-                <div>
-                    <label for="end_time" class="block text-xs font-semibold text-gray-700 mb-1.5">Horário da viagem (final)</label>
-                    <input id="end_time" type="time" name="end_time" value="{{ old('end_time', '23:59') }}" required
-                           class="w-full px-3 py-2.5 border @error('end_time') border-red-400 @else border-gray-300 @enderror rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm">
-                    @error('end_time')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <div>
                     <label for="quantity" class="block text-xs font-semibold text-gray-700 mb-1.5">Quantidade máxima</label>
@@ -77,7 +65,7 @@
                 </div>
             </div>
             <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <p class="text-xs leading-5 text-amber-900"><strong>Importante:</strong> os horários acima são os horários da coluna “Viagem”; use a faixa em que os passageiros se cadastraram. Esta ação só cria convites pendentes, não envia WhatsApp e não cria respostas. A nota de 1 a 5 é sempre dada pelo passageiro.</p>
+                <p class="text-xs leading-5 text-amber-900"><strong>Importante:</strong> esta ação só cria convites pendentes. Não envia WhatsApp, não cria respostas e não preenche “Respondido em”. A nota de 1 a 5 e o horário da resposta são sempre registrados quando o passageiro responde.</p>
                 <button type="submit" class="shrink-0 inline-flex justify-center items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors">
                     Gerar convites reais
                 </button>

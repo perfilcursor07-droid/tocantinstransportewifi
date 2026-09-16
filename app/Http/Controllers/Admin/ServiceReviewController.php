@@ -171,24 +171,13 @@ class ServiceReviewController extends Controller
     {
         $validated = $request->validate([
             'travel_date' => ['required', 'date', 'before_or_equal:today'],
-            'start_time' => ['required', 'date_format:H:i', 'after_or_equal:07:30'],
-            'end_time' => ['required', 'date_format:H:i'],
             'quantity' => ['required', 'integer', 'min:1', 'max:100'],
         ], [
             'travel_date.before_or_equal' => 'Escolha uma data de viagem de hoje ou anterior.',
-            'start_time.after_or_equal' => 'O horário inicial deve ser 07:30 ou posterior.',
             'quantity.max' => 'Para conferência, gere no máximo 100 convites por vez.',
         ]);
 
         $travelDate = Carbon::parse($validated['travel_date'])->startOfDay();
-        $start = Carbon::createFromFormat('Y-m-d H:i', $travelDate->format('Y-m-d') . ' ' . $validated['start_time']);
-        $end = Carbon::createFromFormat('Y-m-d H:i', $travelDate->format('Y-m-d') . ' ' . $validated['end_time']);
-
-        if ($end->lessThanOrEqualTo($start)) {
-            return back()
-                ->withInput()
-                ->withErrors(['end_time' => 'O horário final deve ser posterior ao horário inicial.']);
-        }
 
         $alreadyInvited = ServiceReview::query()
             ->whereDate('batch_date', $travelDate)
@@ -204,14 +193,15 @@ class ServiceReviewController extends Controller
                     ->orWhereNotIn('role', ['admin', 'manager']);
             });
 
-        $dayTravelRange = (clone $passengerQuery)
+        $passengersOnTravelDate = (clone $passengerQuery)
             ->whereDate('registered_at', $travelDate)
-            ->selectRaw('MIN(registered_at) as first_trip_at, MAX(registered_at) as last_trip_at, COUNT(*) as total')
-            ->first();
+            ->get();
 
-        $eligiblePassengers = (clone $passengerQuery)
-            ->whereBetween('registered_at', [$start, $end])
-            ->get()
+        $alreadyInvitedCount = $passengersOnTravelDate
+            ->filter(fn (User $user) => $alreadyInvited->has($user->id))
+            ->count();
+
+        $eligiblePassengers = $passengersOnTravelDate
             ->reject(fn (User $user) => $alreadyInvited->has($user->id))
             ->reject(fn (User $user) => WhatsappOptOut::isOptedOut($user->phone))
             ->unique(fn (User $user) => WhatsappOptOut::last8($user->phone))
@@ -224,17 +214,11 @@ class ServiceReviewController extends Controller
         }
 
         $selectedCount = $selectedPassengers->count();
-        if ($selectedCount === 0) {
-            $dayTotal = (int) ($dayTravelRange->total ?? 0);
-            $firstTrip = $dayTravelRange?->first_trip_at ? Carbon::parse($dayTravelRange->first_trip_at)->format('H:i') : null;
-            $lastTrip = $dayTravelRange?->last_trip_at ? Carbon::parse($dayTravelRange->last_trip_at)->format('H:i') : null;
-
-            $message = $dayTotal > 0
-                ? "Nenhum passageiro foi encontrado entre {$validated['start_time']} e {$validated['end_time']}. Neste dia há {$dayTotal} registro(s) de viagem entre {$firstTrip} e {$lastTrip}."
-                : 'Nenhum passageiro com telefone foi encontrado nessa data de viagem.';
-        } else {
-            $message = "$selectedCount convite(s) pendente(s) criado(s). Nenhuma mensagem foi enviada e nenhuma nota foi preenchida.";
-        }
+        $message = $selectedCount === 0
+            ? ($alreadyInvitedCount > 0
+                ? "$alreadyInvitedCount passageiro(s) dessa data já possuem convite registrado. Nenhum convite duplicado foi criado."
+                : 'Nenhum passageiro elegível foi encontrado nessa data de viagem.')
+            : "$selectedCount convite(s) pendente(s) criado(s). Nenhuma mensagem foi enviada e nenhuma nota foi preenchida.";
 
         return redirect()
             ->route('admin.reviews.index', [
