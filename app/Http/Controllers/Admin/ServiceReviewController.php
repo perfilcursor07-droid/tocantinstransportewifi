@@ -40,11 +40,11 @@ class ServiceReviewController extends Controller
             }
 
             if ($request->filled('date_from')) {
-                $query->whereDate('batch_date', '>=', $request->date_from);
+                $query->whereDate('registration_at', '>=', $request->date_from);
             }
 
             if ($request->filled('date_to')) {
-                $query->whereDate('batch_date', '<=', $request->date_to);
+                $query->whereDate('registration_at', '<=', $request->date_to);
             }
 
             if ($request->filled('answered_from')) {
@@ -200,7 +200,10 @@ class ServiceReviewController extends Controller
         $ratingMax = (int) $validated['rating_max'];
 
         $pendingReviews = ServiceReview::with('user')
-            ->whereDate('batch_date', $travelDate)
+            ->where(function ($query) use ($travelDate) {
+                $query->whereDate('registration_at', $travelDate)
+                    ->orWhereDate('batch_date', $travelDate);
+            })
             ->whereNull('submitted_at')
             ->whereNull('rating')
             ->orderByDesc('created_at')
@@ -208,7 +211,6 @@ class ServiceReviewController extends Controller
 
         $eligibleReviews = $pendingReviews
             ->reject(fn (ServiceReview $review) => blank($review->phone ?: $review->user?->phone))
-            ->reject(fn (ServiceReview $review) => WhatsappOptOut::isOptedOut($review->phone ?: $review->user?->phone))
             ->unique(fn (ServiceReview $review) => WhatsappOptOut::last8($review->phone ?: $review->user?->phone));
 
         $selectedReviews = $eligibleReviews->take((int) $validated['quantity']);
