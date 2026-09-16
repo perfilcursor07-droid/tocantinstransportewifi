@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ChatConversation;
 use App\Models\ChatMessage;
 use App\Models\ConnectivityProbe;
+use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -17,6 +18,9 @@ class ChatAIService
      */
 
     public const ACTIONS = ['reply', 'request_probe', 'request_receipt', 'request_mac', 'escalate'];
+
+    /** @var array<int, array<string, mixed>> */
+    private array $paymentContextCache = [];
 
     /** Afirmação de que pagou. */
     private const RE_PAID_CLAIM = '/\b(paguei|fiz\s*o\s*pix|pagamento\s*feito|enviei\s*o\s*comprovante|acabei\s*de\s*pagar)\b/u';
@@ -92,6 +96,13 @@ class ChatAIService
                 );
             }
 
+            // Casos de pagamento precisam usar o estado real do banco antes de consultar o modelo.
+            // Isso evita instruções contraditórias e pedidos de MAC para quem ainda não pagou.
+            $paymentDecision = $this->paymentFirstDecision($conv);
+            if ($paymentDecision) {
+                return $this->executeAction($conv, $paymentDecision);
+            }
+
             // Respondeu iOS/iPhone/Android → pede o MAC na hora (não escala, não chama a API)
             if ($this->shouldRequestMacAfterDeviceAnswer($conv)) {
                 $device = $this->visitorDeviceFromHistory($conv) ?? 'both';
@@ -133,25 +144,213 @@ class ChatAIService
 
     // ---------- Contexto ----------
 
-    private function buildSystemPrompt(ChatConversation $conv): string
+    /**
+     * Resolve primeiro os casos em que o banco já dá uma resposta objetiva.
+     * O modelo continua cuidando da conversa técnica quando existe acesso/pagamento válido.
+     */
+    private function paymentFirstDecision(ChatConversation $conv): ?array
     {
-        $linked = $conv->linked_user;
-        $now = now()->format('d/m/Y H:i');
+        if ($this->visitorAskedForHuman($conv)) {
+            return null;
+        }
 
-        $userStatus = "SEM CADASTRO — visitante nunca pagou ou usa MAC diferente do cadastro.";
-        if ($linked) {
-            $isActive = in_array($linked->status, ['connected', 'active', 'temp_bypass'])
-                && $linked->expires_at && $linked->expires_at->isFuture();
+        $context = $this->paymentContext($conv);
+        if ($context['has_valid_payment']) {
+            return null;
+        }
 
-            $userStatus = $isActive
-                ? "ACESSO ATIVO — pagou e expira em {$linked->expires_at->format('d/m H:i')} ({$linked->expires_at->diffForHumans()})."
-                : "CADASTRO EXPIRADO — último acesso expirou {$linked->expires_at?->diffForHumans()}. Precisa pagar de novo.";
+        if ($this->visitorReportsResolved($conv)) {
+            return [
+                'action' => 'reply',
+                'message' => 'Que bom que deu certo! Seu acesso já deve estar liberado. Tenha uma ótima viagem!',
+            ];
+        }
 
-            if ($linked->mac_address && $conv->visitor_mac
-                && strtoupper(trim($conv->visitor_mac)) !== strtoupper(trim($linked->mac_address))) {
-                $userStatus .= " ATENÇÃO: MAC do chat ({$conv->visitor_mac}) é diferente do MAC do cadastro ({$linked->mac_address}) — pode ser randomização do celular.";
+        if ($this->visitorClaimsPaid($conv)) {
+            if ($this->alreadyUploadedReceipt($conv)) {
+                return null;
+            }
+
+            return [
+                'action' => 'request_receipt',
+                'message' => $this->paymentNotFoundAfterClaimMessage($conv),
+            ];
+        }
+
+        $last = mb_strtolower(trim((string) $this->lastVisitorMessage($conv)));
+        $isDeviceAnswer = $this->visitorJustAnsweredDevice($conv);
+        $isShortConfirmation = (bool) preg_match('/^(sim|s|ok|certo|beleza|pode|quero|manda|isso)$/u', $last);
+        $isPaymentOrAccessIssue = (bool) preg_match(
+            '/\b(internet|wifi|wi-fi|acesso|conect|naveg|pagar|pagamento|pix|banco|portal|rede|liber)/u',
+            $last
+        );
+        $isFailedPaymentStep = $this->alreadySentPaymentSteps($conv) && $this->visitorSaysStepsFailed($conv);
+
+        if (!$isDeviceAnswer && !$isShortConfirmation && !$isPaymentOrAccessIssue
+            && !$isFailedPaymentStep && !$this->visitorDeniesPayment($conv)) {
+            return null;
+        }
+
+        if ($this->visitorCannotOpenBank($conv)) {
+            return [
+                'action' => 'reply',
+                'message' => $this->bankPaymentBridgeMessage($conv),
+            ];
+        }
+
+        if ($this->alreadySentPaymentSteps($conv)) {
+            return [
+                'action' => 'reply',
+                'message' => $this->paymentFollowupMessage(),
+            ];
+        }
+
+        return [
+            'action' => 'reply',
+            'message' => $this->noActivePaymentMessage($conv),
+        ];
+    }
+
+    /**
+     * Estado financeiro real da conversa. Cadastro e pagamento são conceitos separados:
+     * ter um usuário antigo no banco não significa possuir pagamento ativo.
+     *
+     * @return array<string, mixed>
+     */
+    private function paymentContext(ChatConversation $conv): array
+    {
+        if (isset($this->paymentContextCache[$conv->id])) {
+            return $this->paymentContextCache[$conv->id];
+        }
+
+        $users = collect();
+        if ($conv->visitor_mac) {
+            $byMac = User::where('mac_address', strtoupper(trim($conv->visitor_mac)))->first();
+            if ($byMac) {
+                $users->push($byMac);
             }
         }
+
+        $phoneDigits = preg_replace('/\D/', '', (string) $conv->visitor_phone);
+        $phoneTail = substr($phoneDigits, -9);
+        if (strlen($phoneTail) >= 8) {
+            $users = $users->concat(
+                User::where('phone', 'like', '%' . $phoneTail)
+                    ->orderByDesc('connected_at')
+                    ->orderByDesc('id')
+                    ->limit(10)
+                    ->get()
+            );
+        }
+
+        $linked = $conv->linked_user;
+        if ($linked) {
+            $users->push($linked);
+        }
+        $users = $users->unique('id')->values();
+
+        $activeUser = $users->first(fn (User $candidate) =>
+            in_array($candidate->status, ['connected', 'active', 'temp_bypass'], true)
+            && $candidate->expires_at
+            && $candidate->expires_at->isFuture()
+        );
+        $activeAccess = (bool) $activeUser;
+
+        $payments = $users->isEmpty()
+            ? collect()
+            : Payment::whereIn('user_id', $users->pluck('id'))
+                ->where('status', 'completed')
+                ->orderByDesc('paid_at')
+                ->orderByDesc('id')
+                ->limit(30)
+                ->get();
+
+        $paymentExpiresAt = null;
+        $activePayment = false;
+        $scheduledPayment = false;
+        $payment = null;
+        $expiredPayment = null;
+        $scheduled = null;
+        $today = now()->toDateString();
+
+        foreach ($payments as $candidate) {
+            if (!$expiredPayment) {
+                $expiredPayment = $candidate;
+            }
+
+            if (data_get($candidate->payment_data, 'plan_type') === 'interval') {
+                $start = data_get($candidate->payment_data, 'interval.start');
+                $end = data_get($candidate->payment_data, 'interval.end');
+                if ($start && $end && $start <= $today && $end >= $today) {
+                    $payment = $candidate;
+                    $activePayment = true;
+                    break;
+                }
+                if (!$scheduled && $start && $start > $today) {
+                    $scheduled = $candidate;
+                }
+                continue;
+            }
+
+            if ($candidate->paid_at) {
+                $duration = data_get($candidate->payment_data, 'duration_hours');
+                if ($duration === null) {
+                    $duration = \App\Helpers\SettingsHelper::getSessionDuration();
+                }
+                $candidateExpiresAt = $candidate->paid_at->copy()->addHours(max((float) $duration, 0.1));
+                if ($candidateExpiresAt->isFuture()) {
+                    $payment = $candidate;
+                    $paymentExpiresAt = $candidateExpiresAt;
+                    $activePayment = true;
+                    break;
+                }
+            }
+        }
+
+        if (!$payment && $scheduled) {
+            $payment = $scheduled;
+            $scheduledPayment = true;
+        } elseif (!$payment) {
+            $payment = $expiredPayment;
+        }
+
+        $paymentUser = $payment ? $users->firstWhere('id', $payment->user_id) : null;
+        $user = $activeUser ?: $paymentUser ?: $linked;
+
+        $description = 'SEM PAGAMENTO ATIVO — não existe pagamento válido agora para este telefone/aparelho. Oriente a realizar um novo pagamento; não diga apenas que o cadastro expirou.';
+
+        if ($activeAccess) {
+            $description = "ACESSO ATIVO — pagamento confirmado e acesso válido até {$activeUser->expires_at->format('d/m H:i')}.";
+        } elseif ($activePayment) {
+            $expiry = $paymentExpiresAt ? ' até ' . $paymentExpiresAt->format('d/m H:i') : '';
+            $description = "PAGAMENTO ATIVO{$expiry}, mas o acesso ainda não aparece como conectado. Investigue o aparelho/MAC antes de escalar.";
+        } elseif ($scheduledPayment) {
+            $start = data_get($payment->payment_data, 'interval.start');
+            $description = 'PAGAMENTO AGENDADO — plano por intervalo válido a partir de ' . \Carbon\Carbon::parse($start)->format('d/m/Y') . '.';
+        } elseif ($payment?->paid_at) {
+            $description = 'SEM PAGAMENTO ATIVO — há um pagamento anterior, mas ele não está mais dentro da validade. É necessário um novo pagamento.';
+        } elseif ($user) {
+            $description = 'SEM PAGAMENTO ATIVO — existe cadastro, porém nenhum pagamento aprovado e válido foi encontrado. É necessário pagar para navegar.';
+        }
+
+        return $this->paymentContextCache[$conv->id] = [
+            'user' => $user,
+            'payment' => $payment,
+            'active_access' => (bool) $activeAccess,
+            'active_payment' => $activePayment,
+            'scheduled_payment' => $scheduledPayment,
+            'has_valid_payment' => (bool) ($activeAccess || $activePayment || $scheduledPayment),
+            'can_troubleshoot_access' => (bool) ($activeAccess || $activePayment),
+            'payment_expires_at' => $paymentExpiresAt,
+            'description' => $description,
+        ];
+    }
+
+    private function buildSystemPrompt(ChatConversation $conv): string
+    {
+        $now = now()->format('d/m/Y H:i');
+        $paymentContext = $this->paymentContext($conv);
+        $userStatus = $paymentContext['description'];
 
         $bus = $conv->linked_bus_name ?? 'desconhecido';
         $mac = $conv->visitor_mac ?: 'não capturado';
@@ -182,7 +381,7 @@ class ChatAIService
         }
 
         return <<<PROMPT
-Você é a **Ana**, atendente de suporte da **Tocantins Transporte WiFi**, serviço de internet em ônibus via Starlink. Você é uma pessoa real da equipe — NUNCA diga que é IA, robô ou assistente virtual.
+Você é a **Ana**, assistente de atendimento da **Tocantins Transporte WiFi**, serviço de internet em ônibus via Starlink. Converse com naturalidade e nunca invente informações que não estejam no contexto.
 
 # Como o serviço funciona
 - Rede WiFi do ônibus: **TocantinsTransporteWiFi** (sem senha).
@@ -192,8 +391,8 @@ Você é a **Ana**, atendente de suporte da **Tocantins Transporte WiFi**, servi
 - Viagem Completa é o plano recomendado: R\$ 6,99 via PIX, ou R\$ 5,99 quando o desconto por vídeo estiver disponível, com WiFi até o destino final (duração configurada: 12 horas corridas).
 - Liberação automática em até 15 segundos após pagamento.
 - Acesso vinculado ao MAC do dispositivo. Se o MAC mudar (randomização), o sistema não reconhece mais.
-- **MAC RANDOMIZADO É A CAUSA #1 de "paguei e não funciona"**: iPhone (iOS 14+) e Android (10+) geram MAC novo a cada conexão. Solução: desativar "Endereço Privado/MAC aleatório" e reconectar.
-- **DADOS MÓVEIS LIGADOS** impedem o portal e o WiFi de funcionar: sempre oriente desligar 4G/5G antes de conectar.
+- MAC diferente pode explicar "paguei e não funciona", mas só investigue MAC quando o contexto confirmar PAGAMENTO ATIVO ou ACESSO ATIVO.
+- Para abrir o portal, os dados móveis devem ficar desligados. Depois de gerar e copiar o PIX, o passageiro pode desligar o WiFi temporariamente e ligar o 4G para abrir o banco e pagar. Após pagar, deve desligar o 4G e voltar ao mesmo WiFi sem esquecer a rede.
 
 # REGRA DO PORTAL — SEMPRE CITE O SITE
 Sempre que orientar pagamento, acesso ao portal ou "abrir o navegador", inclua **www.tocantinstransportewifi.com.br** (ou {$portalHost}).
@@ -207,7 +406,7 @@ Nunca diga só "abra o navegador" ou "pague pelo portal" sem informar o site.
 - Nunca repita a mesma mensagem duas vezes seguidas. Se o visitante repetir a fala dele, é sinal de que você não entendeu — mude a resposta e trate o que ele realmente disse.
 
 # REGRA CRÍTICA — ESQUECER A REDE
-- **ANTES de pagar / SEM CADASTRO / EXPIRADO:** PODE pedir pra *esquecer a rede* TocantinsTransporteWiFi e conectar de novo — isso ajuda a abrir o captive portal automaticamente.
+- **ANTES de pagar / SEM PAGAMENTO ATIVO:** primeiro peça apenas para conectar na TocantinsTransporteWiFi, desligar o 4G e abrir o site. Só sugira esquecer a rede se o portal continuar sem abrir.
 - **DEPOIS de pagar / ACESSO ATIVO:** NÃO peça pra esquecer a rede (isso gera MAC novo e quebra o vínculo do pagamento). Nesse caso oriente só desligar/ligar o WiFi ou desativar endereço privado.
 
 # Contexto deste visitante
@@ -216,40 +415,40 @@ Nunca diga só "abra o navegador" ou "pague pelo portal" sem informar o site.
 - **MAC atual:** {$mac}
 - **IP:** {$ip}
 - **Ônibus:** {$bus}
-- **Status do cadastro:** {$userStatus}
+- **Status financeiro e de acesso:** {$userStatus}
 - **Status de teste de conexão:** {$probeStatus}
 - **Horário agora:** {$now}
 
-# Personalidade
-- Atendente humana real: "Oi!", "Deixa eu ver aqui...", "Tenta isso pra mim"
-- Tom amigável, direto, paciente. Português brasileiro natural.
-- Respostas curtas (2-4 frases), EXCETO no passo a passo (aí pode listar os 4 passos).
-- No máximo 1 emoji por mensagem.
-- NUNCA revele que é IA/assistente/bot.
-- Use o nome do visitante quando fizer sentido.
+# Personalidade e raciocínio
+- Tom humano, acolhedor, direto e paciente. Português brasileiro natural.
+- Primeiro reconheça o problema, depois diga o que você conferiu no sistema e só então dê o próximo passo.
+- Use os dados reais do contexto. Nunca diga "cadastro expirado" quando o contexto disser "SEM PAGAMENTO ATIVO".
+- Não faça perguntas cuja resposta o passageiro já informou. Se ele disse "paguei", não pergunte se ele pagou.
+- Dê uma orientação por vez e termine com uma pergunta específica sobre o resultado.
+- Respostas curtas (2-5 frases), exceto quando um passo a passo for realmente necessário.
+- No máximo 1 emoji por mensagem. Use o nome do visitante quando fizer sentido.
+- A interface já identifica você como Assistente IA; não finja ser uma pessoa e não fale sobre sua identidade sem necessidade.
 
 # FORMATO DO TEXTO QUE O USUÁRIO LÊ (campo "message") — OBRIGATÓRIO
 - NUNCA use asteriscos (*), markdown, **negrito**, _itálico_ ou cercas ```.
 - Use texto puro, fácil de ler no celular.
 - Em listas/passo a passo: cada item em UMA LINHA NOVA, com quebra de linha real (\n), nunca tudo numa linha só.
 - Exemplo certo de passo a passo (copie o estilo):
-Beleza! Faz assim:
+Vamos liberar seu acesso:
 
-1) Esquece a rede TocantinsTransporteWiFi no celular e conecta de novo (com os dados móveis desligados). Veja se abre sozinha a página pra pagar.
+1) Conecte na rede TocantinsTransporteWiFi e desligue o 4G/5G.
 
-2) Se não abrir: leia o QR Code do ônibus ou abra o navegador em www.tocantinstransportewifi.com.br (no WiFi do ônibus, 4G desligado).
+2) Abra www.tocantinstransportewifi.com.br e escolha o plano.
 
-3) Escolha o plano, pague no PIX e aguarde até 15 segundos — libera sozinho.
+3) Gere o PIX e faça o pagamento. A liberação acontece automaticamente em até 15 segundos.
 
-4) Se nada disso funcionar, peça ajuda ao motorista.
-
-Me fala em qual passo você parou!
+A página de pagamento abriu no seu celular?
 
 # Ações disponíveis (UMA por turno)
 1. **reply** — texto normal. Para cumprimentar, perguntar, dar dica, orientar.
-2. **request_probe** — pede teste automático de conexão. Use SOMENTE quando o usuário tem ACESSO ATIVO confirmado e ainda assim reclama de problema técnico de internet. **NUNCA** use probe se status for SEM CADASTRO ou EXPIRADO, ou se o problema for pagamento/portal.
-3. **request_receipt** — abre no chat um botão pra o usuário *enviar o comprovante do PIX* (foto/print). Use SOMENTE quando o status for SEM CADASTRO ou EXPIRADO e o usuário *insistiu* que já pagou (ex.: "paguei", "já paguei", "paguei hoje", "tem 2 horas que paguei"). NÃO use se ele ainda não afirmou que pagou.
-4. **request_mac** — abre no chat um botão pra o usuário *enviar foto do MAC* (ou escrever o MAC). Use quando ele insiste que não consegue acessar / pagou e não libera. ANTES de usar, pergunte se é iOS (iPhone) ou Android. No turno em que ele responder o aparelho, use request_mac. NUNCA escalate nesse turno.
+2. **request_probe** — pede teste automático de conexão. Use SOMENTE quando o contexto confirma ACESSO ATIVO e ainda existe problema técnico.
+3. **request_receipt** — abre no chat um botão para enviar comprovante. Use quando a pessoa afirma que pagou, mas o contexto diz SEM PAGAMENTO ATIVO. Não pergunte de novo se ela pagou.
+4. **request_mac** — abre no chat um botão para enviar o MAC. Use SOMENTE quando o contexto confirma PAGAMENTO ATIVO ou ACESSO ATIVO. Antes, pergunte se é iPhone ou Android.
 5. **escalate** — passa pro humano. Use SOMENTE em último caso (depois do comprovante, depois da foto do MAC, ou se o usuário pediu atendente).
 
 # REGRA OURO: SEJA INTELIGENTE E PERSISTENTE
@@ -274,28 +473,22 @@ Usuário pagou e tá ativo, mas reclama de internet. PROBLEMA TÉCNICO.
 
 6. **Só agora, se ainda não resolveu**: **escalate**.
 
-## CENÁRIO B: Status = "SEM CADASTRO" ou "EXPIRADO" + usuário diz claramente "eu paguei" / "já paguei"
+## CENÁRIO B: Status = "SEM PAGAMENTO ATIVO" + usuário diz claramente "eu paguei" / "já paguei"
 O sistema não vê pagamento ativo, mas o usuário *afirma* que pagou.
 
 **REGRA:** Só use este cenário se o usuário *afirmar* que já pagou. Se ele só disser "wifi", "conexão", "não consigo" — use o CENÁRIO C.
-**NUNCA escale só porque ele falou o horário.** Depois que ele insistir que pagou, peça o *comprovante* com **request_receipt**.
+Peça o comprovante com **request_receipt** imediatamente. Não pergunte se ele pagou nem peça o horário antes do comprovante.
 
 **Fluxo:**
-1. **PRIMEIRO turno (quando ele diz "paguei" / "sem internet mas paguei"):**
-   Use **reply**:
-   "Oi {$conv->visitor_name}! Aqui não aparece pagamento ativo pra esse aparelho/telefone. Você já pagou o PIX hoje? Se sim, me fala o horário aproximado."
+1. Use **request_receipt**: "Entendi. Conferi aqui e o pagamento ainda não aparece como ativo. Envie o comprovante do PIX pelo botão abaixo para eu localizar a cobrança."
 
-2. **SEGUNDO turno (ele confirma horário / insiste que pagou):**
-   Use **request_receipt** (obrigatório nesta etapa — NÃO escalate ainda):
-   message: "Show! Pra eu localizar seu pagamento, me manda o comprovante do PIX (foto ou print da tela do banco). Use o botão abaixo pra enviar."
-
-3. **Depois que o comprovante chegar:** o sistema já avisa o atendente humano. Se o usuário continuar falando sem enviar, lembre de usar o botão. Só **escalate** se ele pedir atendente ou se já enviou o comprovante e ainda precisa de humano.
+2. **Depois que o comprovante chegar:** o sistema avisa o atendente humano. Só **escalate** se ele pedir atendente ou se o comprovante já foi enviado.
 
 4. **Se disser que NÃO pagou / se confundiu / quer pagar:** ABANDONE este cenário na hora. Nada de comprovante. Use **reply** com o **PASSO A PASSO DE PAGAMENTO** e um reconhecimento curto, tipo:
    "Ah, entendi! Então é só fazer o pagamento que libera na hora. Faz assim: ..."
    Se você já mandou o passo a passo nesta conversa, NÃO repita igual — pergunte onde ele parou e mande o caminho direto do portal.
 
-## CENÁRIO C: Status = "SEM CADASTRO" ou "EXPIRADO" + usuário NÃO afirma ter pago
+## CENÁRIO C: Status = "SEM PAGAMENTO ATIVO" + usuário NÃO afirma ter pago
 (Casos tipo "Wifi", "quero wifi", "Conexão do celular", "Não estou conseguindo", "sem internet", "como pago".)
 **NUNCA use request_probe.**
 
@@ -311,27 +504,22 @@ action: **reply**. EXPLIQUE aquele passo com calma. **PROIBIDO escalate.** Dúvi
 Use o **COMO DESLIGAR O 4G** quando a dúvida for dados móveis / 4G / continuar pro pagamento.
 
 **DEPOIS que o passo a passo JÁ FOI ENVIADO nesta conversa:**
-Se ele insiste que não consegue acessar (tentou e não abre / nada deu certo):
-1. Se você AINDA NÃO sabe se é iOS (iPhone) ou Android: use **reply** perguntando: "Beleza. Pra te ajudar, você está usando iOS (iPhone) ou Android?"
-2. Se ele JÁ disse iOS, iPhone ou Android: use **request_mac** com o passo pra achar o MAC daquele aparelho. NÃO escalate ainda.
-3. Só **escalate** depois que ele mandar a foto/MAC, ou se pedir atendente.
+Se ainda não abre, pergunte exatamente onde travou: página não abre, PIX não é gerado ou banco não abre. NÃO peça MAC e NÃO faça teste de conexão enquanto não houver pagamento ativo.
 
 "Não entendi" / "como faço" / "explica" NÃO é motivo pra escalar.
 
 ## PASSO A PASSO DE PAGAMENTO (use sempre que for orientar a conectar/pagar)
 Mande EXATAMENTE neste estilo (texto puro, cada passo em linha nova, SEM asteriscos):
 
-Beleza! Faz assim:
+Vamos liberar seu acesso:
 
-1) Esquece a rede TocantinsTransporteWiFi no celular e conecta de novo (com os dados móveis desligados). Veja se abre sozinha a página pra pagar.
+1) Conecte na rede TocantinsTransporteWiFi e desligue o 4G/5G.
 
-2) Se não abrir: leia o QR Code do ônibus ou abra o navegador em www.tocantinstransportewifi.com.br (no WiFi do ônibus, 4G desligado).
+2) Abra www.tocantinstransportewifi.com.br e escolha o plano.
 
-3) Escolha o plano, pague no PIX e aguarde até 15 segundos — libera sozinho.
+3) Gere o PIX e faça o pagamento. A liberação acontece automaticamente em até 15 segundos.
 
-4) Se nada disso funcionar, peça ajuda ao motorista.
-
-Me fala em qual passo você parou!
+A página de pagamento abriu no seu celular?
 
 ## COMO DESLIGAR O 4G (use quando o usuário não entender esse passo)
 Mande neste estilo, texto puro, SEM asteriscos:
@@ -347,7 +535,7 @@ Depois fica só no WiFi TocantinsTransporteWiFi, abre o navegador em www.tocanti
 Me fala se é iPhone ou Android que eu te guiando no detalhe!
 
 ## CENÁRIO H: Insiste que não consegue acessar (possível MAC diferente)
-Às vezes o pagamento liberou outro MAC (endereço privado / MAC aleatório). Antes de passar pro humano:
+Use este cenário SOMENTE se o contexto confirmar PAGAMENTO ATIVO ou ACESSO ATIVO. Às vezes o pagamento liberou outro MAC (endereço privado / MAC aleatório). Antes de passar pro humano:
 
 1. Pergunte: você está usando iOS (iPhone) ou Android?
 2. No turno SEGUINTE, quando ele responder iOS/iPhone/Android, use **request_mac** (obrigatório). NUNCA escalate nesse turno.
@@ -361,7 +549,8 @@ NÃO use request_mac sem saber se é iOS (iPhone) ou Android. Quando ele respond
 ## CENÁRIO F: Portal não abre / "não consigo pagar" / "não consigo conectar"
 - Se o usuário está com DÚVIDA (não entendeu / como faz): explique o passo. Não escalate.
 - Se o passo a passo **ainda não** foi enviado nesta conversa: mande o **PASSO A PASSO DE PAGAMENTO**.
-- Se o passo a passo **já foi** enviado e ele afirma que JÁ TENTOU e não funciona: pergunte iPhone/Android e depois **request_mac**. Só escalate depois da foto/MAC.
+- Se ainda não há pagamento ativo e o passo a passo falhou: pergunte qual tela aparece e trate portal, PIX ou banco. Não peça MAC.
+- Se há PAGAMENTO ATIVO ou ACESSO ATIVO e mesmo assim não navega: siga o cenário H.
 
 **Se portal abre mas trava no PIX/cadastro:**
 "Qual parte trava? É na hora de gerar o PIX, na tela de cadastro ou depois de pagar? Me descreve o que aparece que eu te guio."
@@ -598,9 +787,16 @@ PROMPT;
     private function actionProbe(ChatConversation $conv, string $text): ChatMessage
     {
         if (!$this->visitorHasActiveAccess($conv)) {
+            if ($this->visitorHasValidPayment($conv)) {
+                return $this->actionReply(
+                    $conv,
+                    'Seu pagamento está confirmado, mas o acesso ainda não aparece como conectado. Você está usando iPhone ou Android?'
+                );
+            }
+
             return $this->actionReply(
                 $conv,
-                "Antes do teste, preciso que você tenha pagamento ativo. Faz assim: esquece a rede TocantinsTransporteWiFi e conecta de novo (dados móveis desligados). Se a página de pagamento não abrir sozinha, leia o QR Code do ônibus ou entre em www.tocantinstransportewifi.com.br. Se nada funcionar, peça ajuda ao motorista."
+                $this->noActivePaymentMessage($conv)
             );
         }
 
@@ -738,6 +934,10 @@ PROMPT;
      */
     private function actionRequestMac(ChatConversation $conv, string $text): ChatMessage
     {
+        if (!$this->visitorHasValidPayment($conv)) {
+            return $this->actionReply($conv, $this->noActivePaymentMessage($conv));
+        }
+
         if ($this->alreadyCollectedMac($conv)) {
             $mac = $this->collectedMacAddress($conv);
             $suffix = $mac ? " ({$mac})" : '';
@@ -881,14 +1081,12 @@ PROMPT;
 
     private function visitorHasActiveAccess(ChatConversation $conv): bool
     {
-        $linked = $conv->linked_user;
-        if (!$linked) {
-            return false;
-        }
+        return (bool) $this->paymentContext($conv)['active_access'];
+    }
 
-        return in_array($linked->status, ['connected', 'active', 'temp_bypass'], true)
-            && $linked->expires_at
-            && $linked->expires_at->isFuture();
+    private function visitorHasValidPayment(ChatConversation $conv): bool
+    {
+        return (bool) $this->paymentContext($conv)['can_troubleshoot_access'];
     }
 
     /**
@@ -1056,6 +1254,10 @@ PROMPT;
      */
     private function guardAccessIssueAskMac(ChatConversation $conv, array $decision): array
     {
+        if (!$this->visitorHasValidPayment($conv)) {
+            return $decision;
+        }
+
         $action = $decision['action'] ?? 'reply';
 
         if ($action === 'request_receipt' || $action === 'request_mac') {
@@ -1141,6 +1343,15 @@ PROMPT;
      */
     private function guardNoRepeatPaymentSteps(ChatConversation $conv, array $decision): array
     {
+        if (!$this->visitorHasValidPayment($conv)
+            && $this->alreadySentPaymentSteps($conv)
+            && $this->visitorSaysStepsFailed($conv)) {
+            return [
+                'action' => 'reply',
+                'message' => $this->paymentFollowupMessage(),
+            ];
+        }
+
         if ($this->visitorHasActiveAccess($conv)) {
             return $decision;
         }
@@ -1294,12 +1505,11 @@ PROMPT;
 
     private function paymentStepsMessage(): string
     {
-        return "Beleza! Faz assim:\n\n"
-            . "1) Esquece a rede TocantinsTransporteWiFi no celular e conecta de novo (com os dados móveis desligados). Veja se abre sozinha a página pra pagar.\n\n"
-            . "2) Se não abrir: leia o QR Code do ônibus ou abra o navegador em www.tocantinstransportewifi.com.br (no WiFi do ônibus, 4G desligado).\n\n"
-            . "3) Escolha o plano, pague no PIX e aguarde até 15 segundos — libera sozinho.\n\n"
-            . "4) Se nada disso funcionar, peça ajuda ao motorista.\n\n"
-            . "Me fala em qual passo você parou!";
+        return "Vamos liberar seu acesso:\n\n"
+            . "1) Conecte na rede TocantinsTransporteWiFi e desligue o 4G/5G.\n\n"
+            . "2) Abra www.tocantinstransportewifi.com.br e escolha o plano.\n\n"
+            . "3) Gere o PIX e faça o pagamento. A liberação acontece automaticamente em até 15 segundos.\n\n"
+            . "A página de pagamento abriu no seu celular?";
     }
 
     /**
@@ -1308,10 +1518,40 @@ PROMPT;
      */
     private function paymentFollowupMessage(): string
     {
-        return "Sem problema, vamos pagar agora!\n\n"
-            . "No celular, deixa só o WiFi TocantinsTransporteWiFi ligado e o 4G desligado.\n\n"
-            . "Abre o navegador em www.tocantinstransportewifi.com.br, escolhe o plano Viagem Completa e paga no PIX. Libera sozinho em uns 15 segundos.\n\n"
-            . "Me fala o que aparece na sua tela agora que eu te guio daí.";
+        return "Certo, vamos por uma etapa de cada vez. Continue conectado na TocantinsTransporteWiFi, desligue o 4G/5G e abra www.tocantinstransportewifi.com.br.\n\n"
+            . "Me diga exatamente o que aparece na tela: a página não abre, não gera o PIX ou o banco não abre?";
+    }
+
+    private function noActivePaymentMessage(ChatConversation $conv): string
+    {
+        $name = trim((string) $conv->visitor_name);
+        $greeting = $name !== '' ? "Oi, {$name}! " : 'Oi! ';
+
+        return $greeting
+            . "Conferi aqui e não encontrei pagamento ativo para este telefone ou aparelho. Para navegar, primeiro é necessário fazer um novo pagamento.\n\n"
+            . $this->paymentStepsMessage();
+    }
+
+    private function paymentNotFoundAfterClaimMessage(ChatConversation $conv): string
+    {
+        $name = trim((string) $conv->visitor_name);
+        $greeting = $name !== '' ? "Entendi, {$name}. " : 'Entendi. ';
+
+        return $greeting
+            . 'Conferi aqui e o pagamento ainda não aparece como ativo para este telefone ou aparelho. '
+            . 'Envie o comprovante do PIX pelo botão abaixo para eu localizar a cobrança antes de chamar um atendente.';
+    }
+
+    private function bankPaymentBridgeMessage(ChatConversation $conv): string
+    {
+        $name = trim((string) $conv->visitor_name);
+        $greeting = $name !== '' ? "Entendi, {$name}. " : 'Entendi. ';
+
+        return $greeting
+            . "Dá para concluir em duas etapas:\n\n"
+            . "1) Com o celular conectado na TocantinsTransporteWiFi e o 4G desligado, abra www.tocantinstransportewifi.com.br, escolha o plano e copie o código PIX.\n\n"
+            . "2) Sem esquecer a rede, desligue o WiFi por um momento, ligue o 4G e pague no banco. Depois, desligue o 4G e conecte novamente na TocantinsTransporteWiFi.\n\n"
+            . 'Você consegue chegar até a tela que gera o código PIX?';
     }
 
     private function alreadySentPaymentFollowup(ChatConversation $conv): bool
@@ -1336,8 +1576,8 @@ PROMPT;
             $t = mb_strtolower((string) $msg);
             if (
                 str_contains($t, '1)')
-                && str_contains($t, 'esquece a rede')
                 && str_contains($t, 'tocantinstransportewifi')
+                && (str_contains($t, 'gere o pix') || str_contains($t, 'esquece a rede'))
             ) {
                 return true;
             }
@@ -1386,6 +1626,28 @@ PROMPT;
             '/(n[aã]o\s*entendi|nao\s*entendi|como\s*(desligo|desligar|fa[cç]o|pago|abro|entro|continuo|continuar|continar)|me\s*explica|explica\s*(melhor|de\s*novo)|o\s*que\s*[eé]\s*(o\s*)?4g|dados\s*m[oó]veis|desligar\s*(o\s*)?4g)/u',
             $normalized
         );
+    }
+
+    private function visitorReportsResolved(ChatConversation $conv): bool
+    {
+        $last = mb_strtolower(trim((string) $this->lastVisitorMessage($conv)));
+
+        if ((bool) preg_match('/\b(n[aã]o|nao)\s+(deu\s*certo|funcionou|consegui|resolveu)/u', $last)) {
+            return false;
+        }
+
+        return (bool) preg_match(
+            '/\b(deu\s*certo|funcionou|consegui|resolveu|j[aá]\s*est[aá]\s*funcionando|agora\s*foi)\b/u',
+            $last
+        );
+    }
+
+    private function visitorCannotOpenBank(ChatConversation $conv): bool
+    {
+        $last = mb_strtolower((string) $this->lastVisitorMessage($conv));
+
+        return str_contains($last, 'banco')
+            && (bool) preg_match('/(n[aã]o\s*(tenho|consigo|abre|funciona)|nao\s*(tenho|consigo|abre|funciona)|sem\s*internet|sem\s*acesso)/u', $last);
     }
 
     private function visitorClaimsPaid(ChatConversation $conv): bool
@@ -1456,6 +1718,10 @@ PROMPT;
      */
     private function shouldRequestMacAfterDeviceAnswer(ChatConversation $conv): bool
     {
+        if (!$this->visitorHasValidPayment($conv)) {
+            return false;
+        }
+
         if ($this->alreadyCollectedMac($conv) || $this->alreadyRequestedMac($conv)) {
             return false;
         }
@@ -1496,6 +1762,10 @@ PROMPT;
      */
     private function nextMacCollectionDecision(ChatConversation $conv): ?array
     {
+        if (!$this->visitorHasValidPayment($conv)) {
+            return null;
+        }
+
         if ($this->alreadyCollectedMac($conv)) {
             return null;
         }
