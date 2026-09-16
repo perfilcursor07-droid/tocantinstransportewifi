@@ -576,6 +576,17 @@
                     </div>
                 </section>
 
+                <a href="{{ route('voucher.activate') }}{{ request()->has('mac') ? '?source=mikrotik&mac=' . request('mac') . '&ip=' . request('ip') : '' }}"
+                   class="flex items-center justify-between bg-white rounded-xl border border-green/20 shadow-card px-4 py-3 animate-slide-up-delay group/voucher">
+                    <span class="text-left">
+                        <span class="block text-[13px] font-extrabold text-ink">Ative seu voucher</span>
+                        <span class="block text-[10px] text-muted">Acesso com codigo</span>
+                    </span>
+                    <span class="inline-flex w-8 h-8 items-center justify-center rounded-lg bg-green-pale text-green group-hover/voucher:bg-green group-hover/voucher:text-white transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+                    </span>
+                </a>
+
                 <!-- Ajuda compacta -->
                 <details class="group bg-white rounded-xl border border-border shadow-card animate-slide-up-delay overflow-hidden">
                     <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-[13px] font-extrabold text-ink">
@@ -598,14 +609,6 @@
                             </span>
                             <svg class="w-3.5 h-3.5 text-gray-300 group-hover/help:text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         </button>
-
-                        <a href="{{ route('voucher.activate') }}{{ request()->has('mac') ? '?source=mikrotik&mac=' . request('mac') . '&ip=' . request('ip') : '' }}" class="flex items-center justify-between px-4 py-2.5 group/help">
-                            <span class="text-left">
-                                <span class="block text-[12px] font-bold text-ink">Motorista? Ative seu voucher</span>
-                                <span class="block text-[10px] text-muted">Acesso com codigo</span>
-                            </span>
-                            <svg class="w-3.5 h-3.5 text-gray-300 group-hover/help:text-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        </a>
                     </div>
                 </details>
 

@@ -14,7 +14,7 @@
         </div>
         <p class="text-[10px] font-bold uppercase tracking-widest text-[#00A335] mb-0.5">Starlink · Tocantins Transporte</p>
         <h1 class="text-xl font-bold text-[#111] leading-tight">Voucher de Motorista</h1>
-        <p class="text-xs text-[#888] mt-1">Digite seu CPF ou código do voucher</p>
+        <p class="text-xs text-[#888] mt-1">Digite seu CPF ou número do voucher</p>
     </div>
 
     <!-- Alertas -->
@@ -54,17 +54,17 @@
             </div>
             <div>
                 <p class="text-white font-semibold text-sm leading-none">Acesso Motorista</p>
-                <p class="text-white/70 text-[10px] mt-0.5">Digite seu CPF para liberar a internet</p>
+                <p class="text-white/70 text-[10px] mt-0.5">Digite seu CPF ou número do voucher para liberar a internet</p>
             </div>
         </div>
 
         <form action="{{ route('voucher.search') }}" method="POST" id="searchForm" class="p-5">
             @csrf
             <div class="mb-4">
-                <label for="search_term" class="block text-[11px] font-semibold text-[#333] uppercase tracking-wider mb-1.5">CPF ou Código do Voucher</label>
+                <label for="search_term" class="block text-[11px] font-semibold text-[#333] uppercase tracking-wider mb-1.5">CPF ou número do voucher</label>
                 <input type="text" id="search_term" name="search_term" required autofocus
                        value="{{ old('search_term') }}"
-                       placeholder="Digite seu CPF"
+                       placeholder="Digite CPF ou número do voucher"
                        class="w-full px-4 py-3.5 text-center text-lg font-bold text-[#111] bg-[#F8F9FA] border border-[#E5E5E5] rounded-xl
                               focus:outline-none focus:ring-2 focus:ring-[#00A335]/30 focus:border-[#00A335] transition-all placeholder:text-[#888] placeholder:font-normal placeholder:text-base">
             </div>
