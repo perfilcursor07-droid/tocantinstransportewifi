@@ -165,6 +165,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
         // Configuracoes e teste de avaliacoes (somente admin pode editar)
         Route::put('/avaliacoes/configuracoes', [AdminServiceReviewController::class, 'updateSettings'])->name('reviews.settings.update');
         Route::post('/avaliacoes/enviar-teste', [AdminServiceReviewController::class, 'sendTest'])->name('reviews.send-test');
+        Route::post('/avaliacoes/gerar-convites', [AdminServiceReviewController::class, 'generateInvitations'])->name('reviews.generate-invitations');
 
         // Edicao e exclusao de avaliacoes (somente admin)
         Route::put('/avaliacoes/lote/editar', [AdminServiceReviewController::class, 'bulkUpdate'])->name('reviews.bulk-update');
@@ -273,4 +274,3 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin.access'])->gr
         });
     });
 });
-

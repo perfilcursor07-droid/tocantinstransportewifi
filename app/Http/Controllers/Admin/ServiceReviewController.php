@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ServiceReview;
+use App\Models\User;
+use App\Models\WhatsappOptOut;
 use App\Models\WhatsappSetting;
 use App\Services\ServiceReviewWhatsappService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class ServiceReviewController extends Controller
@@ -157,6 +160,74 @@ class ServiceReviewController extends Controller
         return redirect()
             ->route('admin.reviews.settings')
             ->with('success', 'Configuracoes atualizadas com sucesso!');
+    }
+
+    /**
+     * Cria convites pendentes para passageiros reais de uma faixa de viagem.
+     * Esta acao nao envia mensagens e nunca preenche notas: a avaliacao e
+     * sempre respondida pelo passageiro no seu proprio link.
+     */
+    public function generateInvitations(Request $request)
+    {
+        $validated = $request->validate([
+            'travel_date' => ['required', 'date', 'before_or_equal:today'],
+            'start_time' => ['required', 'date_format:H:i', 'after_or_equal:07:30'],
+            'end_time' => ['required', 'date_format:H:i'],
+            'quantity' => ['required', 'integer', 'min:1', 'max:100'],
+        ], [
+            'travel_date.before_or_equal' => 'Escolha uma data de viagem de hoje ou anterior.',
+            'start_time.after_or_equal' => 'O horário inicial deve ser 07:30 ou posterior.',
+            'quantity.max' => 'Para conferência, gere no máximo 100 convites por vez.',
+        ]);
+
+        $travelDate = Carbon::parse($validated['travel_date'])->startOfDay();
+        $start = Carbon::createFromFormat('Y-m-d H:i', $travelDate->format('Y-m-d') . ' ' . $validated['start_time']);
+        $end = Carbon::createFromFormat('Y-m-d H:i', $travelDate->format('Y-m-d') . ' ' . $validated['end_time']);
+
+        if ($end->lessThanOrEqualTo($start)) {
+            return back()
+                ->withInput()
+                ->withErrors(['end_time' => 'O horário final deve ser posterior ao horário inicial.']);
+        }
+
+        $alreadyInvited = ServiceReview::query()
+            ->whereDate('batch_date', $travelDate)
+            ->whereNotNull('user_id')
+            ->pluck('user_id')
+            ->flip();
+
+        $eligiblePassengers = User::query()
+            ->whereBetween('registered_at', [$start, $end])
+            ->whereNotNull('phone')
+            ->where('phone', '!=', '')
+            ->where(function ($query) {
+                $query->whereNull('role')
+                    ->orWhereNotIn('role', ['admin', 'manager']);
+            })
+            ->get()
+            ->reject(fn (User $user) => $alreadyInvited->has($user->id))
+            ->reject(fn (User $user) => WhatsappOptOut::isOptedOut($user->phone))
+            ->unique(fn (User $user) => WhatsappOptOut::last8($user->phone))
+            ->shuffle();
+
+        $selectedPassengers = $eligiblePassengers->take((int) $validated['quantity']);
+
+        foreach ($selectedPassengers as $passenger) {
+            $this->reviewWhatsappService->prepareReviewForUser($passenger, $travelDate);
+        }
+
+        $selectedCount = $selectedPassengers->count();
+        $message = $selectedCount === 0
+            ? 'Nenhum passageiro elegível foi encontrado para essa data e faixa de horário.'
+            : "$selectedCount convite(s) pendente(s) criado(s). Nenhuma mensagem foi enviada e nenhuma nota foi preenchida.";
+
+        return redirect()
+            ->route('admin.reviews.index', [
+                'date_from' => $travelDate->toDateString(),
+                'date_to' => $travelDate->toDateString(),
+                'status' => 'not_sent',
+            ])
+            ->with('success', $message);
     }
 
     public function update(Request $request, ServiceReview $review)
