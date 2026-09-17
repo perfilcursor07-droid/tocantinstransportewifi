@@ -511,7 +511,7 @@
                                         <span data-plan-radio class="h-4 w-4 rounded-full border-[4px] border-green bg-white flex-shrink-0 transition-all duration-200"></span>
                                         <div class="min-w-0 flex-1">
                                             <p class="text-[15px] font-extrabold text-ink leading-tight">Viagem completa</p>
-                                            <p class="text-[10px] text-green-dark font-medium">{{ $session_duration ?? 12 }} horas de acesso · internet durante o trajeto</p>
+                                            <p class="text-[10px] text-green-dark font-medium">{{ $session_duration ?? 12 }} horas · Netflix, YouTube, WhatsApp e redes o trajeto todo</p>
                                             @if(($savings ?? 0) > 0)
                                             <p class="text-[9px] text-amber-700 font-semibold mt-0.5">Economize R${{ number_format($savings, 2, ',', '.') }}</p>
                                             @endif
@@ -522,6 +522,7 @@
                                                 <span class="text-[9px] font-bold text-white bg-red-500 rounded px-1 py-px leading-none">-{{ $discount_percentage ?? 30 }}%</span>
                                             </div>
                                             <p data-plan-price-display class="text-[22px] font-black text-green-dark tracking-tight leading-none mt-0.5">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
+                                            <p class="text-[9px] text-muted leading-none mt-0.5">≈ R${{ number_format(($wifi_price_full ?? 6.99) / max(1, $session_duration ?? 12), 2, ',', '.') }}/hora</p>
                                         </div>
                                     </div>
                                 </button>
@@ -551,9 +552,13 @@
                         <p class="mt-2 text-center text-[10px] text-muted leading-tight">
                             🔒 Pagamento seguro · ⚡ libera em ~30s · 📱 suporte WhatsApp
                         </p>
+                        <p class="mt-1 text-center text-[10px] font-semibold text-green-dark leading-tight">
+                            🛡️ Não conectou? A gente resolve pelo WhatsApp
+                        </p>
 
-                        <!-- Apps compatíveis (discreto) -->
-                        <div class="flex justify-center items-center gap-2 mt-2.5 opacity-80">
+                        <!-- Benefício: o que dá pra fazer -->
+                        <p class="mt-3 text-center text-[11px] font-bold text-ink leading-tight">Navegue em tudo que você já usa</p>
+                        <div class="flex justify-center items-center gap-2.5 mt-1.5">
                             <div class="w-6 h-6 rounded-md flex items-center justify-center" style="background: linear-gradient(135deg, #833AB4, #E1306C, #F77737);" title="Instagram">
                                 <svg class="w-[12px] h-[12px] text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 01-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 017.8 2m-.2 2A3.6 3.6 0 004 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 003.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 110 2.5 1.25 1.25 0 010-2.5M12 7a5 5 0 110 10 5 5 0 010-10m0 2a3 3 0 100 6 3 3 0 000-6z"/></svg>
                             </div>
