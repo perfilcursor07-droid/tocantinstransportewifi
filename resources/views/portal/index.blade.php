@@ -123,7 +123,7 @@
                             <p class="text-[12px] text-gray-700">No Wi-Fi do celular, toque na rede:</p>
                             <span class="inline-flex items-center gap-1 mt-1 bg-emerald-50 text-emerald-800 font-bold text-[12px] px-2 py-1 rounded-md border border-emerald-300">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
-                                TocantinsTransporteWiFi
+                                TocantinsTransporteWifi
                             </span>
                         </div>
                     </div>
@@ -391,7 +391,7 @@
                         </div>
                         <div class="min-w-0 flex-1">
                             <p id="wifi-status-title" class="text-amber-900 font-extrabold text-sm leading-tight">Conecte no WiFi do ônibus para pagar</p>
-                            <p id="wifi-status-text" class="text-amber-800 text-[11px] mt-0.5 leading-snug">Entre na rede <strong>"TocantinsTransporteWiFi"</strong> e depois pague. <button type="button" onclick="showNoWifiWarning()" class="font-bold underline underline-offset-2">Ver como</button></p>
+                            <p id="wifi-status-text" class="text-amber-800 text-[11px] mt-0.5 leading-snug">Entre na rede <strong>"TocantinsTransporteWifi"</strong> e depois pague. <button type="button" onclick="showNoWifiWarning()" class="font-bold underline underline-offset-2">Ver como</button></p>
                         </div>
                     </div>
                 </section>
@@ -423,7 +423,7 @@
                             title.className = 'text-amber-900 font-extrabold text-sm leading-tight';
                             title.textContent = 'Conecte no WiFi do ônibus para pagar';
                             text.className = 'text-amber-800 text-[11px] mt-0.5 leading-snug';
-                            text.innerHTML = 'Entre na rede <strong>"TocantinsTransporteWiFi"</strong> e depois pague. <button type="button" onclick="showNoWifiWarning()" class="font-bold underline underline-offset-2">Ver como</button>';
+                            text.innerHTML = 'Entre na rede <strong>"TocantinsTransporteWifi"</strong> e depois pague. <button type="button" onclick="showNoWifiWarning()" class="font-bold underline underline-offset-2">Ver como</button>';
                             iconOn.classList.add('hidden');
                             iconOff.classList.remove('hidden');
                         }
@@ -467,7 +467,7 @@
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                             </div>
                             <p class="text-[10px] font-bold text-ink leading-tight">3. Pronto</p>
-                            <p class="text-[9px] text-muted leading-tight">libera rapido</p>
+                            <p class="text-[9px] text-muted leading-tight">libera rápido</p>
                         </div>
                     </div>
                 </section>
@@ -476,7 +476,7 @@
                 <section class="bg-white rounded-2xl border border-border shadow-card overflow-hidden animate-slide-up">
                     <div class="px-4 py-3 sm:px-5 sm:py-4">
                         <div class="flex items-center justify-between mb-2.5">
-                            <p class="text-sm font-bold text-ink">Escolha seu plano</p>
+                            <p class="text-base font-bold text-ink">Escolha seu plano</p>
                             <span class="text-[9px] font-bold text-green-dark bg-green-pale px-2 py-0.5 rounded-full">PIX instantâneo</span>
                         </div>
 
@@ -484,7 +484,7 @@
                             <p data-interval-message></p>
                             <button type="button" hidden class="mt-2 font-bold text-green-dark underline">Verificar diária</button>
                         </div>
-                        <div class="space-y-2" id="wifi-plan-options">
+                        <div class="space-y-2" id="wifi-plan-options" role="radiogroup" aria-label="Escolha seu plano de WiFi">
                             @if($plan_short_enabled ?? true)
                             <!-- Plano 1 hora (compacto) -->
                             <button type="button" data-plan-option data-plan-price="{{ $wifi_price_short ?? 5.99 }}" data-plan-duration="{{ $session_duration_short ?? 1 }}" data-plan-name="{{ $session_duration_short ?? 1 }} hora(s) de acesso" data-plan-suffix="/ hora"
@@ -502,7 +502,7 @@
                             <!-- Plano Viagem Completa (PRÉ-SELECIONADO) -->
                             <div>
                                 <div class="inline-block rounded-t-lg border-x-2 border-t-2 border-green bg-green-pale px-3 py-1 text-[10px] font-extrabold leading-tight text-green-dark">
-                                    Ate {{ $session_duration ?? 12 }}h de viagem
+                                    Até {{ $session_duration ?? 12 }}h de viagem
                                 </div>
                                 <button type="button" data-plan-option data-plan-price="{{ $wifi_price_full ?? 6.99 }}" data-plan-duration="{{ $session_duration ?? 12 }}" data-plan-name="Viagem completa" data-plan-suffix="/ {{ $session_duration ?? 12 }} horas" data-plan-default="true"
                                     class="wifi-plan-card plan-card-selected relative -mt-px flex w-full rounded-xl rounded-tl-none border-2 border-green text-left transition-all duration-200 hover:shadow-hover focus:outline-none focus:ring-2 focus:ring-green/20">
@@ -585,7 +585,7 @@
                    class="flex items-center justify-between bg-white rounded-xl border border-green/20 shadow-card px-4 py-3 animate-slide-up-delay group/voucher">
                     <span class="text-left">
                         <span class="block text-[13px] font-extrabold text-ink">Ative seu voucher</span>
-                        <span class="block text-[10px] text-muted">Acesso com codigo</span>
+                        <span class="block text-[10px] text-muted">Acesso com código</span>
                     </span>
                     <span class="inline-flex w-8 h-8 items-center justify-center rounded-lg bg-green-pale text-green group-hover/voucher:bg-green group-hover/voucher:text-white transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
@@ -602,14 +602,14 @@
                         <button onclick="openVideoTutorial()" class="flex items-center justify-between px-4 py-2.5 w-full group/help">
                             <span class="text-left">
                                 <span class="block text-[12px] font-bold text-ink">Como se conectar?</span>
-                                <span class="block text-[10px] text-muted">Video passo a passo</span>
+                                <span class="block text-[10px] text-muted">Vídeo passo a passo</span>
                             </span>
                             <svg class="w-3.5 h-3.5 text-gray-300 group-hover/help:text-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         </button>
 
                         <button type="button" onclick="openRecoveryModal()" class="flex items-center justify-between px-4 py-2.5 w-full group/help">
                             <span class="text-left">
-                                <span class="block text-[12px] font-bold text-ink">Ja paguei mas sem internet?</span>
+                                <span class="block text-[12px] font-bold text-ink">Já paguei mas sem internet?</span>
                                 <span class="block text-[10px] text-muted">Recuperar com telefone</span>
                             </span>
                             <svg class="w-3.5 h-3.5 text-gray-300 group-hover/help:text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>

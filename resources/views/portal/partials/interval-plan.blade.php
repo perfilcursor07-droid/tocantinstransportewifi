@@ -1,7 +1,7 @@
 @if($interval_plan['enabled'] ?? false)
     <div>
         <div class="inline-block rounded-t-lg border-x-2 border-t-2 border-gray-200 bg-amber-50 px-3 py-1 text-[10px] font-extrabold leading-tight text-amber-800">
-            Turismo e varios dias
+            Turismo e vários dias
         </div>
         <button type="button" id="interval-plan-option" data-plan-option data-plan-type="interval"
             data-plan-price="{{ $interval_plan['price_12h'] * 2 }}" data-plan-duration="12"
@@ -19,7 +19,7 @@
     <div id="interval-plan-fields" class="hidden py-1.5 space-y-1.5" data-max-days="{{ $interval_plan['max_days'] }}"
         data-base-cents="{{ (int) round($interval_plan['price_12h'] * 100) }}" data-today="{{ $interval_plan['today'] }}">
         <div class="grid grid-cols-2 gap-1.5">
-            <label class="block min-w-0 text-[10px] font-semibold leading-tight text-ink" for="interval-start">Inicio
+            <label class="block min-w-0 text-[10px] font-semibold leading-tight text-ink" for="interval-start">Início
                 <input id="interval-start" type="date" required min="{{ $interval_plan['today'] }}" value="{{ $interval_plan['today'] }}"
                     class="block w-full min-w-0 mt-0.5 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs">
             </label>
