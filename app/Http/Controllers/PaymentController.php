@@ -625,76 +625,134 @@ class PaymentController extends Controller
         }
 
         try {
-            $payment = Payment::find($request->payment_id);
-            if (!$payment || $payment->status !== 'pending') {
-                return response()->json(['success' => false, 'message' => 'Pagamento não encontrado ou já processado'], 404);
-            }
+            return DB::transaction(function () use ($request) {
+                // Serialize with payment confirmation: a late bypass request must
+                // never overwrite the hours that have just been purchased.
+                $payment = Payment::whereKey($request->payment_id)->lockForUpdate()->first();
+                if (! $payment) {
+                    return response()->json(['success' => false, 'message' => 'Pagamento não encontrado'], 404);
+                }
+                $user = User::whereKey($payment->user_id)->lockForUpdate()->first();
+                if (!$user || !$user->mac_address) {
+                    return response()->json(['success' => false, 'message' => 'Usuário sem MAC'], 404);
+                }
 
-            $user = User::find($payment->user_id);
-            if (!$user || !$user->mac_address) {
-                return response()->json(['success' => false, 'message' => 'Usuário sem MAC'], 404);
-            }
+                // Não rebaixar quem já está conectado/ativo
+                if (in_array($user->status, ['connected', 'active']) && $user->expires_at?->isFuture()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Usuário já tem acesso',
+                        'already_connected' => true,
+                        'expires_in' => (int) now()->diffInSeconds($user->expires_at),
+                        'expires_at' => $user->expires_at->toISOString(),
+                    ]);
+                }
 
-            // Não rebaixar quem já está conectado/ativo
-            if (in_array($user->status, ['connected', 'active'])) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Usuário já tem acesso',
-                    'already_connected' => true,
+                if ($payment->status !== 'pending') {
+                    return response()->json(['success' => false, 'message' => 'Pagamento já processado. Verifique seu acesso pago.'], 409);
+                }
+
+                // 🚫 VERIFICAR BLOQUEIO ADMINISTRATIVO DE BYPASS
+                // Admin pode bloquear um MAC/telefone de usar bypass por 12 horas
+                $macBlocked = \Illuminate\Support\Facades\Cache::get('bypass_blocked_' . strtoupper($user->mac_address));
+                $phoneBlocked = null;
+                if ($user->phone) {
+                    $phoneBlocked = \Illuminate\Support\Facades\Cache::get('bypass_blocked_phone_' . preg_replace('/[^\d]/', '', $user->phone));
+                }
+
+                if ($macBlocked || $phoneBlocked) {
+                    $blockedInfo = $macBlocked ?: $phoneBlocked;
+
+                    \App\Models\TempBypassLog::create([
+                        'user_id' => $user->id,
+                        'payment_id' => $payment->id,
+                        'mac_address' => $user->mac_address,
+                        'phone' => $user->phone,
+                        'ip_address' => $request->ip(),
+                        'bypass_number' => 0,
+                        'was_denied' => true,
+                        'deny_reason' => 'Bloqueado pelo administrador',
+                    ]);
+
+                    Log::warning('🚫 Bypass BLOQUEADO por admin', [
+                        'user_id' => $user->id,
+                        'mac_address' => $user->mac_address,
+                        'phone' => $user->phone,
+                        'blocked_by' => $blockedInfo['blocked_by'] ?? 'Admin',
+                        'blocked_at' => $blockedInfo['blocked_at'] ?? null,
+                    ]);
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Seu acesso temporário foi suspenso pelo administrador. Realize o pagamento para continuar navegando.',
+                        'blocked' => true,
+                    ]);
+                }
+
+                // Re-copying an active bypass is idempotent, even on the second
+                // allowance. Do not extend its expiry or consume another allowance.
+                if ($user->status === 'temp_bypass' && $user->expires_at?->isFuture()) {
+                    $usedBypasses = max(
+                        (int) Cache::get('bypass_mac_' . strtoupper($user->mac_address), 0),
+                        $user->phone ? (int) Cache::get('bypass_phone_' . $user->phone, 0) : 0,
+                    );
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Seu acesso temporário continua ativo.',
+                        'already_bypassed' => true,
+                        'bypasses_remaining' => max(0, 2 - $usedBypasses),
+                        'expires_in' => (int) now()->diffInSeconds($user->expires_at),
+                        'expires_at' => $user->expires_at->toISOString(),
+                    ]);
+                }
+
+                //  ANTI-ABUSO: Máximo 2 bypasses por hora
+                // Verificar por MAC (mesmo dispositivo)
+                $bypassesByMac = \Illuminate\Support\Facades\Cache::get('bypass_mac_' . strtoupper($user->mac_address), 0);
+
+                // Verificar por telefone (mesmo usuário trocando de rede 2.4/5G)
+                $bypassesByPhone = 0;
+                if ($user->phone) {
+                    $bypassesByPhone = \Illuminate\Support\Facades\Cache::get('bypass_phone_' . $user->phone, 0);
+                }
+
+                $totalBypasses = max($bypassesByMac, $bypassesByPhone);
+
+                if ($totalBypasses >= 2) {
+                    // 📝 Registrar tentativa NEGADA
+                    \App\Models\TempBypassLog::create([
+                        'user_id' => $user->id,
+                        'payment_id' => $payment->id,
+                        'mac_address' => $user->mac_address,
+                        'phone' => $user->phone,
+                        'ip_address' => $request->ip(),
+                        'bypass_number' => $totalBypasses + 1,
+                        'was_denied' => true,
+                        'deny_reason' => "Limite atingido (MAC: {$bypassesByMac}, Phone: {$bypassesByPhone})",
+                    ]);
+
+                    Log::warning('⚠️ Bypass temporário negado - limite anti-abuso (máx 2/hora)', [
+                        'user_id' => $user->id,
+                        'mac_address' => $user->mac_address,
+                        'phone' => $user->phone,
+                        'bypasses_mac' => $bypassesByMac,
+                        'bypasses_phone' => $bypassesByPhone,
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Limite de 2 liberações por hora atingido. Pague pelo seu plano de dados ou aguarde.',
+                        'limit_reached' => true,
+                    ]);
+                }
+
+                // Ativar bypass
+                $expiresAt = now()->addMinutes(3);
+                $user->update([
+                    'status' => 'temp_bypass',
+                    'expires_at' => $expiresAt,
                 ]);
-            }
 
-            // 🚫 VERIFICAR BLOQUEIO ADMINISTRATIVO DE BYPASS
-            // Admin pode bloquear um MAC/telefone de usar bypass por 12 horas
-            $macBlocked = \Illuminate\Support\Facades\Cache::get('bypass_blocked_' . strtoupper($user->mac_address));
-            $phoneBlocked = null;
-            if ($user->phone) {
-                $phoneBlocked = \Illuminate\Support\Facades\Cache::get('bypass_blocked_phone_' . preg_replace('/[^\d]/', '', $user->phone));
-            }
-
-            if ($macBlocked || $phoneBlocked) {
-                $blockedInfo = $macBlocked ?: $phoneBlocked;
-
-                \App\Models\TempBypassLog::create([
-                    'user_id' => $user->id,
-                    'payment_id' => $payment->id,
-                    'mac_address' => $user->mac_address,
-                    'phone' => $user->phone,
-                    'ip_address' => $request->ip(),
-                    'bypass_number' => 0,
-                    'was_denied' => true,
-                    'deny_reason' => 'Bloqueado pelo administrador',
-                ]);
-
-                Log::warning('🚫 Bypass BLOQUEADO por admin', [
-                    'user_id' => $user->id,
-                    'mac_address' => $user->mac_address,
-                    'phone' => $user->phone,
-                    'blocked_by' => $blockedInfo['blocked_by'] ?? 'Admin',
-                    'blocked_at' => $blockedInfo['blocked_at'] ?? null,
-                ]);
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Seu acesso temporário foi suspenso pelo administrador. Realize o pagamento para continuar navegando.',
-                    'blocked' => true,
-                ]);
-            }
-
-            //  ANTI-ABUSO: Máximo 2 bypasses por hora
-            // Verificar por MAC (mesmo dispositivo)
-            $bypassesByMac = \Illuminate\Support\Facades\Cache::get('bypass_mac_' . strtoupper($user->mac_address), 0);
-
-            // Verificar por telefone (mesmo usuário trocando de rede 2.4/5G)
-            $bypassesByPhone = 0;
-            if ($user->phone) {
-                $bypassesByPhone = \Illuminate\Support\Facades\Cache::get('bypass_phone_' . $user->phone, 0);
-            }
-
-            $totalBypasses = max($bypassesByMac, $bypassesByPhone);
-
-            if ($totalBypasses >= 2) {
-                // 📝 Registrar tentativa NEGADA
+                // 📝 Registrar bypass APROVADO
                 \App\Models\TempBypassLog::create([
                     'user_id' => $user->id,
                     'payment_id' => $payment->id,
@@ -702,83 +760,42 @@ class PaymentController extends Controller
                     'phone' => $user->phone,
                     'ip_address' => $request->ip(),
                     'bypass_number' => $totalBypasses + 1,
-                    'was_denied' => true,
-                    'deny_reason' => "Limite atingido (MAC: {$bypassesByMac}, Phone: {$bypassesByPhone})",
+                    'expires_at' => $expiresAt,
+                    'was_denied' => false,
                 ]);
 
-                Log::warning('⚠️ Bypass temporário negado - limite anti-abuso (máx 2/hora)', [
+                // Incrementar contadores (expiram em 1 hora)
+                $macKey = 'bypass_mac_' . strtoupper($user->mac_address);
+                \Illuminate\Support\Facades\Cache::put($macKey, $bypassesByMac + 1, now()->addHour());
+
+                if ($user->phone) {
+                    $phoneKey = 'bypass_phone_' . $user->phone;
+                    \Illuminate\Support\Facades\Cache::put($phoneKey, $bypassesByPhone + 1, now()->addHour());
+                }
+
+                // Invalidar cache para o MikroTik pegar o MAC no próximo sync (≤15s)
+                Cache::forget('mikrotik_sync_lists_all');
+
+                Log::info('🏦 BYPASS TEMPORÁRIO DE 3 MIN ATIVADO', [
                     'user_id' => $user->id,
                     'mac_address' => $user->mac_address,
                     'phone' => $user->phone,
-                    'bypasses_mac' => $bypassesByMac,
-                    'bypasses_phone' => $bypassesByPhone,
+                    'payment_id' => $payment->id,
+                    'bypass_count_mac' => $bypassesByMac + 1,
+                    'bypass_count_phone' => $bypassesByPhone + 1,
+                    'expires_at' => now()->addMinutes(3)->toISOString(),
                 ]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Limite de 2 liberações por hora atingido. Pague pelo seu plano de dados ou aguarde.',
-                    'limit_reached' => true,
-                ]);
-            }
 
-            // Também verificar se já tem bypass ativo (não deixar gerar outro em cima)
-            if ($user->status === 'temp_bypass' && $user->expires_at && $user->expires_at > now()) {
+                $remaining = 2 - ($totalBypasses + 1);
+
                 return response()->json([
                     'success' => true,
-                    'message' => 'Você já tem internet liberada! Abra o app do banco.',
-                    'already_bypassed' => true,
-                    'expires_in' => now()->diffInSeconds($user->expires_at),
+                    'message' => 'Acesso temporario liberado para abrir o app do banco.',
+                    'expires_in' => 180,
+                    'expires_at' => $expiresAt->toISOString(),
+                    'bypasses_remaining' => $remaining,
                 ]);
-            }
-
-            // Ativar bypass
-            $expiresAt = now()->addMinutes(3);
-            $user->update([
-                'status' => 'temp_bypass',
-                'expires_at' => $expiresAt,
-            ]);
-
-            // 📝 Registrar bypass APROVADO
-            \App\Models\TempBypassLog::create([
-                'user_id' => $user->id,
-                'payment_id' => $payment->id,
-                'mac_address' => $user->mac_address,
-                'phone' => $user->phone,
-                'ip_address' => $request->ip(),
-                'bypass_number' => $totalBypasses + 1,
-                'expires_at' => $expiresAt,
-                'was_denied' => false,
-            ]);
-
-            // Incrementar contadores (expiram em 1 hora)
-            $macKey = 'bypass_mac_' . strtoupper($user->mac_address);
-            \Illuminate\Support\Facades\Cache::put($macKey, $bypassesByMac + 1, now()->addHour());
-
-            if ($user->phone) {
-                $phoneKey = 'bypass_phone_' . $user->phone;
-                \Illuminate\Support\Facades\Cache::put($phoneKey, $bypassesByPhone + 1, now()->addHour());
-            }
-
-            // Invalidar cache para o MikroTik pegar o MAC no próximo sync (≤15s)
-            Cache::forget('mikrotik_sync_lists_all');
-
-            Log::info('🏦 BYPASS TEMPORÁRIO DE 3 MIN ATIVADO', [
-                'user_id' => $user->id,
-                'mac_address' => $user->mac_address,
-                'phone' => $user->phone,
-                'payment_id' => $payment->id,
-                'bypass_count_mac' => $bypassesByMac + 1,
-                'bypass_count_phone' => $bypassesByPhone + 1,
-                'expires_at' => now()->addMinutes(3)->toISOString(),
-            ]);
-
-            $remaining = 2 - ($totalBypasses + 1);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Acesso temporario liberado para abrir o app do banco.',
-                'expires_in' => 180,
-                'bypasses_remaining' => $remaining,
-            ]);
+            }, 3);
 
         } catch (\Exception $e) {
             Log::error('❌ Erro ao ativar bypass temporário', ['error' => $e->getMessage()]);

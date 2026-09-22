@@ -34,6 +34,8 @@ class IntervalTestDatabase
         Schema::create('temp_bypass_logs', function (Blueprint $t) {
             $t->id(); $t->foreignId('user_id'); $t->foreignId('payment_id');
             $t->string('mac_address'); $t->boolean('was_denied')->default(false);
+            $t->string('phone')->nullable(); $t->string('ip_address')->nullable();
+            $t->integer('bypass_number')->default(0); $t->string('deny_reason')->nullable();
             $t->dateTime('expires_at')->nullable(); $t->timestamps();
         });
         Schema::create('wifi_sessions', function (Blueprint $t) {

@@ -1419,7 +1419,13 @@ class WiFiPortal {
      */
     showPixQRCode(data) {
         this.intervalExpiresAt = null;
-        this._bypassRan = false; // reset por modal (cada pagamento libera de novo)
+        this._bypassRan = false;
+        this._bypassMode = null;
+        this._bypassExpiresAt = 0;
+        this._bypassPaymentId = data.payment_id;
+        this._bypassMessage = null;
+        this._bypassRemaining = null;
+        this._bypassAlreadyConnected = false;
         this.pixCodeExpired = false;
         const modal = document.createElement('div');
         modal.id = 'pix-modal';
@@ -1533,7 +1539,7 @@ class WiFiPortal {
                                 <div id="after-copy-hint" class="hidden">
                                     <div id="after-copy-hint-box" class="bg-emerald-50 border border-emerald-300 rounded-lg p-2.5">
                                         <p id="after-copy-title" class="text-emerald-800 font-bold text-sm">✅ Código copiado! Agora abra o <strong>app do banco</strong> e cole o PIX.</p>
-                                        <p id="after-copy-sub" class="text-emerald-600 text-[12px] mt-1">Sua internet Starlink foi liberada por 3 minutos para você concluir o pagamento.</p>
+                                        <p id="after-copy-sub" class="text-emerald-600 text-[12px] mt-1">Acesso autorizado para pagar. Aguarde até 30 segundos para o Wi-Fi conectar e abra o banco.</p>
                                     </div>
                                 </div>
                                 <div id="limit-copy-hint" class="hidden">
@@ -1716,7 +1722,7 @@ class WiFiPortal {
         // Guarda o código pra o botão "copiar de novo" do popup
         this.currentPixEmv = data.qr_code.emv_string;
 
-        document.getElementById('copy-pix-code')?.addEventListener('click', () => {
+        document.getElementById('copy-pix-code')?.addEventListener('click', async () => {
             // Após expirar, este mesmo botão passa a gerar um PIX novo em vez
             // de copiar um código que o banco já não aceitará.
             if (this.pixCodeExpired) {
@@ -1724,7 +1730,7 @@ class WiFiPortal {
                 return;
             }
 
-            this.copyPixCode(data.qr_code.emv_string, { silent: true });
+            if (!await this.copyPixCode(data.qr_code.emv_string, { silent: true })) return;
 
             // Liberação temporária de 3 min SÓ quando o usuário copia o código
             this.detectAndBypass(data.payment_id);
@@ -1926,15 +1932,27 @@ class WiFiPortal {
         try {
             await navigator.clipboard.writeText(code);
             if (!silent) this.showSuccessMessage('Código PIX copiado! Cole no seu app de pagamento.');
+            return true;
         } catch (error) {
             // Fallback para navegadores mais antigos
             const textArea = document.createElement('textarea');
             textArea.value = code;
             document.body.appendChild(textArea);
             textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
+            let copied = false;
+            try {
+                copied = document.execCommand('copy');
+            } catch (_) {
+                copied = false;
+            } finally {
+                document.body.removeChild(textArea);
+            }
+            if (!copied) {
+                this.showErrorMessage('Não foi possível copiar o PIX. Tente copiar novamente antes de abrir o banco.');
+                return false;
+            }
             if (!silent) this.showSuccessMessage('Código PIX copiado!');
+            return true;
         }
     }
 
@@ -2065,14 +2083,15 @@ class WiFiPortal {
                 }
                 this.hideCopyBypassPopup();
             });
-            overlay.querySelector('#pix-copy-popup-recopy').addEventListener('click', (e) => {
+            overlay.querySelector('#pix-copy-popup-recopy').addEventListener('click', async (e) => {
+                const btn = e.currentTarget;
                 if (overlay.dataset.expired === 'true') {
                     this.regeneratePixCode();
                     return;
                 }
                 if (!this.currentPixEmv) return;
-                this.copyPixCode(this.currentPixEmv, { silent: true });
-                const btn = e.currentTarget;
+                if (!await this.copyPixCode(this.currentPixEmv, { silent: true })) return;
+                this.detectAndBypass(this.currentPaymentId);
                 const original = btn.textContent;
                 btn.textContent = '✅ Copiado de novo!';
                 btn.classList.add('text-emerald-600');
@@ -2122,9 +2141,11 @@ class WiFiPortal {
             title.className = 'text-[17px] font-extrabold text-amber-900 leading-tight';
             title.textContent = 'Código copiado';
             text.className = 'text-[13px] text-gray-700 mb-3 leading-snug';
-            text.innerHTML = options.message || 'Se o app do banco não abrir, ligue o <strong>4G</strong> só para pagar.';
+            text.innerHTML = options.message || (mode === 'error'
+                ? 'Não conseguimos confirmar a liberação. Toque em <strong>Copiar o código de novo</strong> para tentar novamente.'
+                : 'Se o app do banco não abrir, ligue o <strong>4G</strong> só para pagar.');
             text.classList.remove('hidden');
-            if (step1) step1.innerHTML = step1With4G;
+            if (step1) step1.innerHTML = mode === 'error' ? step1Default : step1With4G;
             timerBox.className = 'rounded-xl border-2 border-amber-300 bg-amber-50 px-3 py-2';
             timerLabel.className = 'text-[13px] font-bold text-amber-900 leading-tight';
             okBtn.className = `${btnBase} bg-amber-600 hover:bg-amber-700 active:bg-amber-800`;
@@ -2147,7 +2168,9 @@ class WiFiPortal {
             title.className = 'text-[17px] font-extrabold text-emerald-800 leading-tight';
             title.textContent = 'CÓDIGO PIX JÁ FOI COPIADO!';
             text.className = 'text-[14px] font-extrabold text-emerald-900 mb-2 leading-snug bg-emerald-100 border border-emerald-300 rounded-lg px-3 py-2';
-            text.innerHTML = '✅ <strong>Starlink liberada por 3 minutos para pagar.</strong>';
+            text.innerHTML = this._bypassAlreadyConnected
+                ? '✅ <strong>Seu acesso já está ativo.</strong>'
+                : '✅ <strong>Acesso temporário autorizado para pagar.</strong> Aguarde até 30 segundos para conectar e abra o banco.';
             text.classList.remove('hidden');
             if (step1) step1.innerHTML = step1Default;
             timerBox.className = 'rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2';
@@ -2247,14 +2270,14 @@ class WiFiPortal {
             const remaining = options.remaining ?? 0;
             this._bypassRemaining = remaining;
             const extra = this.remainingBypassLabel(remaining);
-            titleEl.textContent = 'Internet Starlink liberada por 3 minutos!';
-            textEl.innerHTML = `O código PIX já foi copiado. Agora abra o app do banco e cole para pagar. O acesso completo libera automaticamente após o PIX.${extra}`;
+            titleEl.textContent = this._bypassAlreadyConnected ? 'Seu acesso já está ativo' : 'Acesso temporário autorizado';
+            textEl.innerHTML = `O código PIX já foi copiado. Aguarde até 30 segundos para o Wi-Fi conectar, abra o banco e cole para pagar. O acesso completo libera automaticamente após o PIX.${this._bypassAlreadyConnected ? '' : extra}`;
         } else if (mode === 'limit') {
             titleEl.textContent = 'Limite de liberações usado';
             textEl.innerHTML = 'Você já usou as <strong>2 liberações por hora</strong> neste aparelho. Copie o código abaixo e pague com <strong>dados móveis (4G) ligados</strong>, ou aguarde 1 hora.';
         } else if (mode === 'error') {
             titleEl.textContent = 'Não foi possível liberar o WiFi agora';
-            textEl.innerHTML = copySteps + '<br><br>Tente copiar o código e pagar com o <strong>4G ligado</strong>, ou gere um novo QR Code.';
+            textEl.innerHTML = copySteps + '<br><br>Toque em <strong>Copiar o código de novo</strong> para tentar liberar a internet novamente.';
         } else if (mode === 'blocked') {
             this._bypassMessage = options.message;
             titleEl.textContent = 'Liberação temporária suspensa';
@@ -2269,16 +2292,19 @@ class WiFiPortal {
     }
 
     /**
-     * Libera 3 min de WiFi ao abrir o modal PIX (sempre tenta — não depende do 4G)
+     * Libera 3 min após copiar. Falhas podem ser tentadas novamente no mesmo PIX.
      */
     detectAndBypass(paymentId) {
-        if (this._bypassRan) {
+        if (this._bypassRan && (this._bypassMode === 'checking'
+            || ['limit', 'blocked'].includes(this._bypassMode)
+            || (this._bypassMode === 'success' && this._bypassExpiresAt > Date.now()))) {
             this.syncAfterCopyHints();
             return;
         }
         this._bypassRan = true;
         this._bypassMode = 'checking';
-        this.activateBypassAuto(paymentId);
+        this._bypassPaymentId = paymentId;
+        return this.activateBypassAuto(paymentId);
     }
 
     /**
@@ -2286,6 +2312,8 @@ class WiFiPortal {
      */
     async activateBypassAuto(paymentId) {
         this.updateBypassBanner('checking');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
         try {
             const response = await fetch('/api/payment/pix/temp-bypass', {
                 method: 'POST',
@@ -2293,13 +2321,19 @@ class WiFiPortal {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
                 },
-                body: JSON.stringify({ payment_id: paymentId })
+                body: JSON.stringify({ payment_id: paymentId }),
+                signal: controller.signal,
+                keepalive: true,
             });
 
             const result = await response.json();
+            if (this._bypassPaymentId !== paymentId) return;
 
-            if (result.success) {
+            if (response.ok && result.success) {
                 this._bypassMode = 'success';
+                this._bypassAlreadyConnected = result.already_connected === true;
+                this._bypassExpiresAt = result.expires_at ? Date.parse(result.expires_at)
+                    : Date.now() + Number(result.expires_in || 180) * 1000;
                 const remaining = result.bypasses_remaining ?? (result.already_bypassed ? 1 : 0);
                 this.updateBypassBanner('success', { remaining });
             } else if (result.limit_reached) {
@@ -2310,12 +2344,17 @@ class WiFiPortal {
                 this.updateBypassBanner('blocked', { message: result.message });
             } else {
                 this._bypassMode = 'error';
+                this._bypassRan = false;
                 this.updateBypassBanner('error');
             }
         } catch (e) {
+            if (this._bypassPaymentId !== paymentId) return;
             console.error('Erro ao ativar bypass:', e);
             this._bypassMode = 'error';
+            this._bypassRan = false;
             this.updateBypassBanner('error');
+        } finally {
+            clearTimeout(timeout);
         }
     }
 
