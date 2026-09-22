@@ -6,7 +6,6 @@ use App\Models\IntervalAccessDay;
 use App\Models\Payment;
 use App\Models\Session;
 use App\Models\SystemSetting;
-use App\Models\TempBypassLog;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
@@ -16,7 +15,9 @@ use Illuminate\Validation\ValidationException;
 
 class IntervalPlanService
 {
-    /** Complete a checkout already started on the device, even if its portal closed. */
+    public const FIRST_DAY_POLICY = 'payment-confirmation-v2';
+
+    /** First eligible day starts at payment confirmation; later days start in the portal. */
     public function activatePaidCheckout(Payment $payment): array
     {
         if (! self::isInterval($payment) || ! $payment->user) {
@@ -45,17 +46,8 @@ class IntervalPlanService
                 return $this->access($user);
             }
 
-            // The approved bypass is evidence of this device's recent checkout.
-            // Do not infer first access from payment alone or a background DHCP lease.
-            $startedCheckout = TempBypassLog::where('payment_id', $payment->id)
-                ->where('user_id', $user->id)->where('mac_address', $user->mac_address)
-                ->where('was_denied', false)
-                ->where('created_at', '<=', $start)
-                ->where('created_at', '>=', $start->copy()->subMinutes(15))->exists();
-            if (! $startedCheckout) {
-                return $this->access($user);
-            }
-
+            // Payment is sufficient for the first day. Bypass logs, their age and
+            // the browser returning from the banking app must not block paid access.
             $day = $this->startDay($user, $payment, $start);
             return $this->result('active', 'Pagamento confirmado. Sua diária está ativa.', $day);
         });

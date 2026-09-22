@@ -118,15 +118,15 @@ class IntervalPlanTest extends TestCase
         $this->assertSame(1, Session::count());
     }
 
-    public function test_payment_confirmation_and_background_healing_do_not_start_daily_timer(): void
+    public function test_payment_confirmation_starts_first_day_without_bypass(): void
     {
         $payment = $this->purchase();
         app(PaymentController::class)->activateUserAccess($payment);
         app(PaymentController::class)->activateUserAccess($payment);
         (new \ReflectionMethod(MikrotikApiController::class, 'autoHealPaidUsers'))->invoke(app(MikrotikApiController::class));
-        $this->assertSame('ready', app(IntervalPlanService::class)->access($payment->user)['state']);
-        $this->assertSame(0, Session::count());
-        $this->assertNull($payment->user->fresh()->expires_at);
+        $this->assertSame('active', app(IntervalPlanService::class)->access($payment->user)['state']);
+        $this->assertSame(1, Session::count());
+        $this->assertSame('2026-09-10 20:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
     }
 
     private function checkoutBypass(Payment $payment, bool $denied = false, int $minutesBeforePayment = 1): void
@@ -216,28 +216,97 @@ class IntervalPlanTest extends TestCase
         $this->assertSame(0, IntervalAccessDay::count());
     }
 
-    public function test_unconfirmed_denied_old_or_wrong_device_checkout_never_starts_a_day(): void
+    public function test_unconfirmed_payments_never_start_a_day_even_with_bypass(): void
     {
         $payment = $this->purchase();
         $plans = app(IntervalPlanService::class);
-        $this->checkoutBypass($payment, true);
-        $plans->activatePaidCheckout($payment);
-        $this->assertSame(0, IntervalAccessDay::count());
-        \App\Models\TempBypassLog::query()->delete();
-        $this->checkoutBypass($payment, false, 16);
-        $plans->activatePaidCheckout($payment);
-        $this->assertSame(0, IntervalAccessDay::count());
-        \App\Models\TempBypassLog::query()->delete();
         $this->checkoutBypass($payment);
         foreach (['pending', 'failed', 'cancelled', 'refunded'] as $status) {
             $payment->updateQuietly(['status' => $status]);
             $plans->activatePaidCheckout($payment);
             $this->assertSame(0, IntervalAccessDay::count());
         }
-        $payment->updateQuietly(['status' => 'completed']);
-        $payment->user->update(['mac_address' => '02:12:34:56:78:90']);
-        $plans->activatePaidCheckout($payment);
+    }
+
+    public static function webhookPlans(): array
+    {
+        return [
+            'interval_12h' => [true, 12, 'approved'],
+            'interval_24h' => [true, 24, 'approved'],
+            'interval_without_bypass' => [true, 12, 'none'],
+            'interval_bypass_older_than_15_minutes' => [true, 12, 'old'],
+            'interval_bypass_denied' => [true, 12, 'denied'],
+            'interval_changed_mac' => [true, 12, 'changed_mac'],
+            'standard_699' => [false, 12, 'approved'],
+            'standard_699_without_bypass' => [false, 12, 'none'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('webhookPlans')]
+    public function test_actual_pagbank_webhook_persists_access_and_sync_releases_mac(bool $interval, int $hours, string $bypass): void
+    {
+        config(['logging.channels.pagbank' => config('logging.channels.null')]);
+        $payment = $this->purchase($hours);
+        if ($bypass !== 'none') {
+            $this->checkoutBypass($payment, $bypass === 'denied', $bypass === 'old' ? 20 : 1);
+        }
+        if ($bypass === 'changed_mac') {
+            $payment->user->update(['mac_address' => '02:12:34:56:78:90']);
+        }
+        $data = $interval ? $payment->payment_data : ['duration_hours' => 12, 'plan_name' => 'Viagem completa'];
+        $payment->updateQuietly(['status' => 'pending', 'paid_at' => null,
+            'transaction_id' => 'TEST_WEBHOOK', 'gateway_payment_id' => 'ORDE_TEST',
+            'amount' => $interval ? $payment->amount : 6.99, 'payment_data' => $data]);
+        $request = Request::create('/api/payment/webhook/pagbank', 'POST', [
+            'id' => 'ORDE_TEST', 'reference_id' => 'TEST_WEBHOOK',
+            'charges' => [['id' => 'CHAR_TEST', 'status' => 'PAID',
+                'paid_at' => '2026-09-10T08:00:00.000-03:00',
+                'amount' => ['value' => (int) round($payment->amount * 100)],
+                'payment_method' => ['type' => 'PIX']]],
+        ]);
+        $controller = app(PaymentController::class);
+        $response = $controller->pagbankWebhook($request);
+        $this->assertSame(200, $response->getStatusCode(), $response->getContent());
+        $this->assertSame('completed', $payment->fresh()->status);
+        $this->assertSame('connected', $payment->user->fresh()->status);
+        $expected = now()->addHours($hours)->toDateTimeString();
+        $this->assertSame($expected, $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame($interval ? 1 : 0, IntervalAccessDay::count());
+        $this->assertSame(1, Session::count());
+        Carbon::setTestNow(now()->addMinutes(4));
+        $this->assertSame(200, $controller->pagbankWebhook($request)->getStatusCode());
+        $this->assertSame($expected, $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame(1, Session::count());
+        Cache::put('auto_heal_last_run', now(), 300);
+        $sync = app(MikrotikApiController::class)->checkPaidUsersLite(Request::create('/', 'GET', [
+            'token' => config('wifi.mikrotik_sync_token', 'mikrotik-sync-2024'),
+        ]))->getContent();
+        $this->assertStringContainsString('L:'.$payment->user->mac_address, $sync);
+        $this->assertStringNotContainsString('R:'.$payment->user->mac_address, $sync);
+    }
+
+    public function test_status_poll_recovers_already_completed_interval_without_bypass(): void
+    {
+        $payment = $this->purchase();
+        $payment->user->update(['status' => 'expired', 'expires_at' => now()->addMinutes(3)]);
+        Carbon::setTestNow('2026-09-10 08:10:00');
+        $response = app(PaymentController::class)->checkPixStatus(Request::create('/', 'GET', ['payment_id' => $payment->id]));
+        $this->assertSame('completed', $response->getData(true)['payment']['status']);
+        $this->assertSame('2026-09-10 20:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame(1, IntervalAccessDay::count());
+    }
+
+    public function test_diagnostic_reports_active_policy_without_consuming_a_day(): void
+    {
+        $payment = $this->purchase();
+        $code = \Illuminate\Support\Facades\Artisan::call('interval:diagnose', ['payment' => $payment->id]);
+        $this->assertSame(0, $code);
+        $data = json_decode(\Illuminate\Support\Facades\Artisan::output(), true);
+        $this->assertSame('payment-confirmation-v2', $data['policy']);
+        $this->assertSame($payment->id, $data['payment_id']);
+        $this->assertSame([], $data['days']);
         $this->assertSame(0, IntervalAccessDay::count());
+        $this->assertSame(0, Session::count());
     }
 
     public function test_daily_window_survives_midnight_and_reconnect_without_renewal(): void

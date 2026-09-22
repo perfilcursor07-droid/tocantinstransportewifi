@@ -576,7 +576,8 @@ class PaymentController extends Controller
                 $end = \Carbon\Carbon::parse($interval['end'])->format('d/m/Y');
                 $message = "Pagamento confirmado!\n\nOi {$nome}! Recebemos seu PIX de R$ {$amount}.\n\n"
                     . "Intervalo: {$start} a {$end}, com {$interval['hours_per_day']}h corridas por dia. "
-                    . "Cada diária começa ao abrir o portal no Wi-Fi do ônibus. Dias não usados não acumulam.\n\n"
+                    . "Se o pagamento ocorrer nas datas contratadas, a primeira diária começa na confirmação do PIX. "
+                    . "As próximas diárias, ou compras antecipadas, começam ao abrir o portal no Wi-Fi do ônibus. Dias não usados não acumulam.\n\n"
                     . 'Portal: '.url('/')."\n\nPara parar as atualizações de pagamento, responda PARAR.";
             }
 
@@ -997,6 +998,12 @@ class PaymentController extends Controller
 
         $payment = Payment::find($request->payment_id);
 
+        // Heal interval confirmations recorded by older deployments, even when
+        // their webhook has already been acknowledged and will not be retried.
+        if ($payment->status === 'completed' && \App\Services\IntervalPlanService::isInterval($payment)) {
+            app(\App\Services\IntervalPlanService::class)->activatePaidCheckout($payment);
+        }
+
         $response = response()->json([
             'success' => true,
             'payment' => [
@@ -1341,8 +1348,8 @@ class PaymentController extends Controller
     public function activateUserAccess(Payment $payment)
     {
         if (\App\Services\IntervalPlanService::isInterval($payment)) {
-            // Promote a recent checkout bypass to the first paid day even if the
-            // captive browser closed while the passenger was in the banking app.
+            // The first eligible day starts on payment, without requiring bypass
+            // logs or the captive browser to return from the banking app.
             app(\App\Services\IntervalPlanService::class)->activatePaidCheckout($payment);
             Cache::forget('mikrotik_sync_lists_all');
             if ($payment->user) {

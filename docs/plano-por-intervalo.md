@@ -25,11 +25,10 @@ intervalos ja pagos. Nenhuma alteracao nos scripts do MikroTik e necessaria.
   do portal pode iniciar a diaria da data atual, se comprada e ainda nao usada.
 - A ultima diaria tambem pode terminar no dia seguinte ao fim do intervalo.
 - Datas nao usadas nao acumulam. Horas offline dentro de uma janela contam.
-- Se o passageiro iniciou o pagamento no aparelho (bypass aprovado para o mesmo
-  pagamento, usuario e MAC nos 15 minutos anteriores), a confirmacao inicia a
-  primeira diaria no horario do pagamento, sem depender de voltar do app do banco.
-- Sem esse registro, ou para datas futuras, a compra reserva as datas e o inicio
-  depende de abrir o portal. As diarias seguintes continuam comecando pelo portal.
+- Se o pagamento ocorrer dentro das datas contratadas, a primeira diaria comeca
+  na confirmacao do PIX, mesmo sem registro de bypass ou retorno do app do banco.
+- Para compras antecipadas, a compra reserva as datas e o inicio depende de abrir
+  o portal na data contratada. As diarias seguintes continuam comecando pelo portal.
 
 ## Identificacao sem alterar o roteador
 
@@ -44,8 +43,8 @@ O portal tenta novamente enquanto aguarda o report (ate cerca de 90 segundos).
 Se o captive portal nao abrir automaticamente, o passageiro deve abrir o site.
 Nao ha deteccao exata da associacao Wi-Fi com os dados atualmente enviados.
 
-O bypass de 3 minutos serve apenas para pagar. Na confirmacao, um checkout
-recente elegivel troca esse prazo pela primeira diaria de 12h ou 24h. Se o
+O bypass de 3 minutos serve apenas para pagar. Na confirmacao, o intervalo
+pago dentro das datas contratadas inicia a primeira diaria de 12h ou 24h. Se o
 portal estiver fechado, a liberacao continua pelo sync normal do MikroTik.
 `payments:reconcile` e a recuperacao do sync tambem corrigem checkouts elegiveis
 ja pagos sem diaria, desde que o prazo contado do pagamento ainda esteja valido.
@@ -61,6 +60,34 @@ Mudanca do MAC privado exige recuperar o cadastro; preservar o mesmo MAC por
 rede evita que o aparelho seja tratado como um novo passageiro.
 
 ## Verificacao local
+
+### Atualizacao da regra da primeira diaria (22/09/2026)
+
+Publicar juntos os arquivos abaixo, preservando a estrutura de pastas:
+
+- `app/Services/IntervalPlanService.php`
+- `app/Http/Controllers/PaymentController.php`
+- `app/Http/Controllers/IntervalAccessController.php`
+- `app/Http/Controllers/MikrotikApiController.php`
+- `app/Console/Commands/ReconcilePayments.php`
+- `app/Console/Commands/DiagnoseIntervalPayment.php`
+
+Nao precisa de nova migration se `interval_access_days` ja existe. Apos publicar,
+recarregar o PHP/OPcache pelo mecanismo habitual da hospedagem, se necessario,
+para que o servidor execute os arquivos atualizados.
+
+Para conferir um pagamento em producao sem alterar dados nem consultar o PagBank:
+
+```sh
+php artisan interval:diagnose ID_DO_PAGAMENTO
+```
+
+A saida deve mostrar `policy: payment-confirmation-v2`, o status do pagamento,
+o prazo de acesso e as diarias registradas. Nao imprime tokens ou credenciais.
+O diagnostico nao libera acesso: a confirmacao, consulta de status pelo portal
+ou a conciliacao agendada fazem a recuperacao da primeira diaria ainda valida.
+Uma compra que ja ultrapassou as primeiras 12h/24h exige analisar compensacao,
+em vez de reiniciar automaticamente o prazo. Liberacoes manuais ativas sao preservadas.
 
 ```sh
 php vendor/phpunit/phpunit/phpunit --bootstrap vendor/autoload.php tests/Feature/IntervalPlanTest.php --no-configuration
