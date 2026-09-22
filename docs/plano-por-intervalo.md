@@ -33,9 +33,17 @@ O script `registrarMacs` existente envia leases DHCP, incluindo aparelhos que
 podem estar desconectados. Esse relatorio sozinho NAO inicia uma diaria.
 O inicio exige uma requisicao do portal em primeiro plano, pelo IP publico de
 um onibus com sincronizacao recente, e um report recente do mesmo MAC/onibus.
+Se nao existir report recente desse MAC, aceita o MAC/IP ja cadastrado no mesmo
+onibus identificado pela requisicao. Exige IP do aparelho identico ao cadastro;
+IP publico sozinho, outro onibus ou report recente conflitante nao bastam.
 O portal tenta novamente enquanto aguarda o report (ate cerca de 90 segundos).
 Se o captive portal nao abrir automaticamente, o passageiro deve abrir o site.
 Nao ha deteccao exata da associacao Wi-Fi com os dados atualmente enviados.
+
+O bypass de 3 minutos serve apenas para pagar. Ao voltar ao portal, a diaria
+paga substitui esse prazo por 12h ou 24h desde aquele primeiro acesso, mesmo
+se o bypass ja expirou. O passageiro precisa voltar ao portal para iniciar a
+diaria; confirmacao de PIX e sincronizacao em segundo plano nao a consomem.
 
 A liberacao usa os mesmos `status` e `expires_at` do usuario. `syncPagos` continua
 recebendo `L:MAC` e `R:MAC`. O bloqueio depende do proximo sync com o servidor:

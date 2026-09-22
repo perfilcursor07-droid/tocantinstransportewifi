@@ -22,15 +22,23 @@ class IntervalAccessController extends Controller
             return response()->json(['state' => 'none']);
         }
 
-        // Both the foreground request and its MAC report must belong to a recently synced bus.
+        // The foreground request must come through a recently synced bus.
         $serials = Bus::where('last_public_ip', $request->ip())
             ->where('last_sync_at', '>=', now()->subMinutes(3))->pluck('mikrotik_serial');
         $report = $serials->isNotEmpty() ? MikrotikMacReport::where('mac_address', $mac)
             ->whereIn('mikrotik_id', $serials)->where('last_seen', '>=', now()->subMinutes(3))
             ->when(! empty($data['ip_address']), fn ($q) => $q->where('ip_address', $data['ip_address']))
             ->latest('last_seen')->first() : null;
-        $onBus = $report !== null;
-        if ($onBus && ($user->ip_address !== $report->ip_address || $user->last_mikrotik_id !== $report->mikrotik_id)) {
+        // Some routers sync paid users without reporting every DHCP lease. In that
+        // case use the MAC/IP already registered on this same bus, never the public
+        // IP alone. A fresh conflicting report takes precedence over saved identity.
+        $knownDeviceOnBus = $serials->contains($user->last_mikrotik_id)
+            && ! empty($data['ip_address'])
+            && $user->ip_address === $data['ip_address']
+            && ! MikrotikMacReport::where('mac_address', $mac)
+                ->where('last_seen', '>=', now()->subMinutes(3))->exists();
+        $onBus = $report !== null || $knownDeviceOnBus;
+        if ($report && ($user->ip_address !== $report->ip_address || $user->last_mikrotik_id !== $report->mikrotik_id)) {
             $user->update(['ip_address' => $report->ip_address, 'last_mikrotik_id' => $report->mikrotik_id]);
         }
         $result = $plans->access($user, $onBus);

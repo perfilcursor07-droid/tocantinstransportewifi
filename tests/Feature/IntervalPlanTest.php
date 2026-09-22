@@ -200,6 +200,79 @@ class IntervalPlanTest extends TestCase
         $this->assertSame(1, IntervalAccessDay::count());
     }
 
+    public function test_paid_interval_replaces_three_minute_bypass_without_dhcp_report_and_preserves_both_days(): void
+    {
+        Carbon::setTestNow('2026-09-22 07:45:26');
+        $payment = $this->purchase(12, '2026-09-22', '2026-09-23');
+        $payment->user->update(['last_mikrotik_id' => 'BUS1', 'status' => 'temp_bypass',
+            'expires_at' => '2026-09-22 07:47:38']);
+        $bus = Bus::create(['mikrotik_serial' => 'BUS1', 'name' => 'Teste',
+            'last_public_ip' => '203.0.113.10', 'last_sync_at' => now()]);
+        $request = Request::create('/', 'POST', ['mac_address' => $payment->user->mac_address,
+            'ip_address' => $payment->user->ip_address], [], [], ['REMOTE_ADDR' => '203.0.113.10']);
+        $controller = app(IntervalAccessController::class);
+        $plans = app(IntervalPlanService::class);
+        $this->assertSame(0, MikrotikMacReport::count());
+        $this->assertSame('active', $controller->connect($request, $plans)->getData(true)['state']);
+        $this->assertSame('2026-09-22 19:45:26', $payment->user->fresh()->expires_at->toDateTimeString());
+        Carbon::setTestNow('2026-09-22 09:17:00');
+        $this->assertSame('active', $controller->connect($request, $plans)->getData(true)['state']);
+        $this->assertSame('2026-09-22 19:45:26', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame(1, IntervalAccessDay::count());
+        Carbon::setTestNow('2026-09-22 20:00:00');
+        $this->assertSame('used', $controller->connect($request, $plans)->getData(true)['state']);
+        Carbon::setTestNow('2026-09-23 21:10:00');
+        $bus->update(['last_sync_at' => now()]);
+        $this->assertSame('active', $controller->connect($request, $plans)->getData(true)['state']);
+        $this->assertSame('2026-09-24 09:10:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame(2, IntervalAccessDay::count());
+        $this->assertSame(2, Session::count());
+        Carbon::setTestNow('2026-09-24 09:10:01');
+        $this->assertSame('none', $controller->connect($request, $plans)->getData(true)['state']);
+        $this->assertSame('13.98', $payment->fresh()->amount);
+    }
+
+    public function test_expired_bypass_can_start_paid_day_when_passenger_returns_to_portal(): void
+    {
+        $payment = $this->purchase();
+        $payment->user->update(['last_mikrotik_id' => 'BUS1', 'status' => 'expired',
+            'expires_at' => now()->subMinutes(2)]);
+        Bus::create(['mikrotik_serial' => 'BUS1', 'name' => 'Teste',
+            'last_public_ip' => '203.0.113.10', 'last_sync_at' => now()]);
+        $request = Request::create('/', 'POST', ['mac_address' => $payment->user->mac_address,
+            'ip_address' => $payment->user->ip_address], [], [], ['REMOTE_ADDR' => '203.0.113.10']);
+        $this->assertSame('active', app(IntervalAccessController::class)->connect($request,
+            app(IntervalPlanService::class))->getData(true)['state']);
+        $this->assertSame('connected', $payment->user->fresh()->status);
+        $this->assertSame('2026-09-10 20:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+    }
+
+    public function test_missing_report_fallback_requires_matching_device_and_recent_same_bus(): void
+    {
+        $payment = $this->purchase();
+        $payment->user->update(['last_mikrotik_id' => 'BUS1']);
+        $bus = Bus::create(['mikrotik_serial' => 'BUS1', 'name' => 'Teste',
+            'last_public_ip' => '203.0.113.10', 'last_sync_at' => now()]);
+        $connect = function ($publicIp, $deviceIp) use ($payment) {
+            return app(IntervalAccessController::class)->connect(Request::create('/', 'POST', [
+                'mac_address' => $payment->user->mac_address, 'ip_address' => $deviceIp,
+            ], [], [], ['REMOTE_ADDR' => $publicIp]), app(IntervalPlanService::class))->getData(true)['state'];
+        };
+        $this->assertSame('ready', $connect('198.51.100.5', $payment->user->ip_address));
+        $this->assertSame('ready', $connect('203.0.113.10', '10.5.50.100'));
+        $this->assertSame('ready', $connect('203.0.113.10', null));
+        $bus->update(['last_sync_at' => now()->subMinutes(4)]);
+        $this->assertSame('ready', $connect('203.0.113.10', $payment->user->ip_address));
+        $bus->update(['last_sync_at' => now()]);
+        $payment->user->update(['last_mikrotik_id' => 'BUS2']);
+        $this->assertSame('ready', $connect('203.0.113.10', $payment->user->ip_address));
+        $payment->user->update(['last_mikrotik_id' => 'BUS1']);
+        MikrotikMacReport::create(['mac_address' => $payment->user->mac_address,
+            'ip_address' => '10.5.50.100', 'mikrotik_id' => 'BUS1', 'last_seen' => now()]);
+        $this->assertSame('ready', $connect('203.0.113.10', $payment->user->ip_address));
+        $this->assertSame(0, IntervalAccessDay::count());
+    }
+
     public function test_existing_mikrotik_sync_releases_then_removes_daily_mac(): void
     {
         $payment = $this->purchase();
