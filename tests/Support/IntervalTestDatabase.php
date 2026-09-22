@@ -31,6 +31,11 @@ class IntervalTestDatabase
             $t->text('pix_location')->nullable(); $t->json('payment_data')->nullable();
             $t->dateTime('paid_at')->nullable(); $t->timestamps();
         });
+        Schema::create('temp_bypass_logs', function (Blueprint $t) {
+            $t->id(); $t->foreignId('user_id'); $t->foreignId('payment_id');
+            $t->string('mac_address'); $t->boolean('was_denied')->default(false);
+            $t->dateTime('expires_at')->nullable(); $t->timestamps();
+        });
         Schema::create('wifi_sessions', function (Blueprint $t) {
             $t->id(); $t->foreignId('user_id'); $t->foreignId('payment_id');
             $t->dateTime('started_at'); $t->dateTime('ended_at')->nullable();

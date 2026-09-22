@@ -986,7 +986,7 @@ class MikrotikApiController extends Controller
 
                 if ($latestPayment && $latestPayment->paid_at) {
                     if (\App\Services\IntervalPlanService::isInterval($latestPayment)) {
-                        app(\App\Services\IntervalPlanService::class)->access($healUser);
+                        app(\App\Services\IntervalPlanService::class)->activatePaidCheckout($latestPayment);
                         continue;
                     }
                     $newExpires = Carbon::parse($latestPayment->paid_at)->addHours($sessionDuration);

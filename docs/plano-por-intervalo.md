@@ -25,7 +25,11 @@ intervalos ja pagos. Nenhuma alteracao nos scripts do MikroTik e necessaria.
   do portal pode iniciar a diaria da data atual, se comprada e ainda nao usada.
 - A ultima diaria tambem pode terminar no dia seguinte ao fim do intervalo.
 - Datas nao usadas nao acumulam. Horas offline dentro de uma janela contam.
-- O pagamento confirmado reserva as datas; o webhook nao inicia a contagem.
+- Se o passageiro iniciou o pagamento no aparelho (bypass aprovado para o mesmo
+  pagamento, usuario e MAC nos 15 minutos anteriores), a confirmacao inicia a
+  primeira diaria no horario do pagamento, sem depender de voltar do app do banco.
+- Sem esse registro, ou para datas futuras, a compra reserva as datas e o inicio
+  depende de abrir o portal. As diarias seguintes continuam comecando pelo portal.
 
 ## Identificacao sem alterar o roteador
 
@@ -40,10 +44,15 @@ O portal tenta novamente enquanto aguarda o report (ate cerca de 90 segundos).
 Se o captive portal nao abrir automaticamente, o passageiro deve abrir o site.
 Nao ha deteccao exata da associacao Wi-Fi com os dados atualmente enviados.
 
-O bypass de 3 minutos serve apenas para pagar. Ao voltar ao portal, a diaria
-paga substitui esse prazo por 12h ou 24h desde aquele primeiro acesso, mesmo
-se o bypass ja expirou. O passageiro precisa voltar ao portal para iniciar a
-diaria; confirmacao de PIX e sincronizacao em segundo plano nao a consomem.
+O bypass de 3 minutos serve apenas para pagar. Na confirmacao, um checkout
+recente elegivel troca esse prazo pela primeira diaria de 12h ou 24h. Se o
+portal estiver fechado, a liberacao continua pelo sync normal do MikroTik.
+`payments:reconcile` e a recuperacao do sync tambem corrigem checkouts elegiveis
+ja pagos sem diaria, desde que o prazo contado do pagamento ainda esteja valido.
+Nunca renovam uma diaria, iniciam a proxima data automaticamente ou encurtam
+uma liberacao manual ativa. Nao enviam WhatsApp nessa recuperacao.
+Ao abrir o portal, continua possivel iniciar uma diaria disponivel mesmo com
+bypass expirado. No segundo dia o passageiro deve abrir o portal novamente.
 
 A liberacao usa os mesmos `status` e `expires_at` do usuario. `syncPagos` continua
 recebendo `L:MAC` e `R:MAC`. O bloqueio depende do proximo sync com o servidor:

@@ -1341,7 +1341,9 @@ class PaymentController extends Controller
     public function activateUserAccess(Payment $payment)
     {
         if (\App\Services\IntervalPlanService::isInterval($payment)) {
-            // Only a foreground connection starts a daily window, never a payment webhook.
+            // Promote a recent checkout bypass to the first paid day even if the
+            // captive browser closed while the passenger was in the banking app.
+            app(\App\Services\IntervalPlanService::class)->activatePaidCheckout($payment);
             Cache::forget('mikrotik_sync_lists_all');
             if ($payment->user) {
                 $this->sendPaymentConfirmedWhatsapp($payment->user, $payment, (float) data_get($payment->payment_data, 'interval.hours_per_day', 12));

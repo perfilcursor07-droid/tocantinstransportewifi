@@ -162,7 +162,7 @@ class ReconcilePayments extends Command
                 continue;
             }
             if (\App\Services\IntervalPlanService::isInterval($payment)) {
-                app(\App\Services\IntervalPlanService::class)->access($user);
+                app(\App\Services\IntervalPlanService::class)->activatePaidCheckout($payment);
                 continue;
             }
 

@@ -129,6 +129,117 @@ class IntervalPlanTest extends TestCase
         $this->assertNull($payment->user->fresh()->expires_at);
     }
 
+    private function checkoutBypass(Payment $payment, bool $denied = false, int $minutesBeforePayment = 1): void
+    {
+        \App\Models\TempBypassLog::forceCreate([
+            'user_id' => $payment->user_id, 'payment_id' => $payment->id,
+            'mac_address' => $payment->user->mac_address, 'was_denied' => $denied,
+            'created_at' => $payment->paid_at->copy()->subMinutes($minutesBeforePayment),
+            'expires_at' => $payment->paid_at->copy()->subMinutes($minutesBeforePayment)->addMinutes(3),
+        ]);
+        $payment->user->update(['status' => 'temp_bypass', 'expires_at' => now()->addMinutes(2)]);
+    }
+
+    public function test_confirmation_promotes_checkout_bypass_without_browser_or_dhcp_and_does_not_restart(): void
+    {
+        $payment = $this->purchase(12, '2026-09-10', '2026-09-11');
+        $this->checkoutBypass($payment);
+        $controller = app(PaymentController::class);
+        $controller->activateUserAccess($payment);
+        $this->assertSame('connected', $payment->user->fresh()->status);
+        $this->assertSame('2026-09-10 20:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame(1, IntervalAccessDay::count());
+        Carbon::setTestNow('2026-09-10 10:00:00');
+        $controller->activateUserAccess($payment);
+        $this->assertSame('2026-09-10 20:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        Carbon::setTestNow('2026-09-11 09:00:00');
+        $controller->activateUserAccess($payment);
+        $this->assertSame(1, IntervalAccessDay::count());
+        $this->assertSame(1, Session::count());
+        // Tomorrow is only consumed by a new foreground access, for a full 12h.
+        $this->assertSame('active', app(IntervalPlanService::class)->access($payment->user, true)['state']);
+        $this->assertSame('2026-09-11 21:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame(2, IntervalAccessDay::count());
+    }
+
+    public function test_reconciliation_recovers_expired_bypass_from_payment_time_without_giving_extra_hours(): void
+    {
+        $payment = $this->purchase();
+        // Bank confirmation can arrive a few minutes after the temporary access ended.
+        $this->checkoutBypass($payment, false, 6);
+        $payment->user->update(['status' => 'expired', 'expires_at' => now()->subMinutes(3)]);
+        Carbon::setTestNow('2026-09-10 10:00:00');
+        $command = app(\App\Console\Commands\ReconcilePayments::class);
+        (new \ReflectionMethod($command, 'reconcileCompletedWithoutAccess'))->invoke($command, 24);
+        $this->assertSame('connected', $payment->user->fresh()->status);
+        $this->assertSame('2026-09-10 08:00:00', $payment->user->fresh()->connected_at->toDateTimeString());
+        $this->assertSame('2026-09-10 20:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        (new \ReflectionMethod($command, 'reconcileCompletedWithoutAccess'))->invoke($command, 24);
+        $this->assertSame(1, IntervalAccessDay::count());
+    }
+
+    public function test_mikrotik_healing_recovers_24h_checkout_without_starting_next_day(): void
+    {
+        $payment = $this->purchase(24);
+        $this->checkoutBypass($payment);
+        $payment->user->update(['status' => 'expired']);
+        Carbon::setTestNow('2026-09-10 09:00:00');
+        (new \ReflectionMethod(MikrotikApiController::class, 'autoHealPaidUsers'))->invoke(app(MikrotikApiController::class));
+        $this->assertSame('2026-09-11 08:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame(1, IntervalAccessDay::count());
+        Carbon::setTestNow('2026-09-11 09:00:00');
+        app(IntervalPlanService::class)->activatePaidCheckout($payment);
+        $this->assertSame(1, IntervalAccessDay::count());
+    }
+
+    public function test_confirmation_preserves_future_booking_and_existing_manual_access(): void
+    {
+        $payment = $this->purchase(12, '2026-09-11', '2026-09-12');
+        $this->checkoutBypass($payment);
+        $this->assertSame('scheduled', app(IntervalPlanService::class)->activatePaidCheckout($payment)['state']);
+        Carbon::setTestNow('2026-09-11 08:00:00');
+        app(IntervalPlanService::class)->activatePaidCheckout($payment);
+        $this->assertSame(0, IntervalAccessDay::count());
+        $payment->user->update(['status' => 'connected', 'expires_at' => now()->addHours(12)]);
+        app(IntervalPlanService::class)->activatePaidCheckout($payment);
+        $this->assertSame('2026-09-11 20:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame(0, IntervalAccessDay::count());
+    }
+
+    public function test_checkout_recovery_preserves_manual_release_on_the_payment_date(): void
+    {
+        $payment = $this->purchase();
+        $this->checkoutBypass($payment);
+        $payment->user->update(['status' => 'connected', 'expires_at' => now()->addHours(14)]);
+        app(IntervalPlanService::class)->activatePaidCheckout($payment);
+        $this->assertSame('2026-09-10 22:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame(0, IntervalAccessDay::count());
+    }
+
+    public function test_unconfirmed_denied_old_or_wrong_device_checkout_never_starts_a_day(): void
+    {
+        $payment = $this->purchase();
+        $plans = app(IntervalPlanService::class);
+        $this->checkoutBypass($payment, true);
+        $plans->activatePaidCheckout($payment);
+        $this->assertSame(0, IntervalAccessDay::count());
+        \App\Models\TempBypassLog::query()->delete();
+        $this->checkoutBypass($payment, false, 16);
+        $plans->activatePaidCheckout($payment);
+        $this->assertSame(0, IntervalAccessDay::count());
+        \App\Models\TempBypassLog::query()->delete();
+        $this->checkoutBypass($payment);
+        foreach (['pending', 'failed', 'cancelled', 'refunded'] as $status) {
+            $payment->updateQuietly(['status' => $status]);
+            $plans->activatePaidCheckout($payment);
+            $this->assertSame(0, IntervalAccessDay::count());
+        }
+        $payment->updateQuietly(['status' => 'completed']);
+        $payment->user->update(['mac_address' => '02:12:34:56:78:90']);
+        $plans->activatePaidCheckout($payment);
+        $this->assertSame(0, IntervalAccessDay::count());
+    }
+
     public function test_daily_window_survives_midnight_and_reconnect_without_renewal(): void
     {
         $payment = $this->purchase();
