@@ -10,17 +10,17 @@ php artisan view:clear
 ```
 
 Em `/admin/settings`, ativar Plano por intervalo, definir o limite (2 a 90 dias)
-e o preco de 12h por dia. A opcao nasce desativada. Desativar vendas nao cancela
+e o preco da diaria de 24h. A opcao nasce desativada. Desativar vendas nao cancela
 intervalos ja pagos. Nenhuma alteracao nos scripts do MikroTik e necessaria.
 
 ## Regra de compra e uso
 
 - As duas datas contam: de 10 a 11 sao duas diarias. Padrao: hoje ate amanha.
-- Com base de R$6,99, duas diarias de 12h custam R$13,98; de 24h, R$27,96.
+- Com a diaria de 24h em R$13,98, duas diarias custam R$27,96.
 - O servidor calcula o valor e guarda as condicoes no pagamento. O intervalo
   nao recebe o desconto por video dos planos avulsos.
-- Cada data permite uma janela de horas corridas. Reconectar nao reinicia.
-- Se iniciar as 21h, as 12h terminam as 09h do dia seguinte. Enquanto essa janela
+- Cada data permite uma janela de 24 horas corridas. Reconectar nao reinicia.
+- Se iniciar as 21h, as 24h terminam as 21h do dia seguinte. Enquanto essa janela
   estiver ativa, nao consome a diaria seguinte. Ao terminar, uma nova abertura
   do portal pode iniciar a diaria da data atual, se comprada e ainda nao usada.
 - A ultima diaria tambem pode terminar no dia seguinte ao fim do intervalo.
@@ -44,7 +44,8 @@ Se o captive portal nao abrir automaticamente, o passageiro deve abrir o site.
 Nao ha deteccao exata da associacao Wi-Fi com os dados atualmente enviados.
 
 O bypass de 3 minutos serve apenas para pagar. Na confirmacao, o intervalo
-pago dentro das datas contratadas inicia a primeira diaria de 12h ou 24h. Se o
+pago dentro das datas contratadas inicia a primeira diaria de 24h. Pagamentos
+antigos continuam usando a duracao registrada no momento da compra. Se o
 portal estiver fechado, a liberacao continua pelo sync normal do MikroTik.
 `payments:reconcile` e a recuperacao do sync tambem corrigem checkouts elegiveis
 ja pagos sem diaria, desde que o prazo contado do pagamento ainda esteja valido.
@@ -86,7 +87,7 @@ A saida deve mostrar `policy: payment-confirmation-v2`, o status do pagamento,
 o prazo de acesso e as diarias registradas. Nao imprime tokens ou credenciais.
 O diagnostico nao libera acesso: a confirmacao, consulta de status pelo portal
 ou a conciliacao agendada fazem a recuperacao da primeira diaria ainda valida.
-Uma compra que ja ultrapassou as primeiras 12h/24h exige analisar compensacao,
+Uma compra que ja ultrapassou as primeiras 24h exige analisar compensacao,
 em vez de reiniciar automaticamente o prazo. Liberacoes manuais ativas sao preservadas.
 
 ```sh

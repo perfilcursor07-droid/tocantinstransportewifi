@@ -43,6 +43,7 @@ class IntervalPlanTest extends TestCase
         SystemSetting::setValue('plan_interval_enabled', '1');
         SystemSetting::setValue('plan_interval_max_days', '30');
         SystemSetting::setValue('plan_interval_price_12h', '6.99');
+        SystemSetting::setValue('plan_interval_price_24h', '13.98');
         SystemSetting::setValue('pix_gateway', 'manual');
     }
 
@@ -52,12 +53,12 @@ class IntervalPlanTest extends TestCase
         parent::tearDown();
     }
 
-    private function quote(int $hours = 12, string $start = '2026-09-10', string $end = '2026-09-12'): array
+    private function quote(int $hours = 24, string $start = '2026-09-10', string $end = '2026-09-12'): array
     {
         return app(IntervalPlanService::class)->quote(['interval_start' => $start, 'interval_end' => $end, 'interval_hours' => $hours]);
     }
 
-    private function purchase(int $hours = 12, string $start = '2026-09-10', string $end = '2026-09-12'): Payment
+    private function purchase(int $hours = 24, string $start = '2026-09-10', string $end = '2026-09-12'): Payment
     {
         $user = User::create(['name' => 'Teste', 'mac_address' => 'D6:DE:C4:66:F2:84', 'ip_address' => '10.5.50.249']);
         $quote = $this->quote($hours, $start, $end);
@@ -67,17 +68,15 @@ class IntervalPlanTest extends TestCase
 
     public function test_quote_counts_both_dates_and_uses_integer_cents(): void
     {
-        $this->assertSame(2097, $this->quote()['interval']['total_cents']);
-        $this->assertSame(4194, $this->quote(24)['interval']['total_cents']);
-        $this->assertSame(1398, $this->quote(12, '2026-09-10', '2026-09-11')['interval']['total_cents']);
+        $this->assertSame(4194, $this->quote()['interval']['total_cents']);
         $this->assertSame(2796, $this->quote(24, '2026-09-10', '2026-09-11')['interval']['total_cents']);
     }
 
     public function test_invalid_intervals_and_disabled_sales_are_rejected(): void
     {
-        foreach ([['2026-09-10', '2026-09-10', 12], ['2026-09-09', '2026-09-10', 12], ['2026-09-12', '2026-09-10', 12],
-            ['2026-09-10', '2026-11-10', 12], ['2026-09-10', '2026-09-11', 13],
-            ['2026-02-30', '2026-09-11', 12]] as [$start, $end, $hours]) {
+        foreach ([['2026-09-10', '2026-09-10', 24], ['2026-09-09', '2026-09-10', 24], ['2026-09-12', '2026-09-10', 24],
+            ['2026-09-10', '2026-11-10', 24], ['2026-09-10', '2026-09-11', 12],
+            ['2026-09-10', '2026-09-11', 13], ['2026-02-30', '2026-09-11', 24]] as [$start, $end, $hours]) {
             try { $this->quote($hours, $start, $end); $this->fail('Invalid interval accepted'); }
             catch (ValidationException $e) { $this->assertNotEmpty($e->errors()); }
         }
@@ -126,7 +125,7 @@ class IntervalPlanTest extends TestCase
         (new \ReflectionMethod(MikrotikApiController::class, 'autoHealPaidUsers'))->invoke(app(MikrotikApiController::class));
         $this->assertSame('active', app(IntervalPlanService::class)->access($payment->user)['state']);
         $this->assertSame(1, Session::count());
-        $this->assertSame('2026-09-10 20:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame('2026-09-11 08:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
     }
 
     private function checkoutBypass(Payment $payment, bool $denied = false, int $minutesBeforePayment = 1): void
@@ -142,23 +141,23 @@ class IntervalPlanTest extends TestCase
 
     public function test_confirmation_promotes_checkout_bypass_without_browser_or_dhcp_and_does_not_restart(): void
     {
-        $payment = $this->purchase(12, '2026-09-10', '2026-09-11');
+        $payment = $this->purchase(24, '2026-09-10', '2026-09-11');
         $this->checkoutBypass($payment);
         $controller = app(PaymentController::class);
         $controller->activateUserAccess($payment);
         $this->assertSame('connected', $payment->user->fresh()->status);
-        $this->assertSame('2026-09-10 20:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame('2026-09-11 08:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
         $this->assertSame(1, IntervalAccessDay::count());
         Carbon::setTestNow('2026-09-10 10:00:00');
         $controller->activateUserAccess($payment);
-        $this->assertSame('2026-09-10 20:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame('2026-09-11 08:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
         Carbon::setTestNow('2026-09-11 09:00:00');
         $controller->activateUserAccess($payment);
         $this->assertSame(1, IntervalAccessDay::count());
         $this->assertSame(1, Session::count());
-        // Tomorrow is only consumed by a new foreground access, for a full 12h.
+        // Tomorrow is only consumed by a new foreground access, for a full 24h.
         $this->assertSame('active', app(IntervalPlanService::class)->access($payment->user, true)['state']);
-        $this->assertSame('2026-09-11 21:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame('2026-09-12 09:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
         $this->assertSame(2, IntervalAccessDay::count());
     }
 
@@ -173,7 +172,7 @@ class IntervalPlanTest extends TestCase
         (new \ReflectionMethod($command, 'reconcileCompletedWithoutAccess'))->invoke($command, 24);
         $this->assertSame('connected', $payment->user->fresh()->status);
         $this->assertSame('2026-09-10 08:00:00', $payment->user->fresh()->connected_at->toDateTimeString());
-        $this->assertSame('2026-09-10 20:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame('2026-09-11 08:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
         (new \ReflectionMethod($command, 'reconcileCompletedWithoutAccess'))->invoke($command, 24);
         $this->assertSame(1, IntervalAccessDay::count());
     }
@@ -194,7 +193,7 @@ class IntervalPlanTest extends TestCase
 
     public function test_confirmation_preserves_future_booking_and_existing_manual_access(): void
     {
-        $payment = $this->purchase(12, '2026-09-11', '2026-09-12');
+        $payment = $this->purchase(24, '2026-09-11', '2026-09-12');
         $this->checkoutBypass($payment);
         $this->assertSame('scheduled', app(IntervalPlanService::class)->activatePaidCheckout($payment)['state']);
         Carbon::setTestNow('2026-09-11 08:00:00');
@@ -231,12 +230,11 @@ class IntervalPlanTest extends TestCase
     public static function webhookPlans(): array
     {
         return [
-            'interval_12h' => [true, 12, 'approved'],
             'interval_24h' => [true, 24, 'approved'],
-            'interval_without_bypass' => [true, 12, 'none'],
-            'interval_bypass_older_than_15_minutes' => [true, 12, 'old'],
-            'interval_bypass_denied' => [true, 12, 'denied'],
-            'interval_changed_mac' => [true, 12, 'changed_mac'],
+            'interval_without_bypass' => [true, 24, 'none'],
+            'interval_bypass_older_than_15_minutes' => [true, 24, 'old'],
+            'interval_bypass_denied' => [true, 24, 'denied'],
+            'interval_changed_mac' => [true, 24, 'changed_mac'],
             'standard_699' => [false, 12, 'approved'],
             'standard_699_without_bypass' => [false, 12, 'none'],
         ];
@@ -246,7 +244,7 @@ class IntervalPlanTest extends TestCase
     public function test_actual_pagbank_webhook_persists_access_and_sync_releases_mac(bool $interval, int $hours, string $bypass): void
     {
         config(['logging.channels.pagbank' => config('logging.channels.null')]);
-        $payment = $this->purchase($hours);
+        $payment = $this->purchase($interval ? $hours : 24);
         if ($bypass !== 'none') {
             $this->checkoutBypass($payment, $bypass === 'denied', $bypass === 'old' ? 20 : 1);
         }
@@ -292,13 +290,13 @@ class IntervalPlanTest extends TestCase
         Carbon::setTestNow('2026-09-10 08:10:00');
         $response = app(PaymentController::class)->checkPixStatus(Request::create('/', 'GET', ['payment_id' => $payment->id]));
         $this->assertSame('completed', $response->getData(true)['payment']['status']);
-        $this->assertSame('2026-09-10 20:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame('2026-09-11 08:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
         $this->assertSame(1, IntervalAccessDay::count());
     }
 
     public function test_diagnostic_reports_active_policy_without_consuming_a_day(): void
     {
-        $payment = $this->purchase();
+        $payment = $this->purchase(24, '2026-09-10', '2026-09-11');
         $code = \Illuminate\Support\Facades\Artisan::call('interval:diagnose', ['payment' => $payment->id]);
         $this->assertSame(0, $code);
         $data = json_decode(\Illuminate\Support\Facades\Artisan::output(), true);
@@ -311,19 +309,19 @@ class IntervalPlanTest extends TestCase
 
     public function test_daily_window_survives_midnight_and_reconnect_without_renewal(): void
     {
-        $payment = $this->purchase();
+        $payment = $this->purchase(24, '2026-09-10', '2026-09-11');
         $plans = app(IntervalPlanService::class);
         Carbon::setTestNow('2026-09-10 21:00:00');
         $first = $plans->access($payment->user, true);
         Carbon::setTestNow('2026-09-11 07:00:00');
         $this->assertSame($first['expires_at'], $plans->access($payment->user, true)['expires_at']);
         $this->assertSame(1, IntervalAccessDay::count());
-        Carbon::setTestNow('2026-09-11 10:00:00');
+        Carbon::setTestNow('2026-09-11 22:00:00');
         $plans->access($payment->user, true);
-        $this->assertSame('2026-09-11 22:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame('2026-09-12 22:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
         $this->assertSame(2, IntervalAccessDay::count());
-        Carbon::setTestNow('2026-09-11 23:00:00');
-        $this->assertSame('used', $plans->access($payment->user, true)['state']);
+        Carbon::setTestNow('2026-09-12 23:00:00');
+        $this->assertSame('none', $plans->access($payment->user, true)['state']);
         $this->assertSame(2, IntervalAccessDay::count());
     }
 
@@ -344,10 +342,10 @@ class IntervalPlanTest extends TestCase
     {
         $payment = $this->purchase();
         SystemSetting::setValue('plan_interval_enabled', '0');
-        SystemSetting::setValue('plan_interval_price_12h', '99.99');
+        SystemSetting::setValue('plan_interval_price_24h', '99.99');
         $this->assertSame('active', app(IntervalPlanService::class)->access($payment->user, true)['state']);
-        $this->assertSame('20.97', $payment->fresh()->amount);
-        $this->assertSame(699, $payment->fresh()->payment_data['interval']['base_price_cents']);
+        $this->assertSame('41.94', $payment->fresh()->amount);
+        $this->assertSame(1398, $payment->fresh()->payment_data['interval']['base_price_cents']);
     }
 
     public function test_pending_and_refunded_payments_never_start_access(): void
@@ -383,7 +381,7 @@ class IntervalPlanTest extends TestCase
     public function test_paid_interval_replaces_three_minute_bypass_without_dhcp_report_and_preserves_both_days(): void
     {
         Carbon::setTestNow('2026-09-22 07:45:26');
-        $payment = $this->purchase(12, '2026-09-22', '2026-09-23');
+        $payment = $this->purchase(24, '2026-09-22', '2026-09-23');
         $payment->user->update(['last_mikrotik_id' => 'BUS1', 'status' => 'temp_bypass',
             'expires_at' => '2026-09-22 07:47:38']);
         $bus = Bus::create(['mikrotik_serial' => 'BUS1', 'name' => 'Teste',
@@ -394,22 +392,22 @@ class IntervalPlanTest extends TestCase
         $plans = app(IntervalPlanService::class);
         $this->assertSame(0, MikrotikMacReport::count());
         $this->assertSame('active', $controller->connect($request, $plans)->getData(true)['state']);
-        $this->assertSame('2026-09-22 19:45:26', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame('2026-09-23 07:45:26', $payment->user->fresh()->expires_at->toDateTimeString());
         Carbon::setTestNow('2026-09-22 09:17:00');
         $this->assertSame('active', $controller->connect($request, $plans)->getData(true)['state']);
-        $this->assertSame('2026-09-22 19:45:26', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame('2026-09-23 07:45:26', $payment->user->fresh()->expires_at->toDateTimeString());
         $this->assertSame(1, IntervalAccessDay::count());
         Carbon::setTestNow('2026-09-22 20:00:00');
-        $this->assertSame('used', $controller->connect($request, $plans)->getData(true)['state']);
-        Carbon::setTestNow('2026-09-23 21:10:00');
+        $this->assertSame('active', $controller->connect($request, $plans)->getData(true)['state']);
+        Carbon::setTestNow('2026-09-23 08:00:00');
         $bus->update(['last_sync_at' => now()]);
         $this->assertSame('active', $controller->connect($request, $plans)->getData(true)['state']);
-        $this->assertSame('2026-09-24 09:10:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame('2026-09-24 08:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
         $this->assertSame(2, IntervalAccessDay::count());
         $this->assertSame(2, Session::count());
-        Carbon::setTestNow('2026-09-24 09:10:01');
+        Carbon::setTestNow('2026-09-24 08:00:01');
         $this->assertSame('none', $controller->connect($request, $plans)->getData(true)['state']);
-        $this->assertSame('13.98', $payment->fresh()->amount);
+        $this->assertSame('27.96', $payment->fresh()->amount);
     }
 
     public function test_expired_bypass_can_start_paid_day_when_passenger_returns_to_portal(): void
@@ -424,7 +422,7 @@ class IntervalPlanTest extends TestCase
         $this->assertSame('active', app(IntervalAccessController::class)->connect($request,
             app(IntervalPlanService::class))->getData(true)['state']);
         $this->assertSame('connected', $payment->user->fresh()->status);
-        $this->assertSame('2026-09-10 20:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
+        $this->assertSame('2026-09-11 08:00:00', $payment->user->fresh()->expires_at->toDateTimeString());
     }
 
     public function test_missing_report_fallback_requires_matching_device_and_recent_same_bus(): void
@@ -461,7 +459,7 @@ class IntervalPlanTest extends TestCase
         $controller = app(MikrotikApiController::class);
         Cache::put('auto_heal_last_run', now(), 300);
         $this->assertStringContainsString('L:'.$payment->user->mac_address, $controller->checkPaidUsersLite($request)->getContent());
-        Carbon::setTestNow('2026-09-10 20:00:01');
+        Carbon::setTestNow('2026-09-11 08:00:01');
         Cache::forget('mikrotik_sync_lists_all');
         $response = $controller->checkPaidUsersLite($request)->getContent();
         $this->assertStringContainsString('R:'.$payment->user->mac_address, $response);
@@ -474,7 +472,7 @@ class IntervalPlanTest extends TestCase
         $response = app(PaymentController::class)->generatePixQRCode(Request::create('/', 'POST', [
             'user_id' => $payment->user_id, 'mac_address' => $payment->user->mac_address,
             'ip_address' => $payment->user->ip_address, 'plan_type' => 'interval',
-            'interval_start' => '2026-09-11', 'interval_end' => '2026-09-13', 'interval_hours' => 12,
+            'interval_start' => '2026-09-11', 'interval_end' => '2026-09-13', 'interval_hours' => 24,
         ]));
         $this->assertSame(422, $response->getStatusCode());
         $this->assertSame(1, Payment::count());
@@ -493,16 +491,16 @@ class IntervalPlanTest extends TestCase
         $request = Request::create('/', 'PUT', [
             'wifi_price' => '5.99', 'wifi_price_full' => '6.99', 'pix_gateway' => 'pagbank',
             'session_duration' => 12, 'session_duration_short' => 1, 'video_discount_amount' => 1,
-            'plan_interval_enabled' => '1', 'plan_interval_price_12h' => '7.50', 'plan_interval_max_days' => 15,
+            'plan_interval_enabled' => '1', 'plan_interval_price_24h' => '15.00', 'plan_interval_max_days' => 15,
         ]);
         $request->setLaravelSession(app('session')->driver());
         app(\App\Http\Controllers\Admin\SettingsController::class)->update($request);
         $settings = IntervalPlanService::settings();
-        $this->assertSame(7.5, $settings['price_12h']);
+        $this->assertSame(15.0, $settings['price_24h']);
         $this->assertSame(15, $settings['max_days']);
         $html = view('portal.partials.interval-plan', ['interval_plan' => $settings])->render();
         $this->assertStringContainsString('value="2026-09-11"', $html);
-        $this->assertStringContainsString('R$15,00', $html);
+        $this->assertStringContainsString('R$30,00', $html);
         $settings['enabled'] = false;
         $this->assertStringNotContainsString('id="interval-plan-option"', view('portal.partials.interval-plan', ['interval_plan' => $settings])->render());
     }

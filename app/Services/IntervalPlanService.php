@@ -55,10 +55,14 @@ class IntervalPlanService
 
     public static function settings(): array
     {
+        $legacyPrice12h = (float) SystemSetting::getValue('plan_interval_price_12h', '6.99');
+
         return [
             'enabled' => (bool) SystemSetting::getValue('plan_interval_enabled', '0'),
             'max_days' => max(2, (int) SystemSetting::getValue('plan_interval_max_days', '30')),
-            'price_12h' => (float) SystemSetting::getValue('plan_interval_price_12h', '6.99'),
+            // Compatibilidade: enquanto o novo valor não for salvo no painel,
+            // duas bases antigas de 12h formam a diária única de 24h.
+            'price_24h' => (float) SystemSetting::getValue('plan_interval_price_24h', (string) ($legacyPrice12h * 2)),
             'today' => now()->toDateString(),
             'tomorrow' => now()->addDay()->toDateString(),
         ];
@@ -78,7 +82,7 @@ class IntervalPlanService
         $data = Validator::make($input, [
             'interval_start' => 'required|date_format:Y-m-d|after_or_equal:today|before_or_equal:'.now()->addYear()->toDateString(),
             'interval_end' => 'required|date_format:Y-m-d|after_or_equal:interval_start',
-            'interval_hours' => 'required|integer|in:12,24',
+            'interval_hours' => 'required|integer|in:24',
         ])->validate();
         $start = CarbonImmutable::parse($data['interval_start']);
         $end = CarbonImmutable::parse($data['interval_end']);
@@ -86,8 +90,7 @@ class IntervalPlanService
         if ($days < 2 || $days > $settings['max_days']) {
             throw ValidationException::withMessages(['interval_end' => "Escolha de 2 a {$settings['max_days']} dias. Para um único dia, escolha Viagem completa."]);
         }
-        $baseCents = (int) round($settings['price_12h'] * 100);
-        $dailyCents = $baseCents * ((int) $data['interval_hours'] / 12);
+        $dailyCents = (int) round($settings['price_24h'] * 100);
 
         return [
             'plan_type' => 'interval',
@@ -98,10 +101,10 @@ class IntervalPlanService
                 'start' => $data['interval_start'],
                 'end' => $data['interval_end'],
                 'days' => $days,
-                'hours_per_day' => (int) $data['interval_hours'],
-                'base_price_cents' => $baseCents,
-                'daily_price_cents' => (int) $dailyCents,
-                'total_cents' => (int) ($dailyCents * $days),
+                'hours_per_day' => 24,
+                'base_price_cents' => $dailyCents,
+                'daily_price_cents' => $dailyCents,
+                'total_cents' => $dailyCents * $days,
                 'timezone' => config('app.timezone'),
             ],
         ];

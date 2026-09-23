@@ -8,11 +8,11 @@
             const fields = document.getElementById('interval-plan-fields');
             const start = document.getElementById('interval-start').value;
             const end = document.getElementById('interval-end').value;
-            const hours = Number(document.querySelector('[name="interval-hours"]:checked').value);
+            const hours = 24;
             const days = Math.round((dateNumber(end) - dateNumber(start)) / 86400000) + 1;
             const valid = Number.isFinite(days) && days >= 2 && days <= Number(fields.dataset.maxDays)
                 && start >= fields.dataset.today;
-            const dailyCents = Number(fields.dataset.baseCents) * (hours / 12);
+            const dailyCents = Number(fields.dataset.dailyCents);
             const totalCents = valid ? dailyCents * days : 0;
             document.getElementById('interval-summary').textContent = valid
                 ? `${days} dias · Total ${money(totalCents)}` : '';
