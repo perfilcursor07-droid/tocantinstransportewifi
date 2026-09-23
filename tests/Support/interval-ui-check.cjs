@@ -23,6 +23,8 @@ const path = require('node:path');
             assert.equal(await page.locator('#interval-end').inputValue(), start);
             assert.equal(await page.locator('[name="interval-hours"]').count(), 0);
             assert.match(await page.locator('#interval-plan-fields').textContent(), /24 horas corridas/);
+            assert.match(await page.locator('[data-payment-window]').textContent(), /^De \d{2}\/\d{2}\/\d{4} \d{2}:\d{2} até \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/);
+            assert.match(await page.locator('[data-payment-window-note]').textContent(), /confirmação do PIX/);
             await page.locator('#interval-end').fill(next);
             assert.match(await page.locator('#interval-summary').textContent(), /27,96/);
             assert.equal(await page.locator('#connect-btn').isDisabled(), false);

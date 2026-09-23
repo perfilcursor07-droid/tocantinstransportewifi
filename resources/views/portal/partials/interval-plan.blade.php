@@ -17,7 +17,8 @@
         </button>
     </div>
     <div id="interval-plan-fields" class="hidden py-1.5 space-y-1.5" data-max-days="{{ $interval_plan['max_days'] }}"
-        data-daily-cents="{{ (int) round($interval_plan['price_24h'] * 100) }}" data-today="{{ $interval_plan['today'] }}">
+        data-daily-cents="{{ (int) round($interval_plan['price_24h'] * 100) }}" data-today="{{ $interval_plan['today'] }}"
+        data-timezone="{{ config('app.timezone') }}">
         <div class="grid grid-cols-2 gap-1.5">
             <label class="block min-w-0 text-[10px] font-semibold leading-tight text-ink" for="interval-start">Início
                 <input id="interval-start" type="date" required min="{{ $interval_plan['today'] }}" value="{{ $interval_plan['today'] }}"
@@ -33,6 +34,11 @@
             <span class="text-xs font-extrabold text-green-dark">24 horas corridas</span>
         </div>
         <p id="interval-summary" class="text-xs font-bold leading-tight text-green-dark" aria-live="polite"></p>
+        <div id="interval-payment-window" class="rounded-md border border-green/20 bg-white px-2.5 py-2 text-[10px] leading-tight text-gray-600" aria-live="polite">
+            <span data-payment-window-title class="block font-semibold text-green-dark">Pagando agora, sua primeira diária:</span>
+            <strong data-payment-window class="mt-0.5 block text-xs text-ink"></strong>
+            <span data-payment-window-note class="mt-0.5 block">Começa na confirmação do PIX e dura 24 horas corridas.</span>
+        </div>
         <p id="interval-error" class="text-xs text-red-700 hidden" role="alert"></p>
     </div>
 @endif

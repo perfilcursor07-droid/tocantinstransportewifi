@@ -2,6 +2,27 @@
     'use strict';
     const money = cents => (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     const dateNumber = value => /^\d{4}-\d{2}-\d{2}$/.test(value) ? Date.parse(`${value}T00:00:00Z`) : NaN;
+    const dateTime = (value, timeZone) => new Intl.DateTimeFormat('pt-BR', {
+        timeZone, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    }).format(value).replace(',', '');
+
+    const updatePaymentWindow = (fields, start) => {
+        const title = document.querySelector('[data-payment-window-title]');
+        const range = document.querySelector('[data-payment-window]');
+        const note = document.querySelector('[data-payment-window-note]');
+        if (!title || !range || !note) return;
+        if (start !== fields.dataset.today) {
+            title.textContent = 'Sua primeira diária na data escolhida:';
+            range.textContent = `Na data escolhida, a partir do horário em que você acessar.`;
+            note.textContent = 'Cada diária termina 24 horas depois da ativação.';
+            return;
+        }
+        const startsAt = new Date();
+        const endsAt = new Date(startsAt.getTime() + 24 * 60 * 60 * 1000);
+        title.textContent = 'Pagando agora, sua primeira diária:';
+        range.textContent = `De ${dateTime(startsAt, fields.dataset.timezone)} até ${dateTime(endsAt, fields.dataset.timezone)}`;
+        note.textContent = 'Começa na confirmação do PIX e dura 24 horas corridas.';
+    };
 
     window.IntervalPlan = {
         selection() {
@@ -14,6 +35,7 @@
                 && start >= fields.dataset.today;
             const dailyCents = Number(fields.dataset.dailyCents);
             const totalCents = valid ? dailyCents * days : 0;
+            updatePaymentWindow(fields, start);
             document.getElementById('interval-summary').textContent = valid
                 ? `${days} dias · Total ${money(totalCents)}` : '';
             const error = document.getElementById('interval-error');
@@ -96,5 +118,11 @@
                 window.IntervalAccess.connect(window.wifiPortal);
             }
         });
+        window.setInterval?.(() => {
+            const card = document.getElementById('interval-plan-option');
+            if (card?.classList.contains('plan-card-selected')) {
+                updatePaymentWindow(fields, document.getElementById('interval-start').value);
+            }
+        }, 30000);
     });
 })();
