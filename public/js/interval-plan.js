@@ -10,14 +10,14 @@
             const end = document.getElementById('interval-end').value;
             const hours = 24;
             const days = Math.round((dateNumber(end) - dateNumber(start)) / 86400000) + 1;
-            const valid = Number.isFinite(days) && days >= 2 && days <= Number(fields.dataset.maxDays)
+            const valid = Number.isFinite(days) && days >= 1 && days <= Number(fields.dataset.maxDays)
                 && start >= fields.dataset.today;
             const dailyCents = Number(fields.dataset.dailyCents);
             const totalCents = valid ? dailyCents * days : 0;
             document.getElementById('interval-summary').textContent = valid
                 ? `${days} dias · Total ${money(totalCents)}` : '';
             const error = document.getElementById('interval-error');
-            error.textContent = valid ? '' : `Escolha de 2 a ${fields.dataset.maxDays} dias. Para um único dia, escolha Viagem completa.`;
+            error.textContent = valid ? '' : `Escolha de 1 a ${fields.dataset.maxDays} dias.`;
             error.classList.toggle('hidden', valid);
             document.querySelector('#interval-plan-option [data-plan-price-display]').textContent = valid ? money(totalCents) : '--';
             return { amount: totalCents / 100, duration: hours, name: 'Plano por intervalo', suffix: `/ ${days || 0} dia(s)`,
@@ -78,7 +78,7 @@
         fields?.addEventListener('change', event => {
             if (event.target.id === 'interval-start' && Number.isFinite(dateNumber(event.target.value))) {
                 const end = document.getElementById('interval-end');
-                const minimum = new Date(dateNumber(event.target.value) + 86400000).toISOString().slice(0, 10);
+                const minimum = event.target.value;
                 end.min = minimum;
                 end.max = new Date(dateNumber(event.target.value) + (Number(fields.dataset.maxDays) - 1) * 86400000).toISOString().slice(0, 10);
                 if (!end.value || end.value < minimum) end.value = minimum;

@@ -59,7 +59,7 @@ class IntervalPlanService
 
         return [
             'enabled' => (bool) SystemSetting::getValue('plan_interval_enabled', '0'),
-            'max_days' => max(2, (int) SystemSetting::getValue('plan_interval_max_days', '30')),
+            'max_days' => max(1, (int) SystemSetting::getValue('plan_interval_max_days', '30')),
             // Compatibilidade: enquanto o novo valor não for salvo no painel,
             // duas bases antigas de 12h formam a diária única de 24h.
             'price_24h' => (float) SystemSetting::getValue('plan_interval_price_24h', (string) ($legacyPrice12h * 2)),
@@ -87,8 +87,8 @@ class IntervalPlanService
         $start = CarbonImmutable::parse($data['interval_start']);
         $end = CarbonImmutable::parse($data['interval_end']);
         $days = (int) $start->diffInDays($end) + 1;
-        if ($days < 2 || $days > $settings['max_days']) {
-            throw ValidationException::withMessages(['interval_end' => "Escolha de 2 a {$settings['max_days']} dias. Para um único dia, escolha Viagem completa."]);
+        if ($days < 1 || $days > $settings['max_days']) {
+            throw ValidationException::withMessages(['interval_end' => "Escolha de 1 a {$settings['max_days']} dias."]);
         }
         $dailyCents = (int) round($settings['price_24h'] * 100);
 

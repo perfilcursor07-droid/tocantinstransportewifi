@@ -193,7 +193,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="plan_interval_max_days" class="block text-sm font-semibold mb-2">Máximo de dias por intervalo</label>
-                        <input id="plan_interval_max_days" name="plan_interval_max_days" type="number" min="2" max="90" required
+                        <input id="plan_interval_max_days" name="plan_interval_max_days" type="number" min="1" max="90" required
                             value="{{ old('plan_interval_max_days', $settings['plan_interval_max_days']) }}"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2">
                         @error('plan_interval_max_days')<p class="text-sm text-red-600 mt-1">{{ $message }}</p>@enderror

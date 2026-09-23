@@ -42,7 +42,7 @@ class SettingsController extends Controller
     {
         $request->validate([
             'plan_interval_enabled' => 'nullable|in:0,1',
-            'plan_interval_max_days' => 'required|integer|min:2|max:90',
+            'plan_interval_max_days' => 'required|integer|min:1|max:90',
             'plan_interval_price_24h' => 'required|numeric|min:0.05|max:999.99|decimal:0,2',
             'wifi_price' => 'required|numeric|min:0.01|max:999.99',
             'wifi_price_full' => 'required|numeric|min:0.01|max:999.99',

@@ -70,11 +70,12 @@ class IntervalPlanTest extends TestCase
     {
         $this->assertSame(4194, $this->quote()['interval']['total_cents']);
         $this->assertSame(2796, $this->quote(24, '2026-09-10', '2026-09-11')['interval']['total_cents']);
+        $this->assertSame(1398, $this->quote(24, '2026-09-10', '2026-09-10')['interval']['total_cents']);
     }
 
     public function test_invalid_intervals_and_disabled_sales_are_rejected(): void
     {
-        foreach ([['2026-09-10', '2026-09-10', 24], ['2026-09-09', '2026-09-10', 24], ['2026-09-12', '2026-09-10', 24],
+        foreach ([['2026-09-09', '2026-09-10', 24], ['2026-09-12', '2026-09-10', 24],
             ['2026-09-10', '2026-11-10', 24], ['2026-09-10', '2026-09-11', 12],
             ['2026-09-10', '2026-09-11', 13], ['2026-02-30', '2026-09-11', 24]] as [$start, $end, $hours]) {
             try { $this->quote($hours, $start, $end); $this->fail('Invalid interval accepted'); }
@@ -91,14 +92,14 @@ class IntervalPlanTest extends TestCase
         $request = Request::create('/api/payment/pix/generate-qr', 'POST', [
             'user_id' => $user->id, 'mac_address' => $user->mac_address, 'ip_address' => $user->ip_address,
             'amount' => 0.05, 'plan_duration' => 9999, 'plan_type' => 'interval',
-            'interval_start' => '2026-09-10', 'interval_end' => '2026-09-12', 'interval_hours' => 24,
+            'interval_start' => '2026-09-10', 'interval_end' => '2026-09-10', 'interval_hours' => 24,
         ]);
         $response = app(PaymentController::class)->generatePixQRCode($request);
         $this->assertSame(200, $response->getStatusCode(), $response->getContent());
         $payment = Payment::firstOrFail();
-        $this->assertSame('41.94', $payment->amount);
+        $this->assertSame('13.98', $payment->amount);
         $this->assertSame(24, $payment->payment_data['duration_hours']);
-        $this->assertSame('41.94', $response->getData(true)['qr_code']['amount']);
+        $this->assertSame('13.98', $response->getData(true)['qr_code']['amount']);
         $this->assertSame(0, IntervalAccessDay::count());
     }
 
@@ -499,8 +500,8 @@ class IntervalPlanTest extends TestCase
         $this->assertSame(15.0, $settings['price_24h']);
         $this->assertSame(15, $settings['max_days']);
         $html = view('portal.partials.interval-plan', ['interval_plan' => $settings])->render();
-        $this->assertStringContainsString('value="2026-09-11"', $html);
-        $this->assertStringContainsString('R$30,00', $html);
+        $this->assertStringContainsString('value="2026-09-10"', $html);
+        $this->assertStringContainsString('R$15,00', $html);
         $settings['enabled'] = false;
         $this->assertStringNotContainsString('id="interval-plan-option"', view('portal.partials.interval-plan', ['interval_plan' => $settings])->render());
     }

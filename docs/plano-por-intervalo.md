@@ -9,13 +9,14 @@ php artisan migrate --path=database/migrations/2026_09_10_000001_create_interval
 php artisan view:clear
 ```
 
-Em `/admin/settings`, ativar Plano por intervalo, definir o limite (2 a 90 dias)
+Em `/admin/settings`, ativar Plano por intervalo, definir o limite (1 a 90 dias)
 e o preco da diaria de 24h. A opcao nasce desativada. Desativar vendas nao cancela
 intervalos ja pagos. Nenhuma alteracao nos scripts do MikroTik e necessaria.
 
 ## Regra de compra e uso
 
-- As duas datas contam: de 10 a 11 sao duas diarias. Padrao: hoje ate amanha.
+- As duas datas contam: de 10 a 11 sao duas diarias. Para uma unica diaria,
+  inicio e final ficam na mesma data. Padrao: hoje.
 - Com a diaria de 24h em R$13,98, duas diarias custam R$27,96.
 - O servidor calcula o valor e guarda as condicoes no pagamento. O intervalo
   nao recebe o desconto por video dos planos avulsos.
