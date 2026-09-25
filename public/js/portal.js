@@ -1433,23 +1433,31 @@ class WiFiPortal {
         
         // Detectar se é dispositivo móvel
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
+
+        // Somente exibição: preço no formato brasileiro e o que está sendo comprado.
+        const amountNumber = Number(data.qr_code.amount);
+        const amountLabel = Number.isFinite(amountNumber)
+            ? amountNumber.toFixed(2).replace('.', ',')
+            : data.qr_code.amount;
+        const selectedPlan = window.WIFI_SELECTED_PLAN || {};
+        const planLabel = selectedPlan.plan_type === 'interval'
+            ? 'Vários dias · 24 horas por dia'
+            : (selectedPlan.duration
+                ? `${selectedPlan.duration} ${Number(selectedPlan.duration) === 1 ? 'hora' : 'horas'} de internet`
+                : 'Internet no ônibus');
+
         modal.innerHTML = `
             <div class="flex items-center justify-center min-h-screen p-2 overflow-y-auto">
                 <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl my-2 max-h-[98vh] flex flex-col overflow-hidden">
-                    
-                    <!-- Header -->
+
+                    <!-- Header: o que está comprando + valor -->
                     <div class="bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-3 text-white">
-                        <div class="flex justify-between items-center">
-                            <div class="flex items-center gap-2">
-                                <div class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                </div>
-                                <span class="text-sm font-bold">Pagamento PIX</span>
+                        <div class="flex justify-between items-center gap-3">
+                            <div class="min-w-0">
+                                <p class="text-[15px] font-extrabold leading-tight">Pagamento PIX</p>
+                                <p class="text-[12px] text-emerald-100 leading-tight mt-0.5 truncate">${planLabel}</p>
                             </div>
-                            <div class="text-right">
-                                <span class="text-xl font-extrabold">R$ ${data.qr_code.amount}</span>
-                            </div>
+                            <span class="text-2xl font-black whitespace-nowrap tracking-tight">R$ ${amountLabel}</span>
                         </div>
                     </div>
                     
@@ -1483,90 +1491,78 @@ class WiFiPortal {
                     <!-- Área de Conteúdo Dinâmico -->
                     <div id="dynamic-content" class="p-3 flex-1 overflow-y-auto">
                         
-                        <!-- PASSO 1: QR Code + Copia e Cola (visível inicialmente) -->
+                        <!-- PASSO 1: Copia e Cola (ação principal) + QR para outro aparelho -->
                         <div id="step-1-content" class="hidden">
 
-                            <!-- Status bypass / instruções (atualizado após API) -->
-                            <div id="bypass-status-banner" class="bg-slate-50 border-2 border-slate-200 rounded-xl p-3 mb-3 shadow-sm">
-                                <div class="flex items-start gap-2.5">
-                                    <div id="bypass-banner-icon" class="w-10 h-10 bg-slate-400 rounded-full flex items-center justify-center flex-shrink-0 shadow">
-                                        <div class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                            <!-- Status / instrução. Antes de copiar mostra o texto abaixo;
+                                 depois de copiar, updateBypassBanner() assume este bloco. -->
+                            <div id="bypass-status-banner" class="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-3 mb-3">
+                                <div class="flex items-center gap-2.5">
+                                    <div id="bypass-banner-icon" class="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 shadow">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
                                     </div>
                                     <div class="min-w-0">
-                                        <p id="bypass-banner-title" class="text-slate-900 font-extrabold text-base leading-tight">Preparando pagamento...</p>
-                                        <p id="bypass-banner-text" class="text-slate-700 text-[13px] mt-1 leading-snug">
-                                            <strong>1.</strong> Copie o código PIX abaixo<br>
-                                            <strong>2.</strong> Abra o app do banco e <strong>cole</strong> o código<br>
-                                            <strong>3.</strong> Confirme o pagamento — o WiFi libera sozinho
-                                        </p>
+                                        <p id="bypass-banner-title" class="text-emerald-900 font-extrabold text-[15px] leading-tight">Falta pouco! Copie o código</p>
+                                        <p id="bypass-banner-text" class="text-emerald-800 text-[13px] mt-0.5 leading-snug">Depois cole no app do seu banco. O WiFi libera sozinho.</p>
                                     </div>
                                 </div>
                             </div>
 
-                            
-                            <!-- QR Code (celular e desktop) — para pagar neste aparelho ou em outro -->
-                            <div class="text-center mb-2">
-                                <div class="bg-white p-2 rounded-xl border-2 border-dashed border-emerald-300 inline-block shadow-sm">
+                            <!-- QR Code (para pagar com outro aparelho) -->
+                            <div class="text-center mb-3">
+                                <div class="bg-white p-1.5 rounded-xl border-2 border-dashed border-emerald-300 inline-block">
                                     <div id="pix-qr-local" class="w-36 h-36 mx-auto flex items-center justify-center"></div>
                                 </div>
-                                <p class="text-gray-500 text-[12px] mt-1 leading-snug"><strong>Vai pagar neste celular?</strong> Copie o código abaixo. Use o QR Code somente para pagar com outro aparelho.</p>
                             </div>
 
-                            <div class="flex items-center gap-2 mb-2">
-                                <div class="flex-1 h-px bg-gray-200"></div>
-                                <span class="text-[12px] ${isMobile ? 'text-blue-700 font-bold' : 'text-gray-500 font-medium'}">PASSO 1 — COPIE O CÓDIGO</span>
-                                <div class="flex-1 h-px bg-gray-200"></div>
+                            <!-- Copia e Cola: ação principal -->
+                            <button id="copy-pix-code" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-black py-4 rounded-xl text-lg transition-all flex items-center justify-center gap-2 shadow-md">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                COPIAR CÓDIGO PIX
+                            </button>
+                            <div class="mt-2 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1 max-h-10 overflow-y-auto">
+                                <p class="text-[11px] text-gray-500 break-all font-mono leading-snug" id="pix-code">${data.qr_code.emv_string}</p>
                             </div>
-                            
-                            <!-- Copia e Cola -->
-                            <div class="bg-blue-50 rounded-xl p-2.5 mb-2 border border-blue-200">
-                                <div class="bg-white border border-blue-200 rounded-lg p-2 mb-2 max-h-16 overflow-y-auto">
-                                    <p class="text-[11px] text-gray-600 break-all font-mono leading-relaxed" id="pix-code">${data.qr_code.emv_string}</p>
-                                </div>
-                                <button id="copy-pix-code" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold py-3 rounded-lg text-base transition-all flex items-center justify-center gap-1.5 shadow-sm">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                                    COPIAR CÓDIGO PIX
-                                </button>
-                            </div>
-                            
-                            <!-- Passo 2: abrir banco (aparece após copiar) -->
-                            <div id="open-bank-area" class="hidden mb-2">
-                                <div class="flex items-center gap-2 mb-1.5">
-                                    <div class="flex-1 h-px bg-gray-200"></div>
-                                    <span class="text-[12px] text-emerald-700 font-bold">PASSO 2 — ABRA O BANCO E COLE</span>
-                                    <div class="flex-1 h-px bg-gray-200"></div>
-                                </div>
+
+                            <!-- Próxima ação (aparece após copiar) -->
+                            <div id="open-bank-area" class="hidden mt-3">
                                 <div id="after-copy-hint" class="hidden">
-                                    <div id="after-copy-hint-box" class="bg-emerald-50 border border-emerald-300 rounded-lg p-2.5">
-                                        <p id="after-copy-title" class="text-emerald-800 font-bold text-sm">✅ Código copiado! Agora abra o <strong>app do banco</strong> e cole o PIX.</p>
-                                        <p id="after-copy-sub" class="text-emerald-600 text-[12px] mt-1">Acesso autorizado para pagar. Aguarde até 30 segundos para o Wi-Fi conectar e abra o banco.</p>
+                                    <div id="after-copy-hint-box" class="flex items-center gap-3 bg-emerald-50 border-2 border-emerald-400 rounded-xl p-3">
+                                        <span class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                                        </span>
+                                        <div class="min-w-0">
+                                            <p id="after-copy-title" class="text-emerald-900 font-extrabold text-[15px] leading-tight">Agora abra o app do seu banco</p>
+                                            <p id="after-copy-sub" class="text-emerald-800 text-[13px] mt-0.5 leading-snug">Toque em <strong>PIX Copia e Cola</strong> e cole o código.</p>
+                                        </div>
                                     </div>
                                 </div>
                                 <div id="limit-copy-hint" class="hidden">
-                                    <div class="bg-red-50 border border-red-300 rounded-lg p-2.5">
-                                        <p class="text-red-800 font-bold text-xs">⚠️ Limite de liberações usado — ligue o <strong>4G</strong> para abrir o app do banco e colar o código.</p>
+                                    <div class="bg-red-50 border-2 border-red-300 rounded-xl p-3">
+                                        <p class="text-red-800 font-bold text-[13px] leading-snug">⚠️ Limite de liberações usado — ligue o <strong>4G</strong> para abrir o app do banco e colar o código.</p>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Timer da liberação temporária -->
-                            <div class="flex items-center justify-center mb-2">
-                                <div class="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 border">
+
+                            <!-- Tempo para pagar -->
+                            <div class="mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 rounded-xl bg-gray-50 border border-gray-200 px-3 py-2">
+                                <span class="flex items-center gap-1.5 text-[13px] text-gray-600 font-semibold whitespace-nowrap">
                                     <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                    <span class="text-[13px] text-gray-500 font-semibold">Tempo para pagar</span>
-                                    <span id="pix-timer-text" class="text-lg font-black text-gray-800 tabular-nums">03:00</span>
-                                </div>
+                                    Tempo para pagar
+                                </span>
+                                <span id="pix-timer-text" class="ml-auto text-xl font-black text-gray-800 tabular-nums whitespace-nowrap">03:00</span>
                             </div>
-                            
-                            <!-- Indicador de verificação automática -->
-                            <div id="auto-check-indicator" class="flex items-center justify-center gap-2 py-1.5">
+
+                            <!-- Confiança: verificação automática -->
+                            <div id="auto-check-indicator" class="flex items-center justify-center gap-2 pt-2">
                                 <div class="flex gap-1">
                                     <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
                                     <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" style="animation-delay:0.2s"></div>
                                     <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" style="animation-delay:0.4s"></div>
                                 </div>
-                                <span class="text-[12px] text-gray-500">Pagamento verificado automaticamente. O WiFi libera sozinho.</span>
+                                <span class="text-[12px] text-gray-600">🔒 Pago no seu banco · o WiFi libera sozinho</span>
                             </div>
+
                         </div>
                         
                         <!-- PASSO 2: Verificando / Pagamento Confirmado -->
@@ -1607,7 +1603,7 @@ class WiFiPortal {
                                         <svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                                     </div>
                                     <p class="text-emerald-700 font-extrabold text-lg">Pagamento Confirmado!</p>
-                                    <p class="text-emerald-600 text-xs mt-0.5">R$ ${data.qr_code.amount} recebido</p>
+                                    <p class="text-emerald-600 text-xs mt-0.5">R$ ${amountLabel} recebido</p>
                                 </div>
                                 <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5">
                                     <div class="flex items-center justify-center gap-1.5">
@@ -2257,11 +2253,11 @@ class WiFiPortal {
         };
 
         const s = styles[mode] || styles.checking;
-        banner.className = `${s.banner} rounded-xl p-3 mb-3 shadow-sm`;
+        banner.className = `${s.banner} rounded-xl p-3 mb-3`;
         iconEl.className = `w-10 h-10 ${s.icon} rounded-full flex items-center justify-center flex-shrink-0 shadow`;
         iconEl.innerHTML = s.iconHtml;
-        titleEl.className = `${s.title} font-extrabold text-sm leading-tight`;
-        textEl.className = `${s.text} text-[11px] mt-1 leading-snug`;
+        titleEl.className = `${s.title} font-extrabold text-[15px] leading-tight`;
+        textEl.className = `${s.text} text-[13px] mt-0.5 leading-snug`;
 
         if (mode === 'checking') {
             titleEl.textContent = 'Preparando pagamento...';
@@ -2270,8 +2266,10 @@ class WiFiPortal {
             const remaining = options.remaining ?? 0;
             this._bypassRemaining = remaining;
             const extra = this.remainingBypassLabel(remaining);
-            titleEl.textContent = this._bypassAlreadyConnected ? 'Seu acesso já está ativo' : 'Acesso temporário autorizado';
-            textEl.innerHTML = `O código PIX já foi copiado. Aguarde até 30 segundos para o Wi-Fi conectar, abra o banco e cole para pagar. O acesso completo libera automaticamente após o PIX.${this._bypassAlreadyConnected ? '' : extra}`;
+            titleEl.textContent = this._bypassAlreadyConnected ? 'Seu acesso já está ativo' : 'Internet liberada para pagar';
+            textEl.innerHTML = this._bypassAlreadyConnected
+                ? 'Código copiado. Pode abrir o banco agora.'
+                : `Código copiado. Espere até 30 segundos para o WiFi conectar.${extra}`;
         } else if (mode === 'limit') {
             titleEl.textContent = 'Limite de liberações usado';
             textEl.innerHTML = 'Você já usou as <strong>2 liberações por hora</strong> neste aparelho. Copie o código abaixo e pague com <strong>dados móveis (4G) ligados</strong>, ou aguarde 1 hora.';

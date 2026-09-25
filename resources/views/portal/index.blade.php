@@ -100,8 +100,8 @@
         }
         .plan-tag {
             position: absolute; top: 0; z-index: 10; pointer-events: none;
-            font-size: 10px; font-weight: 800; line-height: 1; letter-spacing: .01em;
-            padding: 5px 9px; border-radius: 999px; white-space: nowrap;
+            font-size: 11px; font-weight: 800; line-height: 1; letter-spacing: .01em;
+            padding: 5px 10px; border-radius: 999px; white-space: nowrap;
             box-shadow: 0 2px 6px rgba(0,0,0,0.08);
         }
         .hero-gradient {
@@ -408,59 +408,40 @@
     <div class="min-h-screen flex flex-col">
 
         <!-- Hero: marca + como funciona -->
-        <header class="hero-gradient relative overflow-hidden text-white px-4 pt-3 pb-10 sm:pt-5 sm:pb-12">
+        <header class="hero-gradient relative overflow-hidden text-white px-4 pt-4 pb-9 sm:pt-5 sm:pb-11">
             <div class="pointer-events-none absolute -top-16 -right-10 w-48 h-48 rounded-full bg-white/10 blur-2xl"></div>
-            <div class="pointer-events-none absolute -bottom-20 -left-10 w-56 h-56 rounded-full bg-emerald-300/20 blur-3xl"></div>
 
             <div class="relative max-w-lg mx-auto">
-                <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-2.5 min-w-0">
-                        <div class="w-10 h-10 rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur flex items-center justify-center flex-shrink-0">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
-                        </div>
-                        <div class="min-w-0">
-                            <p class="text-[16px] font-black leading-tight tracking-tight">WiFi Tocantins</p>
-                            <p class="text-[11px] text-white/75 leading-tight truncate">Internet no ônibus · via Starlink</p>
-                        </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-white/15 ring-1 ring-white/25 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
                     </div>
-                    <span class="hidden min-[380px]:inline-flex items-center gap-1.5 rounded-full bg-white/15 ring-1 ring-white/25 px-2.5 py-1 text-[10px] font-bold whitespace-nowrap">
-                        <span class="relative flex h-2 w-2">
-                            <span class="absolute inline-flex h-full w-full rounded-full bg-lime-300 opacity-75 animate-ping"></span>
-                            <span class="relative inline-flex h-2 w-2 rounded-full bg-lime-300"></span>
-                        </span>
-                        Alta velocidade
-                    </span>
+                    <div class="min-w-0">
+                        <p class="text-lg font-black leading-tight tracking-tight">WiFi Tocantins</p>
+                        <p class="text-[13px] text-white/85 leading-tight">Internet no ônibus via Starlink</p>
+                    </div>
                 </div>
 
-                <!-- Como funciona: 3 passos (antes dos planos, guia o usuário) -->
-                <ol class="mt-3 flex items-stretch gap-1">
-                    <li class="flex-1 min-w-0 rounded-xl bg-white/10 ring-1 ring-white/15 px-0.5 py-1.5 text-center">
-                        <span class="mx-auto mb-0.5 flex w-6 h-6 items-center justify-center rounded-full bg-white text-green-dark shadow-sm">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"/></svg>
-                        </span>
-                        <p class="text-[11px] font-extrabold leading-tight">1. WiFi</p>
-                        <p class="text-[9px] text-white/70 leading-tight tracking-tight truncate">TocantinsTransporteWifi</p>
+                <!-- Como funciona: o que o passageiro faz NESTA tela -->
+                <ol class="mt-4 grid grid-cols-3 gap-1.5" aria-label="Como funciona">
+                    <li class="flex items-center gap-1.5 rounded-xl bg-white/10 ring-1 ring-white/15 px-2 py-2">
+                        <span aria-hidden="true" class="flex w-6 h-6 flex-shrink-0 items-center justify-center rounded-full bg-white text-green-dark text-[13px] font-black">1</span>
+                        <span class="text-[12px] font-bold leading-tight">Escolha o plano</span>
                     </li>
-                    <li class="flex-1 min-w-0 rounded-xl bg-white/10 ring-1 ring-white/15 px-0.5 py-1.5 text-center">
-                        <span class="mx-auto mb-0.5 flex w-6 h-6 items-center justify-center rounded-full bg-white text-green-dark shadow-sm">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg>
-                        </span>
-                        <p class="text-[11px] font-extrabold leading-tight">2. PIX</p>
-                        <p class="text-[9px] text-white/70 leading-tight">copie e cole</p>
+                    <li class="flex items-center gap-1.5 rounded-xl bg-white/10 ring-1 ring-white/15 px-2 py-2">
+                        <span aria-hidden="true" class="flex w-6 h-6 flex-shrink-0 items-center justify-center rounded-full bg-white text-green-dark text-[13px] font-black">2</span>
+                        <span class="text-[12px] font-bold leading-tight">Pague no PIX</span>
                     </li>
-                    <li class="flex-1 min-w-0 rounded-xl bg-white/10 ring-1 ring-white/15 px-0.5 py-1.5 text-center">
-                        <span class="mx-auto mb-0.5 flex w-6 h-6 items-center justify-center rounded-full bg-lime-300 text-green-dark shadow-sm">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                        </span>
-                        <p class="text-[11px] font-extrabold leading-tight">3. Pronto</p>
-                        <p class="text-[9px] text-white/70 leading-tight">libera rápido</p>
+                    <li class="flex items-center gap-1.5 rounded-xl bg-white/10 ring-1 ring-white/15 px-2 py-2">
+                        <span aria-hidden="true" class="flex w-6 h-6 flex-shrink-0 items-center justify-center rounded-full bg-lime-300 text-green-dark text-[13px] font-black">3</span>
+                        <span class="text-[12px] font-bold leading-tight">Pronto, navegue</span>
                     </li>
                 </ol>
             </div>
         </header>
 
-        <!-- Conteudo Principal -->
-        <main class="relative flex-1 px-4 -mt-7 pb-5 sm:pb-8">
+        <!-- Conteudo Principal (pb-24: o botão flutuante do chat não cobre o fim da página) -->
+        <main class="relative flex-1 px-4 -mt-6 pb-24">
             <div class="max-w-lg mx-auto space-y-3 sm:space-y-4">
 
                 <!-- Status de conexão: dinâmico — re-testa o WiFi do ônibus a cada 5s -->
@@ -472,8 +453,8 @@
                             <svg id="wifi-status-icon-on" class="w-5 h-5 text-white hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                         </div>
                         <div class="min-w-0 flex-1">
-                            <p id="wifi-status-title" class="text-amber-900 font-extrabold text-sm leading-tight">Conecte no WiFi do ônibus para pagar</p>
-                            <p id="wifi-status-text" class="text-amber-800 text-[11px] mt-0.5 leading-snug">Entre na rede <strong>"TocantinsTransporteWifi"</strong> e depois pague. <button type="button" onclick="showNoWifiWarning()" class="font-bold underline underline-offset-2">Ver como</button></p>
+                            <p id="wifi-status-title" class="text-amber-900 font-extrabold text-[15px] leading-tight">Conecte no WiFi do ônibus para pagar</p>
+                            <p id="wifi-status-text" class="text-amber-800 text-[13px] mt-1 leading-snug">Entre na rede <strong>"TocantinsTransporteWifi"</strong> e depois pague. <button type="button" onclick="showNoWifiWarning()" class="font-bold underline underline-offset-2">Ver como</button></p>
                         </div>
                     </div>
                 </section>
@@ -493,18 +474,18 @@
                         if (connected) {
                             card.className = 'bg-green-pale border border-green/40 rounded-2xl px-4 py-3 shadow-lg shadow-green-900/5 transition-colors duration-300';
                             icon.className = 'w-10 h-10 rounded-xl bg-green flex items-center justify-center flex-shrink-0 shadow-sm transition-colors duration-300';
-                            title.className = 'text-green-dark font-extrabold text-sm leading-tight';
+                            title.className = 'text-green-dark font-extrabold text-[15px] leading-tight';
                             title.textContent = '✓ Conectado ao WiFi do ônibus';
-                            text.className = 'text-green-dark/80 text-[11px] mt-0.5 leading-snug';
+                            text.className = 'text-green-dark/80 text-[13px] mt-1 leading-snug';
                             text.innerHTML = 'Tudo certo! Escolha o plano abaixo e pague no PIX.';
                             iconOff.classList.add('hidden');
                             iconOn.classList.remove('hidden');
                         } else {
                             card.className = 'bg-amber-50 border border-amber-300 rounded-2xl px-4 py-3 shadow-lg shadow-amber-900/5 transition-colors duration-300';
                             icon.className = 'w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center flex-shrink-0 shadow-sm transition-colors duration-300';
-                            title.className = 'text-amber-900 font-extrabold text-sm leading-tight';
+                            title.className = 'text-amber-900 font-extrabold text-[15px] leading-tight';
                             title.textContent = 'Conecte no WiFi do ônibus para pagar';
-                            text.className = 'text-amber-800 text-[11px] mt-0.5 leading-snug';
+                            text.className = 'text-amber-800 text-[13px] mt-1 leading-snug';
                             text.innerHTML = 'Entre na rede <strong>"TocantinsTransporteWifi"</strong> e depois pague. <button type="button" onclick="showNoWifiWarning()" class="font-bold underline underline-offset-2">Ver como</button>';
                             iconOn.classList.add('hidden');
                             iconOff.classList.remove('hidden');
@@ -527,59 +508,41 @@
 
                 <!-- Card de Planos -->
                 <section class="glass-card rounded-3xl overflow-hidden animate-slide-up">
-                    <div class="px-4 pt-3.5 pb-3 sm:px-5 sm:pt-5">
-                        <div class="flex items-center justify-between mb-2.5">
-                            <p class="text-[17px] font-black text-ink tracking-tight leading-tight">Escolha seu plano</p>
-                            <span class="inline-flex items-center gap-1 text-[10px] font-bold text-green-dark bg-green-pale ring-1 ring-green/20 px-2.5 py-1 rounded-full">
-                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L4.5 13.5H11L10 22l8.5-11.5H12L13 2z"/></svg>
-                                PIX instantâneo
-                            </span>
-                        </div>
+                    <div class="px-4 pt-4 pb-3 sm:px-5 sm:pt-5">
+                        <h2 class="text-lg font-black text-ink tracking-tight leading-tight mb-3">Escolha seu plano</h2>
 
                         <div id="interval-access-status" hidden class="mb-3 rounded-xl border border-green/30 bg-green-pale px-3 py-2 text-sm" aria-live="polite">
                             <p data-interval-message></p>
                             <button type="button" hidden class="mt-2 font-bold text-green-dark underline">Verificar diária</button>
                         </div>
-                        <div class="space-y-2.5" id="wifi-plan-options" role="radiogroup" aria-label="Escolha seu plano de WiFi">
+                        <div class="space-y-3" id="wifi-plan-options" role="radiogroup" aria-label="Escolha seu plano de WiFi">
                             @if($plan_short_enabled ?? true)
                             <!-- Plano 1 hora (compacto) -->
                             <button type="button" data-plan-option data-plan-price="{{ $wifi_price_short ?? 5.99 }}" data-plan-duration="{{ $session_duration_short ?? 1 }}" data-plan-name="{{ $session_duration_short ?? 1 }} hora(s) de acesso" data-plan-suffix="/ hora"
-                                class="wifi-plan-card flex w-full items-center gap-3 border-2 border-gray-200 bg-white px-3.5 py-2.5 text-left hover:border-green/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-green/30">
+                                class="wifi-plan-card flex w-full items-center gap-3 border-2 border-gray-200 bg-white px-4 py-3.5 text-left hover:border-green/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-green/30">
                                 <span data-plan-radio class="h-5 w-5 rounded-full border-2 border-gray-300 bg-white flex-shrink-0 transition-all duration-200"></span>
                                 <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-extrabold text-ink leading-tight">{{ $session_duration_short ?? 1 }}h de WiFi</p>
-                                    <p class="text-[11px] text-muted leading-tight mt-0.5">Ideal pra uma parada rápida</p>
+                                    <p class="text-base font-extrabold text-ink leading-tight">{{ $session_duration_short ?? 1 }} hora de internet</p>
+                                    <p class="text-[13px] text-gray-600 leading-tight mt-1">Para uma parada rápida</p>
                                 </div>
-                                <p data-plan-price-display class="text-lg font-black text-ink tracking-tight">R${{ number_format($wifi_price_short ?? 5.99, 2, ',', '.') }}</p>
+                                <p data-plan-price-display class="text-xl font-black text-ink tracking-tight whitespace-nowrap">R${{ number_format($wifi_price_short ?? 5.99, 2, ',', '.') }}</p>
                             </button>
                             @endif
 
                             @if($plan_full_enabled ?? true)
                             <!-- Plano Viagem Completa (PRÉ-SELECIONADO) -->
-                            <div class="relative pt-2.5">
-                                <div class="plan-tag left-3 bg-green text-white">
-                                    Até {{ $session_duration ?? 12 }}h de viagem
-                                </div>
+                            <div class="relative pt-3">
+                                <div class="plan-tag left-4 price-pill">⭐ Mais escolhido</div>
                                 <button type="button" data-plan-option data-plan-price="{{ $wifi_price_full ?? 6.99 }}" data-plan-duration="{{ $session_duration ?? 12 }}" data-plan-name="Viagem completa" data-plan-suffix="/ {{ $session_duration ?? 12 }} horas" data-plan-default="true"
-                                    class="wifi-plan-card plan-card-selected relative flex w-full border-2 text-left hover:shadow-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-green/30">
-                                    <span class="absolute -top-2.5 right-3 price-pill text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm z-10 leading-none">⭐ Mais escolhido</span>
-                                    <div class="flex w-full items-center gap-3 px-3.5 pt-4 pb-3">
-                                        <span data-plan-radio class="h-5 w-5 rounded-full border-[4px] border-green bg-white flex-shrink-0 transition-all duration-200"></span>
-                                        <div class="min-w-0 flex-1">
-                                            <p class="text-[15px] font-black text-ink leading-tight tracking-tight">Viagem completa</p>
-                                            <p class="text-[11px] text-green-dark/90 font-medium leading-snug mt-0.5">{{ $session_duration ?? 12 }} horas · Netflix, YouTube, WhatsApp e redes o trajeto todo</p>
-                                            @if(($savings ?? 0) > 0)
-                                            <span class="inline-block mt-1.5 text-[10px] font-bold text-amber-800 bg-amber-100 rounded-md px-1.5 py-0.5 leading-tight">Economize R${{ number_format($savings, 2, ',', '.') }}</span>
-                                            @endif
-                                        </div>
-                                        <div class="text-right flex-shrink-0">
-                                            <div class="flex items-center gap-1 justify-end">
-                                                <span class="text-[11px] text-gray-400 line-through">R${{ number_format($original_price ?? 9.99, 2, ',', '.') }}</span>
-                                                <span class="text-[10px] font-extrabold text-white bg-red-500 rounded-md px-1.5 py-0.5 leading-none">-{{ $discount_percentage ?? 30 }}%</span>
-                                            </div>
-                                            <p data-plan-price-display class="text-[24px] font-black text-green-dark tracking-tight leading-none mt-1">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
-                                            <p class="text-[10px] text-muted leading-none mt-1">≈ R${{ number_format(($wifi_price_full ?? 6.99) / max(1, $session_duration ?? 12), 2, ',', '.') }}/hora</p>
-                                        </div>
+                                    class="wifi-plan-card plan-card-selected relative flex w-full items-center gap-3 border-2 px-4 pt-5 pb-4 text-left hover:shadow-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-green/30">
+                                    <span data-plan-radio class="h-5 w-5 rounded-full border-[4px] border-green bg-white flex-shrink-0 transition-all duration-200"></span>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-[17px] font-black text-ink leading-tight tracking-tight">Viagem completa</p>
+                                        <p class="text-[13px] text-green-dark font-semibold leading-snug mt-1">{{ $session_duration ?? 12 }} horas de internet</p>
+                                    </div>
+                                    <div class="text-right flex-shrink-0">
+                                        <p class="text-[12px] text-gray-500 leading-none">de <span class="line-through">R${{ number_format($original_price ?? 9.99, 2, ',', '.') }}</span></p>
+                                        <p data-plan-price-display class="text-[26px] font-black text-green-dark tracking-tight leading-none mt-1 whitespace-nowrap">R${{ number_format($wifi_price_full ?? 6.99, 2, ',', '.') }}</p>
                                     </div>
                                 </button>
                             </div>
@@ -592,44 +555,25 @@
                         <!-- CTA primeiro: usuário vê plano + botão sem rolar -->
                         <div id="plan-cta-wrapper">
                             <button id="connect-btn"
-                                class="connect-button btn-pulse w-full text-white font-black py-3.5 rounded-2xl text-base flex flex-col items-center justify-center gap-0.5 shadow-lg lg:hidden">
+                                class="connect-button btn-pulse w-full text-white font-black py-3 rounded-2xl text-base flex flex-col items-center justify-center gap-0.5 shadow-lg lg:hidden">
                                 <span>CONECTAR AGORA</span>
-                                <span class="text-[11px] font-medium text-white/85">Pague via PIX e navegue na hora · rápido e fácil</span>
+                                <span class="text-[11px] font-semibold text-white/90">Pague via PIX e navegue na hora · rápido e fácil</span>
                             </button>
                             <button id="connect-btn-desktop"
-                                class="connect-button btn-pulse w-full text-white font-black py-3.5 rounded-2xl text-base flex flex-col items-center justify-center gap-0.5 shadow-lg hidden lg:flex">
+                                class="connect-button btn-pulse w-full text-white font-black py-3 rounded-2xl text-base flex flex-col items-center justify-center gap-0.5 shadow-lg hidden lg:flex">
                                 <span>CONECTAR AGORA</span>
-                                <span class="text-[11px] font-medium text-white/85">Pague via PIX e navegue na hora · rápido e fácil</span>
+                                <span class="text-[11px] font-semibold text-white/90">Pague via PIX e navegue na hora · rápido e fácil</span>
                             </button>
                         </div>
 
-                        <!-- Selos de confiança -->
-                        <div class="mt-3 grid grid-cols-3 gap-1.5 text-center">
-                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-1 py-2">
-                                <p class="text-sm leading-none">🔒</p>
-                                <p class="mt-1 text-[10px] font-bold text-ink2 leading-tight">Pagamento seguro</p>
-                            </div>
-                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-1 py-2">
-                                <p class="text-sm leading-none">⚡</p>
-                                <p class="mt-1 text-[10px] font-bold text-ink2 leading-tight">Libera em ~30s</p>
-                            </div>
-                            <div class="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-1 py-2">
-                                <p class="text-sm leading-none">📱</p>
-                                <p class="mt-1 text-[10px] font-bold text-ink2 leading-tight">Suporte WhatsApp</p>
-                            </div>
-                        </div>
-                        <div class="mt-2 flex items-center justify-center gap-1.5 rounded-xl bg-green-pale px-3 py-2">
-                            <span class="text-xs leading-none">🛡️</span>
-                            <p class="text-[11px] font-bold text-green-dark leading-tight">Não conectou? A gente resolve pelo WhatsApp</p>
-                        </div>
+                        <!-- Confiança: uma linha só, sem competir com o botão -->
+                        <p class="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[13px] font-semibold text-gray-600 leading-tight">
+                            <span>🔒 Pagamento seguro</span>
+                            <span>💬 Ajuda no WhatsApp</span>
+                        </p>
 
-                        <!-- Benefício: o que dá pra fazer -->
-                        <div class="mt-4 flex items-center gap-2">
-                            <span class="h-px flex-1 bg-gray-200"></span>
-                            <p class="text-[11px] font-bold text-muted leading-tight whitespace-nowrap">Navegue em tudo que você já usa</p>
-                            <span class="h-px flex-1 bg-gray-200"></span>
-                        </div>
-                        <div class="flex justify-center items-center gap-3 mt-2.5">
+                        <!-- Apps que funcionam (visual, sem texto extra) -->
+                        <div class="flex justify-center items-center gap-3 mt-3" aria-label="Funciona com Instagram, WhatsApp, YouTube, Facebook, TikTok e Netflix">
                             <div class="app-icon w-8 h-8 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #833AB4, #E1306C, #F77737);" title="Instagram">
                                 <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 01-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 017.8 2m-.2 2A3.6 3.6 0 004 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 003.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 110 2.5 1.25 1.25 0 010-2.5M12 7a5 5 0 110 10 5 5 0 010-10m0 2a3 3 0 100 6 3 3 0 000-6z"/></svg>
                             </div>
@@ -666,34 +610,34 @@
 
                 <!-- Ajuda compacta -->
                 <details class="group glass-card rounded-2xl animate-slide-up-delay overflow-hidden">
-                    <summary class="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
+                    <summary class="flex cursor-pointer list-none items-center gap-3 px-4 py-3.5">
                         <span class="inline-flex w-10 h-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-pale text-blue">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         </span>
-                        <span class="flex-1 text-[14px] font-extrabold text-ink">Precisa de ajuda?</span>
-                        <svg class="w-4 h-4 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        <span class="flex-1 text-[15px] font-extrabold text-ink">Precisa de ajuda?</span>
+                        <svg class="w-5 h-5 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </summary>
                     <div class="px-2 pb-2 space-y-1">
-                        <button onclick="openVideoTutorial()" class="flex items-center gap-3 rounded-xl px-2.5 py-2.5 w-full hover:bg-gray-50 transition-colors group/help">
-                            <span class="inline-flex w-8 h-8 flex-shrink-0 items-center justify-center rounded-lg bg-red-pale text-red">
+                        <button onclick="openVideoTutorial()" class="flex items-center gap-3 rounded-xl px-2.5 py-3 w-full hover:bg-gray-50 transition-colors group/help">
+                            <span class="inline-flex w-9 h-9 flex-shrink-0 items-center justify-center rounded-lg bg-red-pale text-red">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                             </span>
                             <span class="text-left flex-1">
-                                <span class="block text-[12px] font-bold text-ink">Como se conectar?</span>
-                                <span class="block text-[10px] text-muted">Vídeo passo a passo</span>
+                                <span class="block text-[14px] font-bold text-ink">Como se conectar?</span>
+                                <span class="block text-[12px] text-gray-600">Vídeo passo a passo</span>
                             </span>
-                            <svg class="w-3.5 h-3.5 text-gray-300 group-hover/help:text-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            <svg class="w-4 h-4 text-gray-300 group-hover/help:text-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         </button>
 
-                        <button type="button" onclick="openRecoveryModal()" class="flex items-center gap-3 rounded-xl px-2.5 py-2.5 w-full hover:bg-gray-50 transition-colors group/help">
-                            <span class="inline-flex w-8 h-8 flex-shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                        <button type="button" onclick="openRecoveryModal()" class="flex items-center gap-3 rounded-xl px-2.5 py-3 w-full hover:bg-gray-50 transition-colors group/help">
+                            <span class="inline-flex w-9 h-9 flex-shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
                             </span>
                             <span class="text-left flex-1">
-                                <span class="block text-[12px] font-bold text-ink">Já paguei mas sem internet?</span>
-                                <span class="block text-[10px] text-muted">Recuperar com telefone</span>
+                                <span class="block text-[14px] font-bold text-ink">Já paguei mas sem internet?</span>
+                                <span class="block text-[12px] text-gray-600">Recuperar com telefone</span>
                             </span>
-                            <svg class="w-3.5 h-3.5 text-gray-300 group-hover/help:text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            <svg class="w-4 h-4 text-gray-300 group-hover/help:text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                         </button>
                     </div>
                 </details>
